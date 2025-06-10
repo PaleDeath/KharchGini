@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,12 +25,11 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, PlusCircle, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { CalendarIcon, Edit, Loader2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType } from "@/lib/types";
-import { categorizeTransactionAction } from '@/actions/transaction-actions';
-import { addTransaction } from '@/lib/firebase/firestore';
+import { updateTransaction } from '@/lib/firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 
@@ -40,15 +38,18 @@ const transactionFormSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive (₹)"),
   type: z.enum(["income", "expense"], { required_error: "Type is required" }),
   date: z.date({ required_error: "Date is required" }),
+  category: z.string().optional(),
 });
 
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
-interface AddTransactionDialogProps {
-  onTransactionAdded: (newTransaction: Transaction) => void; 
+interface EditTransactionDialogProps {
+  transaction: Transaction;
+  onTransactionUpdated: (updatedTransaction: Transaction) => void;
+  children: React.ReactNode; // Trigger element
 }
 
-export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialogProps) {
+export function EditTransactionDialog({ transaction, onTransactionUpdated, children }: EditTransactionDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -57,52 +58,58 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
-      description: "",
-      amount: 0,
-      type: "expense",
-      date: new Date(),
+      description: transaction.description,
+      amount: transaction.amount,
+      type: transaction.type,
+      date: parseISO(transaction.date + 'T00:00:00'),
+      category: transaction.category || "",
     },
   });
 
+  // Reset form when transaction changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        description: transaction.description,
+        amount: transaction.amount,
+        type: transaction.type,
+        date: parseISO(transaction.date + 'T00:00:00'),
+        category: transaction.category || "",
+      });
+    }
+  }, [open, transaction, form]);
+
   const onSubmit = async (data: TransactionFormValues) => {
     if (!user?.uid) {
-      toast({ variant: "destructive", title: "Error", description: "You must be logged in to add transactions." });
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in to edit transactions." });
       return;
     }
     
     setIsLoading(true);
     try {
-      // Get AI categorization
-      const categorizationResult = await categorizeTransactionAction(data.description);
-      
-      const transactionData = {
-        date: format(data.date, "yyyy-MM-dd"),
+      const updatedData = {
         description: data.description,
         amount: data.amount,
         type: data.type,
-        category: categorizationResult.success ? categorizationResult.category : undefined,
+        date: format(data.date, "yyyy-MM-dd"),
+        category: data.category || undefined,
       };
 
-      // Save to Firestore
-      const newTransaction = await addTransaction(user.uid, transactionData);
+      // Update in Firestore
+      await updateTransaction(user.uid, transaction.id, updatedData);
       
-      const categoryText = categorizationResult.success && categorizationResult.category
-        ? ` and categorized as "${categorizationResult.category}"`
-        : '';
-      const confidenceText = categorizationResult.confidence 
-        ? ` (${Math.round(categorizationResult.confidence * 100)}% confidence)`
-        : '';
-        
-      toast({ 
-        title: "Transaction Added Successfully", 
-        description: `Transaction saved${categoryText}${confidenceText}.` 
-      });
-      onTransactionAdded(newTransaction); 
-      form.reset();
+      // Create updated transaction object for callback
+      const updatedTransaction: Transaction = {
+        ...transaction,
+        ...updatedData,
+      };
+      
+      toast({ title: "Success", description: "Transaction updated successfully." });
+      onTransactionUpdated(updatedTransaction);
       setOpen(false);
     } catch (error) {
-      console.error("Error adding transaction:", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to add transaction." });
+      console.error("Error updating transaction:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to update transaction." });
     } finally {
       setIsLoading(false);
     }
@@ -111,31 +118,45 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
-        </Button>
+        {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add New Transaction</DialogTitle>
+          <DialogTitle>Edit Transaction</DialogTitle>
           <DialogDescription>
-            Enter transaction details. All amounts in INR (₹).
+            Update transaction details. All amounts in INR (₹).
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">Description</Label>
             <div className="col-span-3">
-              <Input id="description" {...form.register("description")} placeholder="e.g., Lunch with friends" className={cn(form.formState.errors.description && "border-destructive")} />
-              {form.formState.errors.description && <p className="text-xs text-destructive mt-1">{form.formState.errors.description.message}</p>}
+              <Input 
+                id="description" 
+                {...form.register("description")} 
+                placeholder="e.g., Lunch with friends" 
+                className={cn(form.formState.errors.description && "border-destructive")} 
+              />
+              {form.formState.errors.description && (
+                <p className="text-xs text-destructive mt-1">{form.formState.errors.description.message}</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">Amount (₹)</Label>
             <div className="col-span-3">
-              <Input id="amount" type="number" step="1" {...form.register("amount")} placeholder="e.g., 500" className={cn(form.formState.errors.amount && "border-destructive")} />
-              {form.formState.errors.amount && <p className="text-xs text-destructive mt-1">{form.formState.errors.amount.message}</p>}
+              <Input 
+                id="amount" 
+                type="number" 
+                step="1" 
+                {...form.register("amount")} 
+                placeholder="e.g., 500" 
+                className={cn(form.formState.errors.amount && "border-destructive")} 
+              />
+              {form.formState.errors.amount && (
+                <p className="text-xs text-destructive mt-1">{form.formState.errors.amount.message}</p>
+              )}
             </div>
           </div>
 
@@ -146,7 +167,7 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
                 control={form.control}
                 name="type"
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value as TransactionType}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger id="type" className={cn(form.formState.errors.type && "border-destructive")}>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -157,7 +178,21 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
                   </Select>
                 )}
               />
-              {form.formState.errors.type && <p className="text-xs text-destructive mt-1">{form.formState.errors.type.message}</p>}
+              {form.formState.errors.type && (
+                <p className="text-xs text-destructive mt-1">{form.formState.errors.type.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="category" className="text-right">Category</Label>
+            <div className="col-span-3">
+              <Input 
+                id="category" 
+                {...form.register("category")} 
+                placeholder="e.g., Food & Dining (optional)" 
+              />
+              <p className="text-xs text-muted-foreground mt-1">Leave empty for AI to re-categorize</p>
             </div>
           </div>
 
@@ -188,23 +223,29 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        defaultMonth={field.value || new Date()} // Ensure calendar opens to selected or current month
+                        defaultMonth={field.value || new Date()}
                       />
                     </PopoverContent>
                   </Popover>
                 )}
               />
-              {form.formState.errors.date && <p className="text-xs text-destructive mt-1">{form.formState.errors.date.message}</p>}
+              {form.formState.errors.date && (
+                <p className="text-xs text-destructive mt-1">{form.formState.errors.date.message}</p>
+              )}
             </div>
           </div>
+          
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Saving..." : "Save Transaction"}
+              {isLoading ? "Updating..." : "Update Transaction"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   );
-}
+} 

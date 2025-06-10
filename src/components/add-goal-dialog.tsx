@@ -22,9 +22,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, PlusCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { addGoalAction } from '@/actions/goal-actions';
+import { addGoal } from '@/lib/firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import type { FinancialGoal } from '@/lib/types';
+import { useAuth } from '@/contexts/auth-context';
 
 const goalFormSchema = z.object({
   name: z.string().min(1, "Goal name is required"),
@@ -43,6 +44,7 @@ export function AddGoalDialog({ onGoalAdded }: AddGoalDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const form = useForm<GoalFormValues>({
     resolver: zodResolver(goalFormSchema),
@@ -54,25 +56,30 @@ export function AddGoalDialog({ onGoalAdded }: AddGoalDialogProps) {
   });
 
   const onSubmit = async (data: GoalFormValues) => {
+    if (!user?.uid) {
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in to add goals." });
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      // The addGoalAction is a mock, in a real app it would save to a DB.
-      // For local state, we'll construct the goal and pass it to the callback.
-      const result = await addGoalAction({
-        ...data,
+      const goalData = {
+        name: data.name,
+        targetAmount: data.targetAmount,
+        currentAmount: data.currentAmount || 0,
         targetDate: data.targetDate ? format(data.targetDate, "yyyy-MM-dd") : undefined,
-      });
+      };
 
-      if (result.success && result.goal) {
-        toast({ title: "Success", description: "Financial goal added successfully." });
-        onGoalAdded(result.goal); // Pass the newly created goal back
-        form.reset();
-        setOpen(false);
-      } else {
-        toast({ variant: "destructive", title: "Error", description: result.error || "Failed to add goal." });
-      }
+      // Save to Firestore
+      const newGoal = await addGoal(user.uid, goalData);
+      
+      toast({ title: "Success", description: "Financial goal added successfully." });
+      onGoalAdded(newGoal); // Pass the newly created goal back
+      form.reset();
+      setOpen(false);
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "An unexpected error occurred." });
+      console.error("Error adding goal:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to add goal." });
     } finally {
       setIsLoading(false);
     }

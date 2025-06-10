@@ -36,12 +36,52 @@ const categorizeTransactionPrompt = ai.definePrompt({
   name: 'categorizeTransactionPrompt',
   input: {schema: CategorizeTransactionInputSchema},
   output: {schema: CategorizeTransactionOutputSchema},
-  prompt: `You are an expert financial advisor that helps categorize transactions into categories.
+  prompt: `You are an expert financial advisor specializing in Indian personal finance and transaction categorization.
 
-  Given the following transaction description, determine the most appropriate category and a confidence level between 0 and 1.
+  Analyze the following transaction description and categorize it into one of these specific categories:
 
-  Transaction Description: {{{transactionDescription}}}
-  `,
+  **INDIAN EXPENSE CATEGORIES:**
+  • Food & Dining - Restaurants, cafes, street food, Zomato, Swiggy, groceries, supermarkets
+  • Transportation - Uber, Ola, petrol, auto-rickshaw, metro, bus, train tickets, parking
+  • Shopping - Clothes, electronics, Amazon, Flipkart, Myntra, BigBasket, furniture, gadgets
+  • Bills & Utilities - Electricity, water, gas, mobile recharge, internet, DTH, maintenance
+  • Healthcare - Hospitals, medicines, doctors, Apollo, insurance, lab tests, pharmacy
+  • Entertainment - Movies, Netflix, Hotstar, games, sports, concerts, subscriptions
+  • Education - School fees, books, courses, online learning, coaching classes
+  • Travel & Vacation - Hotels, flights, vacation packages, sightseeing
+  • Insurance - Life insurance, health insurance, vehicle insurance premiums
+  • Investments - Mutual funds, SIP, stocks, FD, PPF, ELSS, crypto
+  • Personal Care - Salons, cosmetics, gym membership, healthcare products
+  • Home & Garden - Rent, home repairs, furniture, appliances, garden supplies
+  • Gifts & Donations - Festivals, weddings, charity, religious donations
+  • Professional Services - CA fees, legal services, consultancy
+  • Miscellaneous - ATM withdrawals, bank charges, other unspecified expenses
+
+  **INDIAN INCOME CATEGORIES:**
+  • Salary - Monthly salary, bonus, incentives
+  • Business Income - Freelancing, business profits, consulting
+  • Investment Returns - Dividends, interest, capital gains
+  • Rental Income - Property rent, room rent
+  • Other Income - Gifts received, cashback, refunds
+
+  **ANALYSIS INSTRUCTIONS:**
+  1. Look for specific Indian brands, apps, and services (Paytm, PhonePe, GPay, Jio, Airtel, etc.)
+  2. Consider Indian context (EMI, recharge, maintenance, festival expenses)
+  3. Use transaction amount patterns (small amounts likely food, large amounts likely shopping/travel)
+  4. For unclear descriptions, choose the most likely category based on Indian spending patterns
+  5. Set confidence high (0.8-1.0) for clear transactions, medium (0.5-0.7) for somewhat unclear, low (0.2-0.4) for very ambiguous
+
+  **EXAMPLES:**
+  • "Zomato order" → Food & Dining (confidence: 0.95)
+  • "Uber ride" → Transportation (confidence: 0.95)
+  • "Amazon purchase" → Shopping (confidence: 0.85)
+  • "Jio recharge" → Bills & Utilities (confidence: 0.95)
+  • "SIP payment" → Investments (confidence: 0.95)
+  • "ATM withdrawal" → Miscellaneous (confidence: 0.7)
+
+  Transaction Description: "{{{transactionDescription}}}"
+  
+  Provide the most appropriate category from the list above and a confidence level between 0 and 1.`,
 });
 
 const categorizeTransactionFlow = ai.defineFlow(

@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { FinancialGoal } from "@/lib/types";
-import { deleteGoalAction } from '@/actions/goal-actions'; 
+import { deleteGoal } from '@/lib/firebase/firestore'; 
 import { useToast } from "@/hooks/use-toast";
 import { Target, Edit, Trash2 } from "lucide-react";
+import { useGoals } from '@/hooks/use-firestore-data';
+import { useAuth } from '@/contexts/auth-context';
 import { differenceInDays, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import {
   AlertDialog,
@@ -25,32 +27,30 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function GoalsPage() {
-  const [goals, setGoals] = useState<FinancialGoal[]>([]); // Initialize with empty array
   const { toast } = useToast();
-
-  // In a real app with a backend, fetchGoals would retrieve data.
-  // For local state, this is less critical unless we add localStorage persistence.
-  const fetchGoals = useCallback(() => {
-    // Simulate fetching data or load from localStorage if implemented
-  }, []);
-
-  useEffect(() => {
-    fetchGoals();
-  }, [fetchGoals]);
+  const { user } = useAuth();
+  const { goals, loading, error, refreshGoals } = useGoals();
 
   const handleGoalAdded = (newGoal: FinancialGoal) => {
-     setGoals(prev => [newGoal, ...prev].sort((a, b) => (a.targetDate && b.targetDate) ? new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime() : 0));
+     // Refresh goals from Firestore to get the latest data
+     refreshGoals();
      toast({ title: "Goal Added", description: `'${newGoal.name}' has been successfully added.`});
   };
   
 
   const handleDeleteGoal = async (goalId: string) => {
-    const result = await deleteGoalAction(goalId); // This is a mock action
-    if (result.success) {
-      setGoals(prev => prev.filter(g => g.id !== goalId));
+    if (!user?.uid) {
+      toast({ variant: "destructive", title: "Error", description: "User not logged in." });
+      return;
+    }
+    try {
+      await deleteGoal(user.uid, goalId);
+      // Refresh goals from Firestore to get the latest data
+      refreshGoals();
       toast({ title: "Success", description: "Goal deleted." });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.error || "Failed to delete goal." });
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to delete goal." });
     }
   };
 

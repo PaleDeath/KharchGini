@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,19 +22,19 @@ export function FinancialHealthWidget({ score }: FinancialHealthWidgetProps) {
     <Card className="shadow-md lg:col-span-1">
       <CardHeader>
         <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center">
-                <HeartPulse className="mr-2 h-5 w-5 text-primary" />
-                Financial Health Score
+            <CardTitle className="flex items-center text-base sm:text-lg">
+                <HeartPulse className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <span className="text-sm sm:text-base">Financial Health Score</span>
             </CardTitle>
         </div>
-        <CardDescription>{descriptionText}</CardDescription>
+        <CardDescription className="text-sm">{descriptionText}</CardDescription>
       </CardHeader>
-      <CardContent className="h-[300px] flex flex-col items-center justify-center">
+      <CardContent className="h-[250px] sm:h-[300px] flex flex-col items-center justify-center">
         <ResponsiveContainer width="100%" height="80%">
           <RadialBarChart
             innerRadius="70%"
             outerRadius="100%"
-            barSize={20}
+            barSize={15}
             data={data}
             startAngle={90}
             endAngle={-270}
@@ -58,12 +57,15 @@ export function FinancialHealthWidget({ score }: FinancialHealthWidgetProps) {
                 backgroundColor: 'hsl(var(--background))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: 'var(--radius)',
+                fontSize: '12px'
               }}
               formatter={(value: number) => [`${value}/100`, "Score"]}
             />
           </RadialBarChart>
         </ResponsiveContainer>
-        <p className="text-3xl font-bold text-foreground -mt-8">{score}<span className="text-sm text-muted-foreground">/100</span></p>
+        <p className="text-2xl sm:text-3xl font-bold text-foreground -mt-6 sm:-mt-8">
+          {score}<span className="text-xs sm:text-sm text-muted-foreground">/100</span>
+        </p>
       </CardContent>
     </Card>
   );

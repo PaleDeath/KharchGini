@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -13,6 +12,8 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";
 import type { Transaction, FinancialGoal } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useTransactions, useGoals } from '@/hooks/use-firestore-data';
+import { useAuth } from '@/contexts/auth-context';
 
 interface SpendingDataItem {
   name: string;
@@ -23,9 +24,10 @@ export default function DashboardPage() {
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [netWorth, setNetWorth] = useState(0); 
-  const [transactions, setTransactions] = useState<Transaction[]>([]); 
-  const [goals, setGoals] = useState<FinancialGoal[]>([]); 
   const [financialHealthScore, setFinancialHealthScore] = useState(0);
+  const { user } = useAuth();
+  const { transactions, loading: transactionsLoading } = useTransactions();
+  const { goals, loading: goalsLoading } = useGoals();
 
   useEffect(() => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -82,75 +84,103 @@ export default function DashboardPage() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
   };
 
+  const isLoading = transactionsLoading || goalsLoading;
+
   return (
     <>
       <PageHeader title="Dashboard" description="Your financial overview at a glance." />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      
+      {/* Stats Cards - Responsive Grid */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard title="Total Income" value={formatCurrency(totalIncome)} icon={TrendingUp} trendColor="text-emerald-500" />
         <StatCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon={TrendingDown} trendColor="text-red-500"/>
         <StatCard title="Net Balance" value={formatCurrency(totalIncome - totalExpenses)} icon={DollarSign} description="Income - Expenses" />
         <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Landmark} description="Estimated (coming soon)" />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+      {/* Main Content - Responsive Grid */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 mb-6">
+        {/* Spending Overview */}
         <Card className="shadow-md lg:col-span-1">
           <CardHeader>
-            <CardTitle>Spending Overview</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-base sm:text-lg">Spending Overview</CardTitle>
+            <CardDescription className="text-sm">
               {spendingData.length > 0 ? "Your expenses by category this month (₹)." : "No spending data available yet."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[250px] sm:h-[300px]">
             {spendingData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={spendingData} layout="vertical" margin={{ right: 30 }}>
+                <BarChart data={spendingData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--foreground))" fontSize={12} tickFormatter={(value) => `₹${value/1000}k`} />
-                  <YAxis dataKey="name" type="category" stroke="hsl(var(--foreground))" fontSize={12} width={80} tick={{ dy: 5 }} />
+                  <XAxis 
+                    type="number" 
+                    stroke="hsl(var(--foreground))" 
+                    fontSize={10} 
+                    tickFormatter={(value) => `₹${value/1000}k`} 
+                  />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    stroke="hsl(var(--foreground))" 
+                    fontSize={9}
+                    width={60}
+                    tick={{ dy: 5 }} 
+                    tickFormatter={(value) => value.length > 8 ? `${value.slice(0, 8)}...` : value}
+                  />
                   <Tooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)' }}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))', 
+                      border: '1px solid hsl(var(--border))', 
+                      borderRadius: 'var(--radius)',
+                      fontSize: '12px'
+                    }}
                     labelStyle={{ color: 'hsl(var(--foreground))' }}
                     formatter={(value: number) => [formatCurrency(value), "Spending"]}
                   />
-                  <Legend wrapperStyle={{fontSize: "12px", paddingTop: "10px"}}/>
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Spending" barSize={20}/>
+                  <Legend wrapperStyle={{fontSize: "10px", paddingTop: "5px"}}/>
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Spending" barSize={15}/>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                <PieChart className="h-12 w-12 mb-2" />
-                <p>No expenses recorded yet.</p>
+                <PieChart className="h-8 w-8 sm:h-12 sm:w-12 mb-2" />
+                <p className="text-sm">No expenses recorded yet.</p>
                 <p className="text-xs">Add an expense transaction to see your spending breakdown.</p>
               </div>
             )}
           </CardContent>
         </Card>
         
+        {/* Financial Health Widget */}
         <FinancialHealthWidget score={financialHealthScore} />
 
+        {/* Active Goals */}
         <Card className="shadow-md lg:col-span-1">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Active Goals</CardTitle>
-              <Button variant="outline" size="sm" asChild>
+              <CardTitle className="text-base sm:text-lg">Active Goals</CardTitle>
+              <Button variant="outline" size="sm" asChild className="text-xs">
                 <Link href="/goals">View All</Link>
               </Button>
             </div>
-            <CardDescription>Track your progress towards financial goals.</CardDescription>
+            <CardDescription className="text-sm">Track your progress towards financial goals.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 h-[300px] overflow-y-auto">
+          <CardContent className="space-y-3 sm:space-y-4 h-[250px] sm:h-[300px] overflow-y-auto">
             {goals.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                <TargetIcon className="h-12 w-12 mb-2" />
-                <p>No active goals yet.</p>
-                <Link href="/goals" className="text-primary hover:underline text-sm mt-1">Add a goal</Link>
+                <TargetIcon className="h-8 w-8 sm:h-12 sm:w-12 mb-2" />
+                <p className="text-sm">No active goals yet.</p>
+                <Link href="/goals" className="text-primary hover:underline text-xs mt-1">Add a goal</Link>
               </div>
             ) : (
               goals.slice(0,3).map(goal => (
                 <div key={goal.id}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-foreground">{goal.name}</span>
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex justify-between items-start mb-1 gap-2">
+                    <span className="text-sm font-medium text-foreground truncate flex-1 min-w-0" title={goal.name}>
+                      {goal.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap text-right">
                       {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
                     </span>
                   </div>
@@ -162,48 +192,88 @@ export default function DashboardPage() {
         </Card>
       </div>
       
+      {/* Recent Transactions */}
       <Card className="shadow-md">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Recent Transactions</CardTitle>
-            <Button variant="outline" size="sm" asChild>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-base sm:text-lg">Recent Transactions</CardTitle>
+              <CardDescription className="text-sm">Your latest financial activities.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" asChild className="text-xs shrink-0">
               <Link href="/transactions">View All</Link>
             </Button>
           </div>
-          <CardDescription>Your latest financial activities.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Table>
-            {transactions.length === 0 && (
-                 <TableCaption className="py-10 text-center">
-                    <div className="flex flex-col items-center justify-center">
-                        <CreditCard className="h-12 w-12 mb-2 text-muted-foreground" />
-                        <p className="text-muted-foreground">No transactions recorded yet.</p>
-                        <Link href="/transactions" className="text-primary hover:underline text-sm mt-1">Add your first transaction</Link>
+        <CardContent className="p-0 sm:p-6">
+          {/* Mobile Card View */}
+          <div className="sm:hidden space-y-3 p-4">
+            {transactions.length === 0 ? (
+              <div className="py-8 text-center">
+                <CreditCard className="h-8 w-8 mb-2 text-muted-foreground mx-auto" />
+                <p className="text-muted-foreground text-sm">No transactions recorded yet.</p>
+                <Link href="/transactions" className="text-primary hover:underline text-xs mt-1 block">Add your first transaction</Link>
+              </div>
+            ) : (
+              transactions.slice(0, 5).map((transaction) => (
+                <div key={transaction.id} className="border border-border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{transaction.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(transaction.date + 'T00:00:00').toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}
+                      </p>
                     </div>
-                 </TableCaption>
+                    <div className={`text-right ${transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                      <p className="font-semibold text-sm">
+                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                      </p>
+                    </div>
+                  </div>
+                  {transaction.category && (
+                    <div>
+                      <span className="text-xs bg-muted px-2 py-1 rounded">{transaction.category}</span>
+                    </div>
+                  )}
+                </div>
+              ))
             )}
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.slice(0, 5).map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell className="font-medium">{transaction.description}</TableCell>
-                  <TableCell>{transaction.category || <span className="italic text-muted-foreground">N/A</span>}</TableCell>
-                  <TableCell>{new Date(transaction.date  + 'T00:00:00').toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</TableCell>
-                  <TableCell className={`text-right font-semibold ${transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                  </TableCell>
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <Table>
+              {transactions.length === 0 && (
+                   <TableCaption className="py-10 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                          <CreditCard className="h-12 w-12 mb-2 text-muted-foreground" />
+                          <p className="text-muted-foreground">No transactions recorded yet.</p>
+                          <Link href="/transactions" className="text-primary hover:underline text-sm mt-1">Add your first transaction</Link>
+                      </div>
+                   </TableCaption>
+              )}
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[150px]">Description</TableHead>
+                  <TableHead className="min-w-[100px]">Category</TableHead>
+                  <TableHead className="whitespace-nowrap">Date</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Amount</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {transactions.slice(0, 5).map((transaction) => (
+                  <TableRow key={transaction.id}>
+                    <TableCell className="font-medium">{transaction.description}</TableCell>
+                    <TableCell>{transaction.category || <span className="italic text-muted-foreground">N/A</span>}</TableCell>
+                    <TableCell className="whitespace-nowrap">{new Date(transaction.date  + 'T00:00:00').toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</TableCell>
+                    <TableCell className={`text-right font-semibold whitespace-nowrap ${transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </>

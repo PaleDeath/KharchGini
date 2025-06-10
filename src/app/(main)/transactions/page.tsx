@@ -1,18 +1,23 @@
-
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from "@/components/page-header";
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
+import { EditTransactionDialog } from "@/components/edit-transaction-dialog";
+import { CategoryReference } from "@/components/category-reference";
+import { TransactionFiltersComponent, type TransactionFilters, type TransactionSort } from "@/components/transaction-filters";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash2, Edit, Tags, Loader2 } from "lucide-react";
+import { MoreHorizontal, Trash2, Edit, Tags, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { Transaction } from "@/lib/types";
-import { categorizeTransactionAction, deleteTransactionAction } from '@/actions/transaction-actions';
+import { categorizeTransactionAction } from '@/actions/transaction-actions';
+import { updateTransaction, deleteTransaction } from '@/lib/firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from '@/components/ui/badge';
+import { useTransactions } from '@/hooks/use-firestore-data';
+import { useAuth } from '@/contexts/auth-context';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,31 +30,70 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { processTransactions, getTransactionStats } from "@/lib/transaction-utils";
 
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]); // Initialize with empty array
   const [isCategorizing, setIsCategorizing] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { transactions, loading, error, refreshTransactions } = useTransactions();
+
+  // Filtering and sorting state
+  const [filters, setFilters] = useState<TransactionFilters>({
+    search: '',
+    type: 'all',
+    category: ''
+  });
+  const [sort, setSort] = useState<TransactionSort>({
+    field: 'date',
+    order: 'desc'
+  });
+
+  // Apply filters and sorting
+  const processedTransactions = useMemo(() => {
+    return processTransactions(transactions, filters, sort);
+  }, [transactions, filters, sort]);
+
+  // Get stats for the filtered transactions
+  const stats = useMemo(() => {
+    return getTransactionStats(processedTransactions);
+  }, [processedTransactions]);
 
   const handleTransactionAdded = (newTransaction: Transaction) => {
-    setTransactions(prev => [newTransaction, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    // Refresh transactions from Firestore to get the latest data
+    refreshTransactions();
     toast({ title: "Transaction Added", description: "Your transaction has been recorded."});
   };
 
+  const handleTransactionUpdated = (updatedTransaction: Transaction) => {
+    // Refresh transactions from Firestore to get the latest data
+    refreshTransactions();
+  };
+
   const handleCategorize = async (transaction: Transaction) => {
-    if (!transaction.description) {
-      toast({ variant: "destructive", title: "Error", description: "Transaction description is empty." });
+    if (!transaction.description || !user?.uid) {
+      toast({ variant: "destructive", title: "Error", description: "Transaction description is empty or user not logged in." });
       return;
     }
     setIsCategorizing(transaction.id);
     try {
-        const result = await categorizeTransactionAction(transaction.id, transaction.description);
+        const result = await categorizeTransactionAction(transaction.description);
         if (result.success && result.category) {
-        setTransactions(prev => prev.map(t => t.id === transaction.id ? { ...t, category: result.category } : t));
-        toast({ title: "Success", description: `Transaction categorized as ${result.category}.` });
+          // Update the transaction in Firestore
+          await updateTransaction(user.uid, transaction.id, { category: result.category });
+          // Refresh transactions to get updated data from Firestore
+          refreshTransactions();
+          
+          const confidenceText = result.confidence 
+            ? ` (${Math.round(result.confidence * 100)}% confidence)`
+            : '';
+          toast({ 
+            title: "AI Categorization Complete", 
+            description: `Categorized as "${result.category}"${confidenceText}` 
+          });
         } else {
-        toast({ variant: "destructive", title: "Error", description: result.error || "Failed to categorize transaction." });
+          toast({ variant: "destructive", title: "Error", description: result.error || "Failed to categorize transaction." });
         }
     } catch (error) {
          toast({ variant: "destructive", title: "AI Categorization Error", description: "Could not connect to AI service." });
@@ -59,12 +103,18 @@ export default function TransactionsPage() {
   };
 
   const handleDelete = async (transactionId: string) => {
-    const result = await deleteTransactionAction(transactionId); 
-    if (result.success) {
-      setTransactions(prev => prev.filter(t => t.id !== transactionId));
+    if (!user?.uid) {
+      toast({ variant: "destructive", title: "Error", description: "User not logged in." });
+      return;
+    }
+    try {
+      await deleteTransaction(user.uid, transactionId); 
+      // Refresh transactions to get updated data from Firestore
+      refreshTransactions();
       toast({ title: "Success", description: "Transaction deleted." });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.error || "Failed to delete transaction." });
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to delete transaction." });
     }
   };
   
@@ -72,39 +122,139 @@ export default function TransactionsPage() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
   };
 
+  const getSortIcon = (field: string) => {
+    if (sort.field !== field) {
+      return <ArrowUpDown className="h-4 w-4 opacity-50" />;
+    }
+    return sort.order === 'asc' 
+      ? <ArrowUp className="h-4 w-4 text-primary" />
+      : <ArrowDown className="h-4 w-4 text-primary" />;
+  };
+
+  const handleHeaderSort = (field: any) => {
+    if (sort.field === field) {
+      setSort({
+        field,
+        order: sort.order === 'asc' ? 'desc' : 'asc'
+      });
+    } else {
+      setSort({
+        field,
+        order: field === 'date' ? 'desc' : 'asc'
+      });
+    }
+  };
+
   return (
     <>
       <PageHeader
         title="Transactions"
-        description="Manage and categorize your financial transactions."
-        actions={<AddTransactionDialog onTransactionAdded={handleTransactionAdded} />}
+        description={`Manage and categorize your financial transactions. ${stats.total > 0 ? `Showing ${stats.total} of ${transactions.length} transactions.` : ''}`}
+        actions={
+          <div className="flex gap-2">
+            <CategoryReference />
+            <AddTransactionDialog onTransactionAdded={handleTransactionAdded} />
+          </div>
+        }
       />
-      <Card className="shadow-md">
+      
+      {/* Filters and Search */}
+      <div className="mb-6">
+        <TransactionFiltersComponent
+          transactions={transactions}
+          filters={filters}
+          sort={sort}
+          onFiltersChange={setFilters}
+          onSortChange={setSort}
+        />
+      </div>
+
+      {/* Results summary */}
+      {(filters.search || filters.type !== 'all' || filters.category) && (
+        <div className="mb-4">
+          <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+            {stats.total === 0 ? (
+              "No transactions match your filters."
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                <span>
+                  Found <strong>{stats.total}</strong> transaction{stats.total !== 1 ? 's' : ''}
+                  {stats.income > 0 && ` (${stats.income} income)`}
+                  {stats.expense > 0 && ` (${stats.expense} expense${stats.expense !== 1 ? 's' : ''})`}
+                </span>
+                {stats.totalIncome > 0 || stats.totalExpenses > 0 && (
+                  <span className="sm:ml-2">
+                    <span className="hidden sm:inline"> · </span>Net: <strong className={stats.netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                      {formatCurrency(Math.abs(stats.netAmount))} {stats.netAmount >= 0 ? 'surplus' : 'deficit'}
+                    </strong>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Table View */}
+      <Card className="shadow-md hidden md:block">
         <CardContent className="p-0">
-          <Table>
-            {transactions.length === 0 && <TableCaption className="py-4">No transactions found. Add one to get started!</TableCaption>}
+          <div className="overflow-x-auto">
+            <Table className="min-w-[700px]">
+            {processedTransactions.length === 0 && transactions.length === 0 && <TableCaption className="py-4">No transactions found. Add one to get started!</TableCaption>}
+            {processedTransactions.length === 0 && transactions.length > 0 && <TableCaption className="py-4">No transactions match your current filters.</TableCaption>}
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none whitespace-nowrap"
+                  onClick={() => handleHeaderSort('date')}
+                >
+                  <div className="flex items-center gap-1">
+                    Date
+                    {getSortIcon('date')}
+                  </div>
+                </TableHead>
+                <TableHead className="min-w-[150px]">
+                  Description
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none whitespace-nowrap"
+                  onClick={() => handleHeaderSort('amount')}
+                >
+                  <div className="flex items-center gap-1">
+                    Amount
+                    {getSortIcon('amount')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none whitespace-nowrap"
+                  onClick={() => handleHeaderSort('type')}
+                >
+                  <div className="flex items-center gap-1">
+                    Type
+                    {getSortIcon('type')}
+                  </div>
+                </TableHead>
+                <TableHead className="min-w-[120px]">
+                  Category
+                </TableHead>
+                <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction) => (
+              {processedTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
-                  <TableCell>{new Date(transaction.date + 'T00:00:00').toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</TableCell>
-                  <TableCell className="font-medium">{transaction.description}</TableCell>
-                  <TableCell className={transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                  <TableCell className="whitespace-nowrap">{new Date(transaction.date + 'T00:00:00').toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</TableCell>
+                  <TableCell className="font-medium max-w-[200px] truncate" title={transaction.description}>{transaction.description}</TableCell>
+                  <TableCell className={cn(
+                    'whitespace-nowrap font-medium',
+                    transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                  )}>
                     {formatCurrency(transaction.amount)}
                   </TableCell>
                   <TableCell>
                     <Badge 
                            className={cn(
-                            'font-semibold text-xs px-2 py-0.5', // adjusted padding and text size
+                            'font-semibold text-xs px-2 py-0.5 whitespace-nowrap',
                             transaction.type === 'income' 
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-700/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600' 
                               : 'bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-600'
@@ -113,31 +263,42 @@ export default function TransactionsPage() {
                       {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{transaction.category || <span className="text-muted-foreground italic">Uncategorized</span>}</TableCell>
+                  <TableCell className="max-w-[120px] truncate" title={transaction.category || 'Uncategorized'}>{transaction.category || <span className="text-muted-foreground italic">Uncategorized</span>}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => toast({title: "Coming Soon!", description:"Editing transactions will be available in a future update."})}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleCategorize(transaction)} disabled={isCategorizing === transaction.id || !transaction.description}>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <EditTransactionDialog 
+                          transaction={transaction} 
+                          onTransactionUpdated={handleTransactionUpdated}
+                        >
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="cursor-pointer">
+                            <Edit className="mr-2 h-4 w-4" /> 
+                            <span>Edit Transaction</span>
+                          </DropdownMenuItem>
+                        </EditTransactionDialog>
+                        <DropdownMenuItem 
+                          onClick={() => handleCategorize(transaction)} 
+                          disabled={isCategorizing === transaction.id || !transaction.description}
+                          className="cursor-pointer"
+                        >
                           {isCategorizing === transaction.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Tags className="mr-2 h-4 w-4" />}
-                          AI Categorize
+                          <span>AI Categorize</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <DropdownMenuItem 
                               onSelect={(e) => e.preventDefault()} 
-                              className="text-destructive focus:text-destructive focus:bg-destructive/10 dark:focus:bg-destructive dark:focus:text-destructive-foreground"
+                              className="text-destructive focus:text-destructive focus:bg-destructive/10 dark:focus:bg-destructive dark:focus:text-destructive-foreground cursor-pointer"
                             >
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              <Trash2 className="mr-2 h-4 w-4" /> 
+                              <span>Delete Transaction</span>
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -162,8 +323,122 @@ export default function TransactionsPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {processedTransactions.length === 0 && transactions.length === 0 && (
+          <Card className="shadow-md">
+            <CardContent className="py-8 text-center text-muted-foreground">
+              No transactions found. Add one to get started!
+            </CardContent>
+          </Card>
+        )}
+        {processedTransactions.length === 0 && transactions.length > 0 && (
+          <Card className="shadow-md">
+            <CardContent className="py-8 text-center text-muted-foreground">
+              No transactions match your current filters.
+            </CardContent>
+          </Card>
+        )}
+        {processedTransactions.map((transaction) => (
+          <Card key={transaction.id} className="shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-foreground truncate">{transaction.description}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(transaction.date + 'T00:00:00').toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}
+                  </p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0 shrink-0 hover:bg-muted">
+                      <span className="sr-only">Open menu</span>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <EditTransactionDialog 
+                      transaction={transaction} 
+                      onTransactionUpdated={handleTransactionUpdated}
+                    >
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="cursor-pointer">
+                        <Edit className="mr-2 h-4 w-4" /> 
+                        <span>Edit Transaction</span>
+                      </DropdownMenuItem>
+                    </EditTransactionDialog>
+                    <DropdownMenuItem 
+                      onClick={() => handleCategorize(transaction)} 
+                      disabled={isCategorizing === transaction.id || !transaction.description}
+                      className="cursor-pointer"
+                    >
+                      {isCategorizing === transaction.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Tags className="mr-2 h-4 w-4" />}
+                      <span>AI Categorize</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem 
+                          onSelect={(e) => e.preventDefault()} 
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10 dark:focus:bg-destructive dark:focus:text-destructive-foreground cursor-pointer"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> 
+                          <span>Delete Transaction</span>
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this transaction.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(transaction.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    className={cn(
+                      'font-semibold text-xs px-2 py-1',
+                      transaction.type === 'income' 
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-700/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600' 
+                        : 'bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-600'
+                    )}
+                  >
+                    {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                  </Badge>
+                  {transaction.category && (
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                      {transaction.category}
+                    </span>
+                  )}
+                </div>
+                <div className={cn(
+                  'font-semibold text-right',
+                  transaction.type === 'income' 
+                    ? 'text-emerald-600 dark:text-emerald-400' 
+                    : 'text-red-600 dark:text-red-400'
+                )}>
+                  {formatCurrency(transaction.amount)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </>
   );
 }
