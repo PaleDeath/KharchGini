@@ -4,16 +4,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { FinancialHealthWidget } from "@/components/financial-health-widget";
-import { DollarSign, TrendingUp, TrendingDown, Landmark, Target as TargetIcon, PieChart, CreditCard } from "lucide-react";
+import { BillsCalendarWidget } from "@/components/bills-calendar-widget";
+
+import { DollarSign, TrendingUp, TrendingDown, Landmark, PieChart, CreditCard, Wallet, AlertTriangle, Repeat } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";
-import type { Transaction, FinancialGoal } from "@/lib/types";
+import type { Transaction } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useTransactions, useGoals } from '@/hooks/use-firestore-data';
+import { useTransactions, useBudgetSummary, useRecurringTransactions } from '@/hooks/use-firestore-data';
 import { useAuth } from '@/contexts/auth-context';
+import { useToast } from "@/hooks/use-toast";
+import { cn } from '@/lib/utils';
 
 interface SpendingDataItem {
   name: string;
@@ -26,8 +31,42 @@ export default function DashboardPage() {
   const [netWorth, setNetWorth] = useState(0); 
   const [financialHealthScore, setFinancialHealthScore] = useState(0);
   const { user } = useAuth();
-  const { transactions, loading: transactionsLoading } = useTransactions();
-  const { goals, loading: goalsLoading } = useGoals();
+  const { toast } = useToast();
+  const { transactions, loading: transactionsLoading, refreshTransactions } = useTransactions();
+  const { recurringTransactions, processRecurringTransactionsNow } = useRecurringTransactions();
+  
+  // Get current month for budget data
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const { summary: budgetSummary, loading: budgetLoading } = useBudgetSummary(currentMonth);
+
+  // Check for due recurring transactions
+  const dueRecurringTransactions = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return recurringTransactions.filter(rt => rt.isActive && rt.nextDueDate <= today);
+  }, [recurringTransactions]);
+
+  // Auto-process recurring transactions on dashboard load
+  useEffect(() => {
+    if (user?.uid && dueRecurringTransactions.length > 0) {
+      // Auto-process after a short delay to let the dashboard load first
+      const timer = setTimeout(async () => {
+        try {
+          const processedCount = await processRecurringTransactionsNow();
+          if (processedCount > 0) {
+            refreshTransactions(); // Refresh transactions to show new ones
+            toast({
+              title: "Recurring Transactions Processed",
+              description: `${processedCount} new transaction${processedCount !== 1 ? 's' : ''} created automatically.`,
+            });
+          }
+        } catch (error) {
+          console.error("Error auto-processing recurring transactions:", error);
+        }
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user?.uid, dueRecurringTransactions.length, processRecurringTransactionsNow, refreshTransactions, toast]);
 
   useEffect(() => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -53,7 +92,6 @@ export default function DashboardPage() {
       .sort((a, b) => b.value - a.value); // Sort by value descending
   }, [transactions]);
 
-
   useEffect(() => {
     let score = 0;
     if (totalIncome > 0) {
@@ -64,38 +102,61 @@ export default function DashboardPage() {
       score = 5;
     }
 
-
-    if (goals.length > 0) {
-      const totalGoalProgress = goals.reduce((acc, goal) => {
-        if (goal.targetAmount > 0 && goal.currentAmount > 0) { 
-             return acc + (Math.min(goal.currentAmount, goal.targetAmount) / goal.targetAmount);
-        }
-        return acc;
-      }, 0);
-      const avgGoalProgress = totalGoalProgress / goals.length;
-      score += Math.min(avgGoalProgress * 50, 50);
-    } else {
-      if (totalIncome > totalExpenses) score += 10;
-    }
+    // Add basic score based on income vs expenses
+    if (totalIncome > totalExpenses) score += 50;
+    
     setFinancialHealthScore(Math.max(0, Math.min(Math.round(score), 100)));
-  }, [totalIncome, totalExpenses, goals]);
+  }, [totalIncome, totalExpenses]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
   };
 
-  const isLoading = transactionsLoading || goalsLoading;
+  const isLoading = transactionsLoading;
 
   return (
     <>
       <PageHeader title="Dashboard" description="Your financial overview at a glance." />
       
+      {/* Bills Due Alert */}
+      {dueRecurringTransactions.length > 0 && (
+        <Alert className="mb-6 border-blue-500 bg-blue-50 dark:bg-blue-900/20">
+          <Repeat className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <strong>{dueRecurringTransactions.length} bill{dueRecurringTransactions.length !== 1 ? 's are' : ' is'} due</strong> today ({formatCurrency(dueRecurringTransactions.reduce((sum, rt) => sum + rt.amount, 0))}).{' '}
+            <Link href="/bills" className="underline font-medium">View bill calendar</Link> or{' '}
+            <Link href="/recurring" className="underline font-medium">manage recurring transactions</Link>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Budget Alert */}
+      {budgetSummary && budgetSummary.categoriesOverBudget > 0 && (
+        <Alert className="mb-6 border-orange-500 bg-orange-50 dark:bg-orange-900/20">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800 dark:text-orange-200">
+            <strong>Budget Alert:</strong> You're over budget in {budgetSummary.categoriesOverBudget} categor{budgetSummary.categoriesOverBudget > 1 ? 'ies' : 'y'} this month.{' '}
+            <Link href="/budgets" className="underline font-medium">View details</Link>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Stats Cards - Responsive Grid */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatCard title="Total Income" value={formatCurrency(totalIncome)} icon={TrendingUp} trendColor="text-emerald-500" />
+        <StatCard title="Total Money In" value={formatCurrency(totalIncome)} icon={TrendingUp} trendColor="text-emerald-500" />
         <StatCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon={TrendingDown} trendColor="text-red-500"/>
-        <StatCard title="Net Balance" value={formatCurrency(totalIncome - totalExpenses)} icon={DollarSign} description="Income - Expenses" />
-        <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Landmark} description="Estimated (coming soon)" />
+                  <StatCard title="Net Balance" value={formatCurrency(totalIncome - totalExpenses)} icon={DollarSign} description="Money In - Expenses" />
+        {budgetSummary ? (
+          <StatCard 
+            title="Budget Status" 
+            value={formatCurrency(Math.abs(budgetSummary.totalRemaining))} 
+            icon={Wallet} 
+            description={budgetSummary.totalRemaining >= 0 ? "Under budget" : "Over budget"}
+            trendColor={budgetSummary.totalRemaining >= 0 ? "text-emerald-500" : "text-red-500"}
+          />
+        ) : (
+          <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Landmark} description="Estimated (coming soon)" />
+        )}
       </div>
 
       {/* Main Content - Responsive Grid */}
@@ -103,10 +164,17 @@ export default function DashboardPage() {
         {/* Spending Overview */}
         <Card className="shadow-md lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-base sm:text-lg">Spending Overview</CardTitle>
-            <CardDescription className="text-sm">
-              {spendingData.length > 0 ? "Your expenses by category this month (₹)." : "No spending data available yet."}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base sm:text-lg">Spending Overview</CardTitle>
+                <CardDescription className="text-sm">
+                  {spendingData.length > 0 ? "Your expenses by category this month (₹)." : "No spending data available yet."}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild className="text-xs">
+                <Link href="/analytics">View Analytics</Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="h-[250px] sm:h-[300px]">
             {spendingData.length > 0 ? (
@@ -152,44 +220,72 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         
-        {/* Financial Health Widget */}
-        <FinancialHealthWidget score={financialHealthScore} />
-
-        {/* Active Goals */}
-        <Card className="shadow-md lg:col-span-1">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base sm:text-lg">Active Goals</CardTitle>
-              <Button variant="outline" size="sm" asChild className="text-xs">
-                <Link href="/goals">View All</Link>
-              </Button>
-            </div>
-            <CardDescription className="text-sm">Track your progress towards financial goals.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 sm:space-y-4 h-[250px] sm:h-[300px] overflow-y-auto">
-            {goals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                <TargetIcon className="h-8 w-8 sm:h-12 sm:w-12 mb-2" />
-                <p className="text-sm">No active goals yet.</p>
-                <Link href="/goals" className="text-primary hover:underline text-xs mt-1">Add a goal</Link>
+        {/* Budget Overview or Financial Health Widget */}
+        {budgetSummary && budgetSummary.totalBudget > 0 ? (
+          <Card className="shadow-md lg:col-span-1">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base sm:text-lg">This Month's Budget</CardTitle>
+                <Button variant="outline" size="sm" asChild className="text-xs">
+                  <Link href="/budgets">View All</Link>
+                </Button>
               </div>
-            ) : (
-              goals.slice(0,3).map(goal => (
-                <div key={goal.id}>
-                  <div className="flex justify-between items-start mb-1 gap-2">
-                    <span className="text-sm font-medium text-foreground truncate flex-1 min-w-0" title={goal.name}>
-                      {goal.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap text-right">
-                      {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
-                    </span>
-                  </div>
-                  <Progress value={(goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0)} className="h-2" />
+              <CardDescription className="text-sm">Track your spending against your budget.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 h-[250px] sm:h-[300px] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Budgeted</p>
+                  <p className="text-lg font-semibold text-primary">{formatCurrency(budgetSummary.totalBudget)}</p>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                <div>
+                  <p className="text-sm text-muted-foreground">Spent</p>
+                  <p className="text-lg font-semibold text-red-600">{formatCurrency(budgetSummary.totalSpent)}</p>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Overall Progress</span>
+                  <span className="text-sm text-muted-foreground">
+                    {budgetSummary.totalBudget > 0 ? ((budgetSummary.totalSpent / budgetSummary.totalBudget) * 100).toFixed(1) : 0}%
+                  </span>
+                </div>
+                <Progress 
+                  value={budgetSummary.totalBudget > 0 ? Math.min((budgetSummary.totalSpent / budgetSummary.totalBudget) * 100, 100) : 0} 
+                  className={cn(
+                    "h-3",
+                    budgetSummary.totalSpent > budgetSummary.totalBudget && "[&>div]:bg-destructive"
+                  )}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Remaining:</span>
+                  <span className={cn(
+                    "font-medium",
+                    budgetSummary.totalRemaining >= 0 ? "text-emerald-600" : "text-destructive"
+                  )}>
+                    {budgetSummary.totalRemaining >= 0 ? formatCurrency(budgetSummary.totalRemaining) : `-${formatCurrency(Math.abs(budgetSummary.totalRemaining))}`}
+                  </span>
+                </div>
+                
+                <div className="pt-2 border-t">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{budgetSummary.categoriesOnTrack} categories on track</span>
+                    <span>{budgetSummary.categoriesOverBudget} over budget</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <FinancialHealthWidget score={financialHealthScore} />
+        )}
+
+        {/* Bills Calendar Widget */}
+        <BillsCalendarWidget />
       </div>
       
       {/* Recent Transactions */}

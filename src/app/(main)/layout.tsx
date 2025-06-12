@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { LayoutDashboard, ListChecks, Target, Sparkles, Settings, LogOut, UserCircle2, Menu } from 'lucide-react';
+import { LayoutDashboard, ListChecks, Target, Sparkles, Settings, LogOut, UserCircle2, Menu, Wallet, Repeat, Calendar } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   SidebarProvider,
   Sidebar,
@@ -28,8 +29,12 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Overview & insights' },
   { href: '/transactions', label: 'Transactions', icon: ListChecks, description: 'Manage expenses' },
+  { href: '/recurring', label: 'Recurring', icon: Repeat, description: 'Automated transactions' },
+  { href: '/bills', label: 'Bills Calendar', icon: Calendar, description: 'Bill tracking & alerts' },
+  { href: '/budgets', label: 'Budgets', icon: Wallet, description: 'Spending limits' },
   { href: '/goals', label: 'Goals', icon: Target, description: 'Financial targets' },
-  { href: '/ai-insights', label: 'AI Insights', icon: Sparkles, description: 'Smart recommendations' },
+  { href: '/analytics', label: 'Analytics', icon: Sparkles, description: 'Advanced insights' },
+  { href: '/ai-insights', label: 'AI Advisor', icon: Sparkles, description: 'AI financial insights' },
 ];
 
 // Sidebar content component that can access sidebar context
@@ -172,6 +177,9 @@ function SidebarContentComponent() {
               </p>
             )}
           </div>
+          <div className="group-data-[collapsible=icon]:hidden">
+            <ThemeToggle />
+          </div>
         </div>
         
         <Button 
@@ -264,6 +272,9 @@ export default function MainAppLayout({
             </SidebarTrigger>
           </div>
           <div className="flex-1" />
+          <div className="md:hidden">
+            <ThemeToggle />
+          </div>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:px-6 sm:py-0">
           {children}

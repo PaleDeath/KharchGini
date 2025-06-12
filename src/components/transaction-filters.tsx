@@ -164,7 +164,7 @@ export function TransactionFiltersComponent({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="income">Income Only</SelectItem>
+                    <SelectItem value="income">Money In Only</SelectItem>
                     <SelectItem value="expense">Expense Only</SelectItem>
                   </SelectContent>
                 </Select>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { User } from 'firebase/auth';
@@ -24,12 +23,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
       setLoading(false);
+      
+      // Redirect logic
+      if (!user && typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        if (!currentPath.startsWith('/auth/')) {
+          router.push('/auth/login');
+        }
+      }
+    }, (error: any) => {
+      console.error('Auth state change error:', error);
+      setLoading(false);
+      
+      // Handle specific Firebase errors
+      if (error?.code === 'auth/network-request-failed' || 
+          error?.code === 'auth/too-many-requests' ||
+          error?.message?.includes('503') ||
+          error?.message?.includes('visibility-check-was-unavailable')) {
+        // Firebase service temporarily unavailable
+        console.warn('Firebase Auth temporarily unavailable, retrying...');
+        // Don't redirect on service errors, keep user logged in if possible
+        return;
+      }
+      
+      // For other auth errors, redirect to login
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        if (!currentPath.startsWith('/auth/')) {
+          router.push('/auth/login');
+        }
+      }
     });
+
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (loading) return;
@@ -44,9 +74,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, loading, router, pathname]);
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
-    setUser(null);
-    router.push('/auth/login');
+    try {
+      await firebaseSignOut(auth);
+      router.push('/auth/login');
+    } catch (error: any) {
+      console.error('Sign out error:', error);
+      
+      // Handle service unavailability during sign out
+      if (error.code === 'auth/network-request-failed' || 
+          error.message.includes('503') ||
+          error.message.includes('visibility-check-was-unavailable')) {
+        // Clear local state and redirect anyway
+        setUser(null);
+        router.push('/auth/login');
+        return;
+      }
+      
+      throw error;
+    }
   };
   
   if (loading && !pathname.startsWith('/auth')) {

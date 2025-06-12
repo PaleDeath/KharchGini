@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -8,7 +7,7 @@ import * as z from 'zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase/firebase';
+import { auth, handleFirebaseAuthError } from '@/lib/firebase/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,10 +43,15 @@ export default function LoginPage() {
       toast({ title: "Login Successful", description: "Welcome back!" });
       router.push('/dashboard');
     } catch (error: any) {
+      console.error('Login error:', error);
+      
+      // Use the centralized error handler
+      const errorInfo = handleFirebaseAuthError(error);
+      
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: errorInfo.userFriendlyMessage,
       });
     } finally {
       setIsLoading(false);
@@ -59,6 +63,7 @@ export default function LoginPage() {
       <div className="mb-8">
         <AppLogo />
       </div>
+      
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
@@ -97,11 +102,11 @@ export default function LoginPage() {
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Login
             </Button>
-             <p className="text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{' '}
-                <Link href="/auth/signup" className="font-medium text-primary hover:underline">
-                    Sign up
-                </Link>
+            <p className="text-center text-sm text-muted-foreground">
+              Don&apos;t have an account?{' '}
+              <Link href="/auth/signup" className="font-medium text-primary hover:underline">
+                Sign up
+              </Link>
             </p>
           </CardFooter>
         </form>

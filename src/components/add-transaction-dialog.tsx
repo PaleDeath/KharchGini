@@ -151,7 +151,7 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="income">Money In</SelectItem>
                       <SelectItem value="expense">Expense</SelectItem>
                     </SelectContent>
                   </Select>

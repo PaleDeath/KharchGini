@@ -6,9 +6,9 @@ service cloud.firestore {
       // Allow read/write access only if the user is authenticated and accessing their own data
       allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Nested collections: transactions and goals
+      // Nested collections: transactions, goals, and budgets
       match /{collection}/{document} {
-        // Allow read/write access to user's own transactions and goals
+        // Allow read/write access to user's own transactions, goals, and budgets
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }

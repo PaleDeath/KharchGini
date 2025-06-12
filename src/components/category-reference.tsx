@@ -82,7 +82,7 @@ export function CategoryReference() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
-                <h3 className="text-lg font-semibold text-foreground">Income Categories</h3>
+                <h3 className="text-lg font-semibold text-foreground">Money In Categories</h3>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {incomeCategories.map((category) => (

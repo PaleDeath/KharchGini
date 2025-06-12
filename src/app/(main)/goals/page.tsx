@@ -4,13 +4,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from "@/components/page-header";
 import { AddGoalDialog } from "@/components/add-goal-dialog";
+import { EditGoalDialog } from "@/components/edit-goal-dialog";
+import { QuickContributionDialog } from "@/components/quick-contribution-dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { FinancialGoal } from "@/lib/types";
 import { deleteGoal } from '@/lib/firebase/firestore'; 
 import { useToast } from "@/hooks/use-toast";
-import { Target, Edit, Trash2 } from "lucide-react";
+import { Target, Edit, Trash2, Plus, MoreHorizontal } from "lucide-react";
 import { useGoals } from '@/hooks/use-firestore-data';
 import { useAuth } from '@/contexts/auth-context';
 import { differenceInDays, formatDistanceToNowStrict, parseISO } from 'date-fns';
@@ -25,6 +27,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function GoalsPage() {
   const { toast } = useToast();
@@ -35,6 +44,12 @@ export default function GoalsPage() {
      // Refresh goals from Firestore to get the latest data
      refreshGoals();
      toast({ title: "Goal Added", description: `'${newGoal.name}' has been successfully added.`});
+  };
+
+  const handleGoalUpdated = (updatedGoal: FinancialGoal) => {
+    // Refresh goals from Firestore to get the latest data
+    refreshGoals();
+    toast({ title: "Goal Updated", description: `'${updatedGoal.name}' has been updated successfully.`});
   };
   
 
@@ -95,12 +110,33 @@ export default function GoalsPage() {
             <Card key={goal.id} className="shadow-md flex flex-col">
               <CardHeader>
                 <div className="flex justify-between items-start">
+                  <div className="flex-1">
                   <CardTitle className="text-xl">{goal.name}</CardTitle>
+                    <CardDescription className="mt-1">
+                      Target: {formatCurrency(goal.targetAmount)}
+                      {goal.targetDate && ` by ${new Date(goal.targetDate + 'T00:00:00').toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}`}
+                    </CardDescription>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground -mt-2 -mr-2">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <EditGoalDialog goal={goal} onGoalUpdated={handleGoalUpdated}>
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="cursor-pointer">
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Goal
+                        </DropdownMenuItem>
+                      </EditGoalDialog>
+                      <DropdownMenuSeparator />
                    <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive -mt-2 -mr-2">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive cursor-pointer">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Goal
+                          </DropdownMenuItem>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -117,11 +153,9 @@ export default function GoalsPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <CardDescription>
-                  Target: {formatCurrency(goal.targetAmount)}
-                  {goal.targetDate && ` by ${new Date(goal.targetDate + 'T00:00:00').toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}`}
-                </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <div className="mb-2">
@@ -136,10 +170,12 @@ export default function GoalsPage() {
                 )}
                  {!goal.targetDate && <p className="text-xs text-muted-foreground mt-2">No target date set.</p>}
               </CardContent>
-              <CardFooter>
-                <Button variant="outline" size="sm" className="w-full" onClick={() => toast({title: "Coming Soon!", description:"Editing contributions will be available in a future update."})}>
-                  <Edit className="mr-2 h-4 w-4" /> Update Contribution
+              <CardFooter className="flex gap-2">
+                <QuickContributionDialog goal={goal} onGoalUpdated={handleGoalUpdated}>
+                  <Button className="flex-1">
+                    <Plus className="mr-2 h-4 w-4" /> Add Money
                 </Button>
+                </QuickContributionDialog>
               </CardFooter>
             </Card>
           ))}
