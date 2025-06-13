@@ -55,6 +55,9 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Detect iOS for better date picker experience
+  const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
@@ -62,8 +65,8 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
       amount: transaction.amount,
       type: transaction.type,
       date: parseISO(transaction.date + 'T00:00:00'),
-      category: transaction.category || "",
-    },
+      category: transaction.category || '',
+    }
   });
 
   // Reset form when transaction changes or dialog opens
@@ -74,39 +77,37 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
         amount: transaction.amount,
         type: transaction.type,
         date: parseISO(transaction.date + 'T00:00:00'),
-        category: transaction.category || "",
+        category: transaction.category || '',
       });
     }
-  }, [open, transaction, form]);
+  }, [transaction, open, form]);
 
   const onSubmit = async (data: TransactionFormValues) => {
     if (!user?.uid) {
-      toast({ variant: "destructive", title: "Error", description: "You must be logged in to edit transactions." });
+      toast({ variant: "destructive", title: "Error", description: "User not logged in." });
       return;
     }
-    
+
     setIsLoading(true);
     try {
-      const updatedData = {
+      const updates: Partial<Transaction> = {
         description: data.description,
         amount: data.amount,
         type: data.type,
-        date: format(data.date, "yyyy-MM-dd"),
+        date: data.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD
         category: data.category || undefined,
       };
 
-      // Update in Firestore
-      await updateTransaction(user.uid, transaction.id, updatedData);
+      await updateTransaction(user.uid, transaction.id, updates);
       
-      // Create updated transaction object for callback
       const updatedTransaction: Transaction = {
         ...transaction,
-        ...updatedData,
+        ...updates,
       };
       
-      toast({ title: "Success", description: "Transaction updated successfully." });
       onTransactionUpdated(updatedTransaction);
       setOpen(false);
+      toast({ title: "Success", description: "Transaction updated successfully." });
     } catch (error) {
       console.error("Error updating transaction:", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to update transaction." });
@@ -124,18 +125,18 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
         <DialogHeader>
           <DialogTitle>Edit Transaction</DialogTitle>
           <DialogDescription>
-            Update transaction details. All amounts in INR (₹).
+            Update the transaction details below.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right">Description</Label>
+            <Label htmlFor="edit-description" className="text-right">Description</Label>
             <div className="col-span-3">
-              <Input 
-                id="description" 
-                {...form.register("description")} 
-                placeholder="e.g., Lunch with friends" 
-                className={cn(form.formState.errors.description && "border-destructive")} 
+              <Input
+                id="edit-description"
+                {...form.register("description")}
+                className={cn(form.formState.errors.description && "border-destructive")}
+                disabled={isLoading}
               />
               {form.formState.errors.description && (
                 <p className="text-xs text-destructive mt-1">{form.formState.errors.description.message}</p>
@@ -144,15 +145,15 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="amount" className="text-right">Amount (₹)</Label>
+            <Label htmlFor="edit-amount" className="text-right">Amount (₹)</Label>
             <div className="col-span-3">
-              <Input 
-                id="amount" 
-                type="number" 
-                step="1" 
-                {...form.register("amount")} 
-                placeholder="e.g., 500" 
-                className={cn(form.formState.errors.amount && "border-destructive")} 
+              <Input
+                id="edit-amount"
+                type="number"
+                step="1"
+                {...form.register("amount")}
+                className={cn(form.formState.errors.amount && "border-destructive")}
+                disabled={isLoading}
               />
               {form.formState.errors.amount && (
                 <p className="text-xs text-destructive mt-1">{form.formState.errors.amount.message}</p>
@@ -161,18 +162,18 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="type" className="text-right">Type</Label>
+            <Label htmlFor="edit-type" className="text-right">Type</Label>
             <div className="col-span-3">
               <Controller
                 control={form.control}
                 name="type"
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="type" className={cn(form.formState.errors.type && "border-destructive")}>
-                      <SelectValue placeholder="Select type" />
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                    <SelectTrigger className={cn(form.formState.errors.type && "border-destructive")}>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                                              <SelectItem value="income">Money In</SelectItem>
+                      <SelectItem value="income">Money In</SelectItem>
                       <SelectItem value="expense">Expense</SelectItem>
                     </SelectContent>
                   </Select>
@@ -185,14 +186,14 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="text-right">Category</Label>
+            <Label htmlFor="edit-category" className="text-right">Category</Label>
             <div className="col-span-3">
-              <Input 
-                id="category" 
-                {...form.register("category")} 
-                placeholder="e.g., Food & Dining (optional)" 
+              <Input
+                id="edit-category"
+                {...form.register("category")}
+                placeholder="Optional category"
+                disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground mt-1">Leave empty for AI to re-categorize</p>
             </div>
           </div>
 
@@ -203,30 +204,52 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
                 control={form.control}
                 name="date"
                 render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
+                  <>
+                    {isIOS ? (
+                      // Native date input for iOS - better compatibility
+                      <Input
+                        type="date"
+                        value={field.value ? field.value.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value + 'T00:00:00') : null;
+                          field.onChange(date);
+                        }}
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full",
                           !field.value && "text-muted-foreground",
                           form.formState.errors.date && "border-destructive"
                         )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                        defaultMonth={field.value || new Date()}
+                        disabled={isLoading}
                       />
-                    </PopoverContent>
-                  </Popover>
+                    ) : (
+                      // Calendar picker for other devices
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground",
+                              form.formState.errors.date && "border-destructive"
+                            )}
+                            disabled={isLoading}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                            defaultMonth={field.value || new Date()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </>
                 )}
               />
               {form.formState.errors.date && (
@@ -241,7 +264,7 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Updating..." : "Update Transaction"}
+              Update Transaction
             </Button>
           </DialogFooter>
         </form>

@@ -242,13 +242,25 @@ export default function AnalyticsPage() {
       </div>
 
       <Tabs defaultValue="trends" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="spending">Spending</TabsTrigger>
-          <TabsTrigger value="forecast">Forecast</TabsTrigger>
-          <TabsTrigger value="comparison">Comparison</TabsTrigger>
-          <TabsTrigger value="anomalies">Anomalies</TabsTrigger>
-        </TabsList>
+        <div className="relative overflow-x-auto">
+          <TabsList className="inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground min-w-full w-max">
+            <TabsTrigger value="trends" className="whitespace-nowrap px-3 py-1.5 text-sm">
+              Trends
+            </TabsTrigger>
+            <TabsTrigger value="spending" className="whitespace-nowrap px-3 py-1.5 text-sm">
+              Spending
+            </TabsTrigger>
+            <TabsTrigger value="forecast" className="whitespace-nowrap px-3 py-1.5 text-sm">
+              Forecast
+            </TabsTrigger>
+            <TabsTrigger value="comparison" className="whitespace-nowrap px-3 py-1.5 text-sm">
+              Comparison
+            </TabsTrigger>
+            <TabsTrigger value="anomalies" className="whitespace-nowrap px-3 py-1.5 text-sm">
+              Anomalies
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Trends Tab */}
         <TabsContent value="trends" className="space-y-6">

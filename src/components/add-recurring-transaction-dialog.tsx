@@ -88,6 +88,9 @@ export function AddRecurringTransactionDialog({ onRecurringTransactionAdded }: A
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Detect iOS for better date picker experience
+  const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
   const form = useForm<RecurringTransactionFormValues>({
     resolver: zodResolver(recurringTransactionFormSchema),
     defaultValues: {
@@ -105,40 +108,32 @@ export function AddRecurringTransactionDialog({ onRecurringTransactionAdded }: A
 
   const onSubmit = async (data: RecurringTransactionFormValues) => {
     if (!user?.uid) {
-      toast({ variant: "destructive", title: "Error", description: "You must be logged in to add recurring transactions." });
+      toast({ variant: "destructive", title: "Error", description: "User not logged in." });
       return;
     }
-    
+
     setIsLoading(true);
     try {
-      const startDateStr = format(data.startDate, "yyyy-MM-dd");
-      const nextDueDate = calculateNextDueDate(startDateStr, data.frequency);
-      
-      const recurringTransactionData = {
+      const recurringTransaction: Omit<RecurringTransaction, 'id' | 'createdAt' | 'updatedAt'> = {
         description: data.description,
         amount: data.amount,
         type: data.type,
-        category: data.category || undefined,
+        category: data.category,
         frequency: data.frequency,
-        startDate: startDateStr,
-        endDate: data.endDate ? format(data.endDate, "yyyy-MM-dd") : undefined,
-        nextDueDate: startDateStr, // First execution should be on start date
+        startDate: data.startDate.toISOString().split('T')[0],
+        endDate: data.endDate ? data.endDate.toISOString().split('T')[0] : undefined,
+        nextDueDate: calculateNextDueDate(data.startDate.toISOString().split('T')[0], data.frequency),
         isActive: true,
       };
 
-      // Save to Firestore
-      const newRecurringTransaction = await addRecurringTransaction(user.uid, recurringTransactionData);
-      
-      toast({ 
-        title: "Recurring Transaction Added", 
-        description: `"${data.description}" will repeat ${data.frequency}ly starting ${format(data.startDate, 'PPP')}.` 
-      });
-      onRecurringTransactionAdded(newRecurringTransaction); 
+      const newRecurringTransaction = await addRecurringTransaction(user.uid, recurringTransaction);
+      onRecurringTransactionAdded(newRecurringTransaction);
       form.reset();
       setOpen(false);
+      toast({ title: "Success", description: "Recurring transaction created successfully." });
     } catch (error) {
       console.error("Error adding recurring transaction:", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to add recurring transaction." });
+      toast({ variant: "destructive", title: "Error", description: "Failed to create recurring transaction." });
     } finally {
       setIsLoading(false);
     }
@@ -154,177 +149,214 @@ export function AddRecurringTransactionDialog({ onRecurringTransactionAdded }: A
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Repeat className="h-5 w-5 text-primary" />
-            Add Recurring Transaction
-          </DialogTitle>
+          <DialogTitle>Add Recurring Transaction</DialogTitle>
           <DialogDescription>
-            Set up a transaction that automatically repeats on a schedule. Perfect for salaries, rent, subscriptions, and bills.
+            Create a transaction that automatically repeats at regular intervals.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
-            <Input 
-              id="description" 
-              {...form.register("description")} 
-              placeholder="e.g., Monthly rent, Salary, Netflix subscription" 
-              className={cn(form.formState.errors.description && "border-destructive")} 
-            />
-            {form.formState.errors.description && (
-              <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="amount">Amount (₹)</Label>
-              <Input 
-                id="amount" 
-                type="number" 
-                step="1" 
-                {...form.register("amount")} 
-                placeholder="e.g., 15000" 
-                className={cn(form.formState.errors.amount && "border-destructive")} 
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                placeholder="e.g., Monthly rent"
+                {...form.register("description")}
+                className={cn(form.formState.errors.description && "border-destructive")}
+                disabled={isLoading}
               />
-              {form.formState.errors.amount && (
-                <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
+              {form.formState.errors.description && (
+                <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
               )}
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="type">Type</Label>
-              <Controller
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value as TransactionType}>
-                    <SelectTrigger id="type" className={cn(form.formState.errors.type && "border-destructive")}>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="income">Money In</SelectItem>
-                      <SelectItem value="expense">Expense</SelectItem>
-                    </SelectContent>
-                  </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="amount">Amount (₹)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="1"
+                  placeholder="e.g., 25000"
+                  {...form.register("amount")}
+                  className={cn(form.formState.errors.amount && "border-destructive")}
+                  disabled={isLoading}
+                />
+                {form.formState.errors.amount && (
+                  <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
                 )}
-              />
-              {form.formState.errors.type && (
-                <p className="text-xs text-destructive">{form.formState.errors.type.message}</p>
-              )}
-            </div>
-          </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="category">Category (Optional)</Label>
-              <Select value={form.watch('category')} onValueChange={(value) => form.setValue('category', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="frequency">Frequency</Label>
-              <Controller
-                control={form.control}
-                name="frequency"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value as RecurringFrequency}>
-                    <SelectTrigger id="frequency" className={cn(form.formState.errors.frequency && "border-destructive")}>
-                      <SelectValue placeholder="Select frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(frequencyLabels).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="grid gap-2">
+                <Label htmlFor="type">Type</Label>
+                <Controller
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                      <SelectTrigger className={cn(form.formState.errors.type && "border-destructive")}>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="income">Money In</SelectItem>
+                        <SelectItem value="expense">Expense</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {form.formState.errors.type && (
+                  <p className="text-xs text-destructive">{form.formState.errors.type.message}</p>
                 )}
-              />
-              {form.formState.errors.frequency && (
-                <p className="text-xs text-destructive">{form.formState.errors.frequency.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="startDate">Start Date</Label>
-              <Controller
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "justify-start text-left font-normal",
-                          !field.value && "text-muted-foreground",
-                          form.formState.errors.startDate && "border-destructive"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>Pick start date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
-              />
-              {form.formState.errors.startDate && (
-                <p className="text-xs text-destructive">{form.formState.errors.startDate.message}</p>
-              )}
+              </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="endDate">End Date (Optional)</Label>
-              <Controller
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "justify-start text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>No end date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category (Optional)</Label>
+                <Input
+                  id="category"
+                  placeholder="e.g., Rent"
+                  {...form.register("category")}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="frequency">Frequency</Label>
+                <Controller
+                  control={form.control}
+                  name="frequency"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                      <SelectTrigger className={cn(form.formState.errors.frequency && "border-destructive")}>
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {form.formState.errors.frequency && (
+                  <p className="text-xs text-destructive">{form.formState.errors.frequency.message}</p>
                 )}
-              />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="startDate">Start Date</Label>
+                <Controller
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <>
+                      {isIOS ? (
+                        // Native date input for iOS - better compatibility
+                        <Input
+                          type="date"
+                          value={field.value ? field.value.toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
+                            const date = e.target.value ? new Date(e.target.value + 'T00:00:00') : null;
+                            field.onChange(date);
+                          }}
+                          className={cn(
+                            "w-full",
+                            !field.value && "text-muted-foreground",
+                            form.formState.errors.startDate && "border-destructive"
+                          )}
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        // Calendar picker for other devices
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground",
+                                form.formState.errors.startDate && "border-destructive"
+                              )}
+                              disabled={isLoading}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? format(field.value, "PPP") : <span>Pick start date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </>
+                  )}
+                />
+                {form.formState.errors.startDate && (
+                  <p className="text-xs text-destructive">{form.formState.errors.startDate.message}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="endDate">End Date (Optional)</Label>
+                <Controller
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <>
+                      {isIOS ? (
+                        // Native date input for iOS - better compatibility
+                        <Input
+                          type="date"
+                          value={field.value ? field.value.toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
+                            const date = e.target.value ? new Date(e.target.value + 'T00:00:00') : null;
+                            field.onChange(date);
+                          }}
+                          className={cn(
+                            "w-full",
+                            !field.value && "text-muted-foreground"
+                          )}
+                          disabled={isLoading}
+                        />
+                      ) : (
+                        // Calendar picker for other devices
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              disabled={isLoading}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? format(field.value, "PPP") : <span>No end date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </>
+                  )}
+                />
+              </div>
             </div>
           </div>
 

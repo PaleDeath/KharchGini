@@ -349,7 +349,7 @@ export default function TransactionsPage() {
             <TableBody>
               {processedTransactions.length === 0 && transactions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     {loading ? (
                       <div className="flex justify-center items-center">
                         <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -362,6 +362,13 @@ export default function TransactionsPage() {
                 </TableRow>
               )}
               {processedTransactions.length === 0 && transactions.length > 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                    No transactions match your current filters.
+                  </TableCell>
+                </TableRow>
+              )}
+              {processedTransactions.length > 0 && (
                 processedTransactions.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell>

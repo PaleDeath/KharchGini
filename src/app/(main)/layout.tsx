@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { LayoutDashboard, ListChecks, Target, Sparkles, Settings, LogOut, UserCircle2, Menu, Wallet, Repeat, Calendar } from 'lucide-react';
+import { LayoutDashboard, ListChecks, Target, Sparkles, Settings, LogOut, UserCircle2, Menu, Wallet, Repeat, Calendar, BarChart3 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
   SidebarProvider,
@@ -33,7 +33,7 @@ const navItems = [
   { href: '/bills', label: 'Bills Calendar', icon: Calendar, description: 'Bill tracking & alerts' },
   { href: '/budgets', label: 'Budgets', icon: Wallet, description: 'Spending limits' },
   { href: '/goals', label: 'Goals', icon: Target, description: 'Financial targets' },
-  { href: '/analytics', label: 'Analytics', icon: Sparkles, description: 'Advanced insights' },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3, description: 'Advanced insights' },
   { href: '/ai-insights', label: 'AI Advisor', icon: Sparkles, description: 'AI financial insights' },
 ];
 

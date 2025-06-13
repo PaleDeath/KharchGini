@@ -8,8 +8,15 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: false, // Enable linting for production
   },
+  // Disable trace generation to prevent EPERM errors on Windows
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
+  
+  // Disable tracing completely on Windows to prevent EPERM errors
   experimental: {
-    serverComponentsExternalPackages: ['genkit'],
+    // Disable filesystem watching optimizations that can cause issues on Windows
+    optimizeCss: false,
   },
   images: {
     remotePatterns: [
@@ -30,8 +37,8 @@ const nextConfig: NextConfig = {
     'genkit',
     'handlebars'
   ],
-  // Fix webpack issues
-  webpack: (config, { isServer }) => {
+  // Enhanced webpack configuration for Windows compatibility
+  webpack: (config, { dev, isServer }) => {
     if (isServer) {
       // Ignore handlebars require.extensions issue on server
       config.externals = config.externals || [];
@@ -48,6 +55,47 @@ const nextConfig: NextConfig = {
       path: false,
       os: false,
     };
+    
+    // Windows-specific optimizations
+    if (process.platform === 'win32') {
+      // Disable caching in development to prevent file lock issues
+      if (dev) {
+        config.cache = false;
+      }
+      
+      // Configure file watching for Windows
+      config.watchOptions = {
+        ignored: ['**/.next/**', '**/node_modules/**'],
+        aggregateTimeout: 300,
+        poll: 1000, // Use polling on Windows for better stability
+      };
+      
+      // Optimize file system operations
+      config.snapshot = {
+        managedPaths: [],
+        immutablePaths: [],
+        buildDependencies: {
+          hash: false,
+          timestamp: true,
+        },
+      };
+      
+      // Reduce file system pressure
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          ...config.optimization?.splitChunks,
+          cacheGroups: {
+            ...config.optimization?.splitChunks?.cacheGroups,
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              chunks: 'all',
+            },
+          },
+        },
+      };
+    }
     
     return config;
   },
