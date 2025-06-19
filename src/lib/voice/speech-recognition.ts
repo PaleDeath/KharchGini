@@ -114,35 +114,44 @@ export class SpeechRecognitionService {
             autoGainControl: true
           }
         });
-
+        
         console.log('🎤 Microphone access granted');
-        this.audioChunks = [];
-
-        // Try different audio formats for better compatibility
+        
+        // Check for supported formats in order of preference for Google Cloud
+        const supportedFormats = [
+          'audio/wav', // Most compatible with Speech-to-Text
+          'audio/flac', // Best quality for speech recognition
+          'audio/webm;codecs=opus',
+          'audio/mp4',
+          'audio/ogg;codecs=opus'
+        ];
+        
         console.log('🔧 Checking audio format support...');
-        console.log('🔧 WEBM_OPUS supported:', MediaRecorder.isTypeSupported(selectedMimeType));
-
-        if (!MediaRecorder.isTypeSupported(selectedMimeType)) {
-          selectedMimeType = 'audio/webm';
-          console.log('🔧 WEBM supported:', MediaRecorder.isTypeSupported(selectedMimeType));
-          if (!MediaRecorder.isTypeSupported(selectedMimeType)) {
-            selectedMimeType = 'audio/mp4';
-            console.log('🔧 MP4 supported:', MediaRecorder.isTypeSupported(selectedMimeType));
-            if (!MediaRecorder.isTypeSupported(selectedMimeType)) {
-              selectedMimeType = ''; // Use default
-              console.log('🔧 Using default audio format');
-            }
+        
+        for (const format of supportedFormats) {
+          if (MediaRecorder.isTypeSupported(format)) {
+            selectedMimeType = format;
+            console.log(`🔧 Selected audio format: ${format}`);
+            break;
           }
         }
-
-        console.log('🔧 Selected audio format:', selectedMimeType);
-        this.mediaRecorder = new MediaRecorder(stream, selectedMimeType ? { mimeType: selectedMimeType } : {});
-        console.log('🔧 MediaRecorder created with mimeType:', this.mediaRecorder.mimeType);
-
+        
+        console.log(`🔧 Final selected format: ${selectedMimeType}`);
+        
+        // Create MediaRecorder with the best supported format
+        this.mediaRecorder = new MediaRecorder(stream, {
+          mimeType: selectedMimeType,
+          audioBitsPerSecond: 128000 // Lower bitrate for better compatibility
+        });
+        
+        console.log('🔧 MediaRecorder created with mimeType:', selectedMimeType);
+        
+        this.audioChunks = [];
+        
         this.mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             this.audioChunks.push(event.data);
-            console.log('🔧 Audio chunk received, size:', event.data.size, 'total chunks:', this.audioChunks.length);
+            console.log(`🔧 Audio chunk received, size: ${event.data.size} total chunks: ${this.audioChunks.length}`);
           }
         };
 

@@ -154,17 +154,29 @@ export async function POST(request: NextRequest) {
       if (audioFormat) {
         console.log('Detected audio format:', audioFormat);
         if (audioFormat.includes('opus')) {
-          encoding = 'WEBM_OPUS';
+          // Use OGG_OPUS instead of WEBM_OPUS for better compatibility
+          encoding = 'OGG_OPUS';
           sampleRate = 48000;
         } else if (audioFormat.includes('webm')) {
-          encoding = 'WEBM_OPUS'; // Default for WebM
+          // For WebM containers, try OGG_OPUS first, then fall back to FLAC
+          encoding = 'OGG_OPUS';
           sampleRate = 48000;
         } else if (audioFormat.includes('mp4') || audioFormat.includes('m4a')) {
-          encoding = 'MP3'; // MP4 container often uses MP3 or AAC
+          encoding = 'MP3';
           sampleRate = 44100;
+        } else if (audioFormat.includes('wav')) {
+          encoding = 'LINEAR16';
+          sampleRate = 16000;
         } else {
-          console.log('Unknown audio format, using default WEBM_OPUS');
+          console.log('Unknown audio format, using FLAC for maximum compatibility');
+          // Use FLAC as the most compatible format
+          encoding = 'FLAC';
+          sampleRate = 16000;
         }
+      } else {
+        // Default to FLAC for maximum compatibility
+        encoding = 'FLAC';
+        sampleRate = 16000;
       }
 
       console.log('Using encoding:', encoding, 'with sample rate:', sampleRate);
@@ -176,7 +188,7 @@ export async function POST(request: NextRequest) {
         alternativeLanguageCodes: ['en-US', 'hi-IN'], // Fallback languages
         enableAutomaticPunctuation: true,
         enableWordTimeOffsets: false,
-        model: 'latest_long', // Use latest model for better accuracy
+        model: 'latest_short', // Use short model for transaction descriptions
         useEnhanced: true, // Use enhanced model if available
         ...config
       };
