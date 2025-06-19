@@ -61,34 +61,69 @@ export function VoiceTransactionInput({
     setTranscript('');
 
     try {
+      console.log('🎤 Starting voice recognition...');
       const result = await speechService.startListening();
+      console.log('🎤 Voice recognition result:', result);
+      
       setTranscript(result);
       setVoiceState('processing');
       
+      toast({
+        title: "Voice Captured",
+        description: `Heard: "${result.substring(0, 50)}${result.length > 50 ? '...' : ''}"`
+      });
+      
       // Parse the voice input
+      console.log('🧠 Parsing voice input...');
       const parsed = await speechService.parseVoiceInput(result);
+      console.log('🧠 Parsed result:', parsed);
+      
       setParsedData(parsed);
       setVoiceState('result');
       
     } catch (error) {
-      console.error('Voice recognition error:', error);
+      console.error('❌ Voice recognition error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Voice recognition failed';
       setError(errorMessage);
       setVoiceState('error');
 
-      // For network errors (common in production), auto-switch to manual input
-      if (errorMessage.includes('network') || errorMessage.includes('unavailable')) {
-        setTimeout(() => {
-          setVoiceState('manual');
-        }, 2000);
+      // Enhanced error handling for production environments
+      const isNetworkError = errorMessage.includes('network') || errorMessage.includes('Network') || errorMessage.includes('🌐');
+      const isPermissionError = errorMessage.includes('denied') || errorMessage.includes('not-allowed') || errorMessage.includes('🎤');
+      const isServiceError = errorMessage.includes('service') || errorMessage.includes('blocked') || errorMessage.includes('🚫');
+      
+      let toastTitle = "Voice Recognition Issue";
+      let switchToManual = false;
+      
+      if (isNetworkError) {
+        toastTitle = "Network Issue (Common in Production)";
+        switchToManual = true;
+      } else if (isPermissionError) {
+        toastTitle = "Microphone Permission Required";
+      } else if (isServiceError) {
+        toastTitle = "Voice Service Unavailable";
+        switchToManual = true;
       }
 
       toast({
         variant: "destructive",
-        title: "Voice Recognition Issue",
-        description: errorMessage + " Switching to manual input mode...",
-        duration: 3000
+        title: toastTitle,
+        description: errorMessage,
+        duration: isNetworkError ? 5000 : 3000
       });
+
+      // Auto-switch to manual for network/service errors (common in production)
+      if (switchToManual) {
+        setTimeout(() => {
+          console.log('🔄 Auto-switching to manual input due to production environment limitations');
+          setVoiceState('manual');
+          toast({
+            title: "Switched to Manual Input",
+            description: "Voice input has been disabled. You can now type your transaction.",
+            duration: 3000
+          });
+        }, 2000);
+      }
     }
   };
 

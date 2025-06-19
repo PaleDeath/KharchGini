@@ -21,27 +21,98 @@ function getSpeechClient(): SpeechClient {
 
       if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
         clientConfig.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+        console.log('✅ Using project ID:', process.env.GOOGLE_CLOUD_PROJECT_ID);
       }
 
       // Try service account key from environment variable first (for production)
       if (process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY) {
         try {
-          const serviceAccountKey = JSON.parse(process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY);
+          // Remove any extra whitespace and handle potential encoding issues
+          const rawCredentials = process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY;
+          console.log('🔧 Raw credentials type:', typeof rawCredentials);
+          console.log('🔧 Raw credentials length:', rawCredentials?.length || 0);
+          console.log('🔧 Raw credentials first 100 chars:', rawCredentials?.substring(0, 100) || 'undefined');
+          
+          const cleanCredentials = rawCredentials.trim();
+          console.log('🔧 Clean credentials length:', cleanCredentials.length);
+          console.log('🔧 Clean credentials starts with {:', cleanCredentials.startsWith('{'));
+          console.log('🔧 Clean credentials ends with }:', cleanCredentials.endsWith('}'));
+          
+          if (!cleanCredentials.startsWith('{') || !cleanCredentials.endsWith('}')) {
+            throw new Error(`Invalid JSON format in GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY. Expected JSON object, got: ${cleanCredentials.substring(0, 100)}...`);
+          }
+          
+          const serviceAccountKey = JSON.parse(cleanCredentials);
+          
+          // Validate required fields
+          if (!serviceAccountKey.type || !serviceAccountKey.project_id || !serviceAccountKey.private_key_id) {
+            throw new Error('Invalid service account key: missing required fields (type, project_id, private_key_id)');
+          }
+          
           clientConfig.credentials = serviceAccountKey;
-          console.log('Using service account key from environment variable');
+          console.log('✅ Using service account key from GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY');
+          console.log('✅ Service account email:', serviceAccountKey.client_email);
+          console.log('✅ Project ID from credentials:', serviceAccountKey.project_id);
         } catch (parseError) {
-          console.error('Failed to parse GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY:', parseError);
-          throw new Error('Invalid service account key format in environment variable');
+          console.error('❌ Failed to parse GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY:', parseError);
+          console.error('❌ Raw value type:', typeof process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY);
+          console.error('❌ Raw value length:', process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY?.length);
+          throw new Error(`Invalid service account key format in GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
         }
       }
-      // Fallback to file path (for local development)
+      // Check if GOOGLE_APPLICATION_CREDENTIALS contains JSON (Vercel deployment)
       else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        clientConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-        console.log('Using service account key from file:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+        try {
+          // Remove any extra whitespace and handle potential encoding issues
+          const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+          console.log('🔧 GOOGLE_APPLICATION_CREDENTIALS type:', typeof rawCredentials);
+          console.log('🔧 GOOGLE_APPLICATION_CREDENTIALS length:', rawCredentials?.length || 0);
+          
+          const cleanCredentials = rawCredentials.trim();
+          
+          // Check if it starts with { to determine if it's JSON
+          if (cleanCredentials.startsWith('{')) {
+            console.log('🔧 Treating GOOGLE_APPLICATION_CREDENTIALS as JSON');
+            
+            if (!cleanCredentials.endsWith('}')) {
+              throw new Error(`Invalid JSON format in GOOGLE_APPLICATION_CREDENTIALS. Expected JSON object, got incomplete JSON.`);
+            }
+            
+            const serviceAccountKey = JSON.parse(cleanCredentials);
+            
+            // Validate required fields
+            if (!serviceAccountKey.type || !serviceAccountKey.project_id || !serviceAccountKey.private_key_id) {
+              throw new Error('Invalid service account key: missing required fields (type, project_id, private_key_id)');
+            }
+            
+            clientConfig.credentials = serviceAccountKey;
+            console.log('✅ Using service account key from GOOGLE_APPLICATION_CREDENTIALS (JSON)');
+            console.log('✅ Service account email:', serviceAccountKey.client_email);
+          } else {
+            // Treat as file path (local development)
+            console.log('🔧 Treating GOOGLE_APPLICATION_CREDENTIALS as file path');
+            clientConfig.keyFilename = cleanCredentials;
+            console.log('✅ Using service account key from file:', cleanCredentials);
+          }
+        } catch (parseError) {
+          console.error('❌ Failed to parse GOOGLE_APPLICATION_CREDENTIALS:', parseError);
+          console.error('❌ Raw value type:', typeof process.env.GOOGLE_APPLICATION_CREDENTIALS);
+          console.error('❌ Raw value length:', process.env.GOOGLE_APPLICATION_CREDENTIALS?.length);
+          throw new Error(`Invalid service account key format in GOOGLE_APPLICATION_CREDENTIALS: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
+        }
       }
 
+      console.log('🚀 Initializing Speech Client with config:', JSON.stringify({
+        projectId: clientConfig.projectId,
+        hasCredentials: !!clientConfig.credentials,
+        hasKeyFilename: !!clientConfig.keyFilename,
+        credentialsType: clientConfig.credentials ? 'JSON object' : 'file path'
+      }, null, 2));
+
       speechClient = new SpeechClient(clientConfig);
+      console.log('✅ Google Cloud Speech client initialized successfully');
     } catch (error) {
+      console.error('❌ Failed to initialize Google Cloud Speech client:', error);
       throw new Error(`Failed to initialize Google Cloud Speech client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

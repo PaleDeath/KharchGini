@@ -8,6 +8,37 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: false, // Enable linting for production
   },
+  // Ensure static files in public directory are properly served
+  async headers() {
+    return [
+      {
+        source: '/manifest.json',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/manifest+json',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/javascript',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
   // Disable trace generation to prevent EPERM errors on Windows
   generateBuildId: async () => {
     return 'build-' + Date.now()

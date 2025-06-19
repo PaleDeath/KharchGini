@@ -2,7 +2,7 @@ const CACHE_NAME = 'kharchgini-v1.0.0';
 const STATIC_CACHE_NAME = 'kharchgini-static-v1.0.0';
 const DYNAMIC_CACHE_NAME = 'kharchgini-dynamic-v1.0.0';
 
-// Assets to cache immediately
+// Assets to cache immediately (only essential routes - no static files)
 const STATIC_ASSETS = [
   '/',
   '/dashboard',
@@ -10,11 +10,8 @@ const STATIC_ASSETS = [
   '/budgets',
   '/goals',
   '/analytics',
-  '/offline',
-  '/manifest.json',
-  // Add critical CSS and JS files
-  '/_next/static/css/app.css',
-  // Icons - removed missing icon references
+  '/offline'
+  // Removed manifest.json and CSS files that may not exist at install time
 ];
 
 // API routes that should be cached
