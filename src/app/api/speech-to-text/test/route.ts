@@ -8,6 +8,7 @@ export async function GET() {
     
     // Check environment variables
     const hasCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+                          process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY ||
                           process.env.GOOGLE_CLOUD_PROJECT_ID;
 
     if (!hasCredentials) {
@@ -16,6 +17,7 @@ export async function GET() {
         error: 'Google Cloud credentials not configured',
         details: {
           GOOGLE_APPLICATION_CREDENTIALS: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY: !!process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY,
           GOOGLE_CLOUD_PROJECT_ID: !!process.env.GOOGLE_CLOUD_PROJECT_ID
         }
       });
@@ -23,12 +25,26 @@ export async function GET() {
 
     // Try to initialize the client
     const clientConfig: any = {};
-    
+
     if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
       clientConfig.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     }
-    
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+
+    // Try service account key from environment variable first (for production)
+    if (process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY) {
+      try {
+        const serviceAccountKey = JSON.parse(process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY);
+        clientConfig.credentials = serviceAccountKey;
+      } catch (parseError) {
+        return NextResponse.json({
+          success: false,
+          error: 'Invalid service account key format in environment variable',
+          details: { parseError: parseError instanceof Error ? parseError.message : 'Unknown error' }
+        });
+      }
+    }
+    // Fallback to file path (for local development)
+    else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       clientConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
     }
 
@@ -48,7 +64,9 @@ export async function GET() {
       message: 'Google Cloud Speech-to-Text API is properly configured',
       details: {
         projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        credentialsMethod: process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY ? 'environment_variable' : 'file_path',
         credentialsFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+        hasServiceAccountKey: !!process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY,
         clientInitialized: true,
         testConfig: testConfig
       }

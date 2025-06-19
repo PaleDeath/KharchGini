@@ -8,6 +8,7 @@ function getSpeechClient(): SpeechClient {
   if (!speechClient) {
     // Check if we have Google Cloud credentials
     const hasCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+                          process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY ||
                           process.env.GOOGLE_CLOUD_PROJECT_ID;
 
     if (!hasCredentials) {
@@ -15,15 +16,28 @@ function getSpeechClient(): SpeechClient {
     }
 
     try {
-      // Initialize with project ID and credentials file
+      // Initialize with project ID and credentials
       const clientConfig: any = {};
 
       if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
         clientConfig.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
       }
 
-      if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // Try service account key from environment variable first (for production)
+      if (process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY) {
+        try {
+          const serviceAccountKey = JSON.parse(process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY);
+          clientConfig.credentials = serviceAccountKey;
+          console.log('Using service account key from environment variable');
+        } catch (parseError) {
+          console.error('Failed to parse GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY:', parseError);
+          throw new Error('Invalid service account key format in environment variable');
+        }
+      }
+      // Fallback to file path (for local development)
+      else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         clientConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+        console.log('Using service account key from file:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
       }
 
       speechClient = new SpeechClient(clientConfig);
