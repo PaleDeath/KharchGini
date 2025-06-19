@@ -90,11 +90,17 @@ export function EditTransactionDialog({ transaction, onTransactionUpdated, child
 
     setIsLoading(true);
     try {
+      // Format date in local timezone to avoid timezone conversion issues
+      const year = data.date.getFullYear();
+      const month = String(data.date.getMonth() + 1).padStart(2, '0');
+      const day = String(data.date.getDate()).padStart(2, '0');
+      const localDateString = `${year}-${month}-${day}`;
+
       const updates: Partial<Transaction> = {
         description: data.description,
         amount: data.amount,
         type: data.type,
-        date: data.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD
+        date: localDateString, // Use local date formatting to avoid UTC conversion
         category: data.category || undefined,
       };
 

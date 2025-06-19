@@ -133,11 +133,16 @@ function SidebarContentComponent() {
                     isActive && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                   )}
                 >
-                  <Link href={item.href} onClick={handleNavClick} className="flex items-center gap-3 p-3">
+                  <Link
+                    href={item.href}
+                    onClick={handleNavClick}
+                    className="flex items-center gap-3 p-3 w-full h-full"
+                    prefetch={true}
+                  >
                     <div className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-                      isActive 
-                        ? "bg-primary text-primary-foreground" 
+                      isActive
+                        ? "bg-primary text-primary-foreground"
                         : "bg-sidebar-accent/50 text-sidebar-foreground/70 group-hover:bg-sidebar-accent group-hover:text-sidebar-accent-foreground"
                     )}>
                       <item.icon className="h-4 w-4" />

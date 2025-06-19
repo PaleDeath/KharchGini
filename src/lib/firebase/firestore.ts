@@ -87,12 +87,17 @@ export async function deleteTransaction(userId: string, transactionId: string): 
 
 export async function addGoal(userId: string, goal: Omit<FinancialGoal, 'id'>): Promise<FinancialGoal> {
   try {
+    // Filter out undefined values to prevent Firebase errors
+    const cleanGoalData = Object.fromEntries(
+      Object.entries(goal).filter(([_, value]) => value !== undefined)
+    );
+
     const docRef = await addDoc(collection(db, 'users', userId, 'goals'), {
-      ...goal,
+      ...cleanGoalData,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
-    
+
     return {
       id: docRef.id,
       ...goal
@@ -128,9 +133,14 @@ export async function getGoals(userId: string): Promise<FinancialGoal[]> {
 
 export async function updateGoal(userId: string, goalId: string, updates: Partial<FinancialGoal>): Promise<void> {
   try {
+    // Filter out undefined values to prevent Firebase errors
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+
     const docRef = doc(db, 'users', userId, 'goals', goalId);
     await updateDoc(docRef, {
-      ...updates,
+      ...cleanUpdates,
       updatedAt: Timestamp.now()
     });
   } catch (error) {

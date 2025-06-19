@@ -25,7 +25,10 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, PlusCircle, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarIcon, PlusCircle, Loader2, Mic } from "lucide-react";
+import { VoiceTransactionInput } from "@/components/voice-transaction-input";
+import { VoiceTransactionData } from "@/lib/voice/speech-recognition";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType } from "@/lib/types";
@@ -50,6 +53,7 @@ interface AddTransactionDialogProps {
 export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'manual' | 'voice'>('manual');
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -65,6 +69,28 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
       date: new Date(),
     },
   });
+
+  const handleVoiceTransaction = async (voiceData: VoiceTransactionData) => {
+    if (!user?.uid) {
+      toast({ variant: "destructive", title: "Error", description: "User not logged in." });
+      return;
+    }
+
+    // Pre-fill form with voice data
+    if (voiceData.amount) form.setValue('amount', voiceData.amount);
+    if (voiceData.description) form.setValue('description', voiceData.description);
+    if (voiceData.type) form.setValue('type', voiceData.type);
+
+    // Switch to manual tab for review/editing
+    setActiveTab('manual');
+
+    toast({
+      title: "Voice Input Processed",
+      description: "Please review and confirm the transaction details."
+    });
+  };
+
+
 
   const onSubmit = async (data: TransactionFormValues) => {
     if (!user?.uid) {
@@ -88,9 +114,15 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
         console.log('Auto-categorization failed:', error);
       }
 
+      // Format date in local timezone to avoid timezone conversion issues
+      const year = data.date.getFullYear();
+      const month = String(data.date.getMonth() + 1).padStart(2, '0');
+      const day = String(data.date.getDate()).padStart(2, '0');
+      const localDateString = `${year}-${month}-${day}`;
+
       const transaction: Omit<Transaction, 'id'> = {
         ...data,
-        date: data.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD
+        date: localDateString, // Use local date formatting to avoid UTC conversion
         category: category || undefined
       };
 
@@ -98,16 +130,17 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
       onTransactionAdded(newTransaction);
       form.reset();
       setOpen(false);
-      
+      setActiveTab('manual'); // Reset to manual tab
+
       if (category) {
-        toast({ 
-          title: "Transaction Added", 
-          description: `Transaction saved and auto-categorized as "${category}".` 
+        toast({
+          title: "Transaction Added",
+          description: `Transaction saved and auto-categorized as "${category}".`
         });
       } else {
-        toast({ 
-          title: "Transaction Added", 
-          description: "Your transaction has been recorded." 
+        toast({
+          title: "Transaction Added",
+          description: "Your transaction has been recorded."
         });
       }
     } catch (error) {
@@ -126,14 +159,37 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
           Add Transaction
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Add Transaction</DialogTitle>
           <DialogDescription>
-            Add a new income or expense transaction to track your finances.
+            Add a new transaction manually or use voice input for hands-free entry.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'manual' | 'voice')} className="w-full flex flex-col flex-1 overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
+            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+            <TabsTrigger value="voice" className="gap-2">
+              <Mic className="h-4 w-4" />
+              Voice Input
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="voice" className="mt-4 flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto">
+              <VoiceTransactionInput
+                onTransactionParsed={handleVoiceTransaction}
+                onCancel={() => setActiveTab('manual')}
+              />
+            </div>
+          </TabsContent>
+
+
+
+          <TabsContent value="manual" className="mt-4 flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">Description</Label>
             <div className="col-span-3">
@@ -244,13 +300,16 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
               {form.formState.errors.date && <p className="text-xs text-destructive mt-1">{form.formState.errors.date.message}</p>}
             </div>
           </div>
-          <DialogFooter>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Saving..." : "Save Transaction"}
-            </Button>
-          </DialogFooter>
-        </form>
+              <DialogFooter>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading ? "Saving..." : "Save Transaction"}
+                </Button>
+              </DialogFooter>
+              </form>
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

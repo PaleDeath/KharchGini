@@ -192,11 +192,41 @@ export default function TransactionsPage() {
       return;
     }
 
+    // Get uncategorized transactions
+    const uncategorizedTransactions = transactions.filter(t => !t.category);
+
+    if (uncategorizedTransactions.length === 0) {
+      toast({
+        title: "No Transactions to Categorize",
+        description: "All your transactions already have a category."
+      });
+      return;
+    }
+
     setIsBulkCategorizing(true);
     try {
-      const result = await bulkCategorizeUncategorizedAction(user.uid);
+      const result = await bulkCategorizeUncategorizedAction(uncategorizedTransactions);
       if (result.success) {
-        if (result.categorizedCount && result.categorizedCount > 0) {
+        if (result.categorizedCount && result.categorizedCount > 0 && result.categorizedTransactions) {
+          // Update transactions locally with the categorized results
+          const { bulkUpdateTransactionCategory } = await import('@/lib/firebase/firestore');
+
+          // Group by category for efficient batch updates
+          const categoryGroups: Record<string, string[]> = {};
+          result.categorizedTransactions.forEach(({ id, category }) => {
+            if (!categoryGroups[category]) {
+              categoryGroups[category] = [];
+            }
+            categoryGroups[category].push(id);
+          });
+
+          // Update each category group
+          await Promise.all(
+            Object.entries(categoryGroups).map(([category, ids]) =>
+              bulkUpdateTransactionCategory(user.uid, ids, category)
+            )
+          );
+
           toast({
             title: "Bulk Categorization Complete",
             description: `Successfully categorized ${result.categorizedCount} transaction(s).`

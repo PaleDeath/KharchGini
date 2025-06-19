@@ -7,7 +7,28 @@ import { AuthProvider } from '@/contexts/auth-context';
 
 export const metadata: Metadata = {
   title: 'KharchGini',
-  description: 'Next-generation personal expense tracker by Firebase Studio, now KharchGini!',
+  description: 'Smart personal finance management with AI-powered insights and expense tracking',
+  manifest: '/manifest.json',
+  themeColor: '#3b82f6',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'KharchGini',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'KharchGini',
+    title: 'KharchGini - Personal Finance Manager',
+    description: 'Smart personal finance management with AI-powered insights',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'KharchGini - Personal Finance Manager',
+    description: 'Smart personal finance management with AI-powered insights',
+  },
 };
 
 export default function RootLayout({

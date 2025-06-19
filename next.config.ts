@@ -35,7 +35,10 @@ const nextConfig: NextConfig = {
     '@opentelemetry/exporter-jaeger',
     '@genkit-ai/core',
     'genkit',
-    'handlebars'
+    'handlebars',
+    'mime',
+    'mime-types',
+    'mime-db'
   ],
   // Enhanced webpack configuration for Windows compatibility
   webpack: (config, { dev, isServer }) => {
@@ -54,6 +57,9 @@ const nextConfig: NextConfig = {
       fs: false,
       path: false,
       os: false,
+      mime: false,
+      'mime-types': false,
+      'mime-db': false,
     };
     
     // Windows-specific optimizations

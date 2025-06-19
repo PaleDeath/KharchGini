@@ -23,6 +23,10 @@ Required environment variables for Vercel:
 #### AI Configuration (Private)
 - `GOOGLE_GENAI_API_KEY`
 
+#### Google Cloud Speech-to-Text API (Private, Optional)
+- `GOOGLE_CLOUD_PROJECT_ID`
+- `GOOGLE_APPLICATION_CREDENTIALS` (for local development)
+
 ### ✅ Firebase Setup
 - [x] Firestore Database enabled
 - [x] Authentication enabled (Email/Password)

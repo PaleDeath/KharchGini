@@ -17,7 +17,7 @@ A comprehensive personal finance management application built with Next.js, Fire
 - **Frontend**: Next.js 15, React 18, TypeScript
 - **UI**: Tailwind CSS, Radix UI, Lucide Icons
 - **Backend**: Firebase (Firestore, Authentication)
-- **AI**: Google Gemini AI for financial insights
+- **AI**: Google Gemini AI for financial insights, Google Cloud Speech-to-Text for voice input
 - **Charts**: Recharts
 - **Forms**: React Hook Form with Zod validation
 
@@ -25,10 +25,11 @@ A comprehensive personal finance management application built with Next.js, Fire
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Firebase project
 - Google AI API key
+- Google Cloud project with Speech-to-Text API enabled (optional, for enhanced voice input)
 
 ### Installation
 
@@ -58,6 +59,10 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id_here
 
 # Google AI (Gemini) Configuration
 GOOGLE_GENAI_API_KEY=your_google_ai_api_key_here
+
+# Google Cloud Speech-to-Text API Configuration (Optional)
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account-key.json
+GOOGLE_CLOUD_PROJECT_ID=your_google_cloud_project_id
 ```
 
 4. Set up Firebase:
@@ -70,7 +75,19 @@ GOOGLE_GENAI_API_KEY=your_google_ai_api_key_here
    - Get a Google AI API key from Google AI Studio
    - Add it to your environment variables
 
-6. Run the development server:
+6. Set up Google Cloud Speech-to-Text API (optional, for enhanced voice input):
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing project
+   - Enable the Speech-to-Text API:
+     - Go to APIs & Services > Library
+     - Search for "Cloud Speech-to-Text API" and enable it
+   - Create a Service Account:
+     - Go to IAM & Admin > Service Accounts
+     - Create a new service account with "Cloud Speech Client" role
+     - Download the JSON key file
+   - Add the credentials to your environment variables
+
+7. Run the development server:
 ```bash
 npm run dev
 ```

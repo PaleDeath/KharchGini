@@ -30,21 +30,24 @@ import {
 import type { Budget } from "@/lib/types";
 import { deleteBudget, updateBudgetSpending } from '@/lib/firebase/firestore'; 
 import { useToast } from "@/hooks/use-toast";
-import { Target, AlertTriangle, TrendingUp, Calendar, Edit, Trash2, RefreshCw, Sparkles } from "lucide-react";
-import { useBudgets, useBudgetSummary } from '@/hooks/use-firestore-data';
+import { Target, AlertTriangle, TrendingUp, Calendar, Edit, Trash2, RefreshCw, Sparkles, Brain } from "lucide-react";
+import { useBudgets, useBudgetSummary, useTransactions } from '@/hooks/use-firestore-data';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
+// Temporarily disabled budget recommendations due to Genkit Node.js module conflicts
+// import { BudgetRecommendations } from '@/components/budget-recommendations';
 
 export default function BudgetsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  
+
   // Generate current month as default
   const currentMonth = new Date().toISOString().slice(0, 7);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  
+
   const { budgets, loading, error, refreshBudgets, updateBudgetsWithSpending } = useBudgets(selectedMonth);
   const { summary, loading: summaryLoading, refreshSummary } = useBudgetSummary(selectedMonth);
+  const { transactions } = useTransactions();
 
   // Generate month options
   const generateMonthOptions = () => {
@@ -106,6 +109,8 @@ export default function BudgetsPage() {
     }
   };
 
+  // Budget recommendations temporarily disabled due to Genkit Node.js module conflicts
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { 
       style: 'currency', 
@@ -132,21 +137,19 @@ export default function BudgetsPage() {
         title="Budget Tracker"
         description="Set spending limits and track your progress to stay on top of your finances."
         actions={
-                  <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefreshSpending} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Sync Spending
-          </Button>
-          {/* Smart Budget temporarily disabled 
-          <SmartBudgetDialog onBudgetsCreated={handleSmartBudgetsCreated} defaultMonth={selectedMonth}>
-            <Button variant="default" size="sm" className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Smart Budget
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefreshSpending} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Sync Spending
             </Button>
-          </SmartBudgetDialog>
-          */}
-          <AddBudgetDialog onBudgetAdded={handleBudgetAdded} defaultMonth={selectedMonth} />
-        </div>
+            {/* Temporarily disabled due to Genkit Node.js module conflicts
+            <Button variant="outline" size="sm" onClick={handleGenerateRecommendations} className="gap-2">
+              <Brain className="h-4 w-4" />
+              AI Recommendations
+            </Button>
+            */}
+            <AddBudgetDialog onBudgetAdded={handleBudgetAdded} defaultMonth={selectedMonth} />
+          </div>
         }
       />
 
@@ -235,6 +238,16 @@ export default function BudgetsPage() {
           </Card>
         </div>
       )}
+
+      {/* AI Budget Recommendations - Temporarily disabled due to Genkit Node.js module conflicts
+      <div className="mb-6">
+        <BudgetRecommendations
+          data={recommendationsData}
+          isLoading={isGeneratingRecommendations}
+          onGenerateRecommendations={handleGenerateRecommendations}
+        />
+      </div>
+      */}
 
       {/* Budget List */}
       {budgets.length === 0 ? (

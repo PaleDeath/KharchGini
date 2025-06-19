@@ -45,6 +45,8 @@ import {
   type ComparativeAnalysis
 } from '@/lib/analytics-utils';
 import { detectSpendingAnomalies, detectSimpleAlerts } from '@/lib/anomaly-detection';
+import { AnomalyDetection } from '@/components/anomaly-detection';
+import { CashFlowPrediction } from '@/components/cash-flow-prediction';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -258,6 +260,9 @@ export default function AnalyticsPage() {
             </TabsTrigger>
             <TabsTrigger value="anomalies" className="whitespace-nowrap px-3 py-1.5 text-sm">
               Anomalies
+            </TabsTrigger>
+            <TabsTrigger value="cashflow" className="whitespace-nowrap px-3 py-1.5 text-sm">
+              Cash Flow
             </TabsTrigger>
           </TabsList>
         </div>
@@ -615,7 +620,11 @@ export default function AnalyticsPage() {
 
         {/* Anomalies Tab */}
         <TabsContent value="anomalies" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <AnomalyDetection
+            transactions={transactions}
+            selectedMonth={currentMonth}
+          />
+          <div className="grid gap-6 lg:grid-cols-2" style={{ display: 'none' }}>
             {/* Anomaly Detection Overview */}
             <Card className={cn("shadow-md lg:col-span-2", anomalies && getAssessmentColor(anomalies.overallAssessment))}>
               <CardHeader>
@@ -796,7 +805,15 @@ export default function AnalyticsPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* Cash Flow Tab */}
+        <TabsContent value="cashflow" className="space-y-6">
+          <CashFlowPrediction
+            transactions={transactions}
+            monthsAhead={6}
+          />
+        </TabsContent>
       </Tabs>
     </>
   );
-} 
+}
