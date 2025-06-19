@@ -24,33 +24,35 @@ export function VoiceTransactionInput({
   onCancel, 
   className 
 }: VoiceTransactionInputProps) {
-  const [voiceState, setVoiceState] = useState<VoiceState>('manual'); // Start with manual input
-  const [transcript, setTranscript] = useState<string>('');
+  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const [transcript, setTranscript] = useState('');
   const [parsedData, setParsedData] = useState<VoiceTransactionData | null>(null);
-  const [isSupported, setIsSupported] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
-  const [manualInput, setManualInput] = useState<string>('');
+  const [error, setError] = useState('');
+  const [manualInput, setManualInput] = useState('');
   const { toast } = useToast();
 
   const speechService = getSpeechRecognitionService();
+  const isSupported = speechService.isVoiceSupported();
+  
+  // Detect production environment and suggest manual input
+  const isProduction = typeof window !== 'undefined' && 
+    (window.location.protocol === 'https:' && !window.location.hostname.includes('localhost'));
 
+  // Auto-switch to manual in production environments where voice often fails
   useEffect(() => {
-    const supported = speechService.isVoiceSupported();
-    setIsSupported(supported);
-
-    // If voice is not supported or we're offline, start in manual mode
-    if (!supported || !navigator.onLine) {
+    if (isProduction && !isSupported) {
       setVoiceState('manual');
     }
-  }, [speechService]);
+  }, [isProduction, isSupported]);
 
   const startListening = async () => {
     if (!isSupported) {
       toast({
         variant: "destructive",
         title: "Voice Not Supported",
-        description: "Your browser doesn't support voice input. Please use Chrome or Edge."
+        description: "Voice input is not available. Please use the manual input option below."
       });
+      setVoiceState('manual');
       return;
     }
 
@@ -74,10 +76,18 @@ export function VoiceTransactionInput({
       setError(errorMessage);
       setVoiceState('error');
 
+      // For network errors (common in production), auto-switch to manual input
+      if (errorMessage.includes('network') || errorMessage.includes('unavailable')) {
+        setTimeout(() => {
+          setVoiceState('manual');
+        }, 2000);
+      }
+
       toast({
         variant: "destructive",
-        title: "Voice Recognition Failed",
-        description: errorMessage
+        title: "Voice Recognition Issue",
+        description: errorMessage + " Switching to manual input mode...",
+        duration: 3000
       });
     }
   };
@@ -189,7 +199,10 @@ export function VoiceTransactionInput({
         {/* Status Text */}
         <div className="text-center">
           {voiceState === 'idle' && (
-            <p className="text-sm text-muted-foreground">Click the microphone to start</p>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Try voice input or type manually</p>
+              <p className="text-xs text-muted-foreground text-purple-600">Manual input recommended for production apps</p>
+            </div>
           )}
           {voiceState === 'listening' && (
             <p className="text-sm text-red-600 font-medium">Listening... Speak now</p>

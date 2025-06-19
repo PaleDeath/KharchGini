@@ -45,29 +45,47 @@ export class SpeechRecognitionService {
   }
 
   public async startListening(): Promise<string> {
-    // Check if we're in browser environment
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-      throw new Error('Voice recognition is only available in browser environment.');
+    if (!this.isSupported) {
+      throw new Error('Voice recognition is currently unavailable. Please use the "Type Instead" option below to enter your transaction manually.');
     }
 
-    // Check if we're online first
-    if (!navigator.onLine) {
-      throw new Error('No internet connection. Please use manual entry instead.');
-    }
-
-    // Try enhanced cloud-based recognition first (if configured)
     try {
-      return await this.startCloudRecognition();
-    } catch (cloudError) {
-      console.warn('Cloud recognition failed, falling back to browser:', cloudError);
-
-      // Fallback to browser-based recognition
-      try {
-        return await this.startBrowserRecognition();
-      } catch (browserError) {
-        // If both fail, provide helpful guidance
-        throw new Error('Voice recognition is currently unavailable. Please use the "Type Instead" option below to enter your transaction manually.');
+      // In production environments, prioritize cloud recognition over browser recognition
+      // due to network issues with Web Speech API on hosted platforms
+      const isProduction = typeof window !== 'undefined' && 
+        (window.location.protocol === 'https:' && !window.location.hostname.includes('localhost'));
+      
+      if (isProduction) {
+        try {
+          // Try cloud recognition first in production
+          console.log('Attempting cloud recognition in production environment...');
+          return await this.startCloudRecognition();
+        } catch (cloudError) {
+          console.log('Cloud recognition failed, trying browser recognition...', cloudError);
+          try {
+            return await this.startBrowserRecognition();
+          } catch (browserError) {
+            console.error('Both cloud and browser recognition failed:', browserError);
+            throw new Error('Voice recognition is currently unavailable due to network issues. Please use the "Type Instead" option below to enter your transaction manually.');
+          }
+        }
+      } else {
+        // In development, try browser first, then cloud
+        try {
+          return await this.startBrowserRecognition();
+        } catch (browserError) {
+          console.log('Browser recognition failed, trying cloud recognition...', browserError);
+          try {
+            return await this.startCloudRecognition();
+          } catch (cloudError) {
+            console.error('Both browser and cloud recognition failed:', cloudError);
+            throw new Error('Voice recognition is currently unavailable. Please use the "Type Instead" option below to enter your transaction manually.');
+          }
+        }
       }
+    } catch (error) {
+      console.error('Speech recognition error:', error);
+      throw new Error('Voice recognition is currently unavailable. Please use the "Type Instead" option below to enter your transaction manually.');
     }
   }
 
@@ -219,11 +237,16 @@ export class SpeechRecognitionService {
         let errorMessage = 'Voice recognition is not available. Please use the "Type Instead" option below.';
 
         if (event.error === 'network') {
-          errorMessage = 'Network error with voice recognition. Please check your internet connection or use "Type Instead".';
+          // Network errors are common in production environments
+          errorMessage = 'Voice recognition network error. This commonly happens on deployed apps. Please use "Type Instead" to enter your transaction manually.';
         } else if (event.error === 'not-allowed') {
           errorMessage = 'Microphone access denied. Please allow microphone permissions or use "Type Instead".';
         } else if (event.error === 'no-speech') {
           errorMessage = 'No speech detected. Please try speaking again or use "Type Instead".';
+        } else if (event.error === 'service-not-allowed') {
+          errorMessage = 'Voice recognition service blocked. Please use "Type Instead" to enter your transaction manually.';
+        } else if (event.error === 'bad-grammar' || event.error === 'language-not-supported') {
+          errorMessage = 'Voice recognition language not supported. Please use "Type Instead" to enter your transaction manually.';
         }
 
         reject(new Error(errorMessage));
