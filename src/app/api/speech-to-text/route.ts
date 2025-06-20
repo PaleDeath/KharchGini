@@ -44,6 +44,12 @@ function getSpeechClient(): SpeechClient {
           
           const serviceAccountKey = JSON.parse(cleanCredentials);
           
+          // Fix common issue: private_key contains literal \n which must be actual newlines
+          if (serviceAccountKey.private_key && serviceAccountKey.private_key.includes('\\n')) {
+            serviceAccountKey.private_key = serviceAccountKey.private_key.replace(/\\n/g, '\n');
+            console.log('🔧 Sanitized private_key newlines');
+          }
+          
           // Validate required fields
           if (!serviceAccountKey.type || !serviceAccountKey.project_id || !serviceAccountKey.private_key_id) {
             throw new Error('Invalid service account key: missing required fields (type, project_id, private_key_id)');
@@ -79,6 +85,12 @@ function getSpeechClient(): SpeechClient {
             }
             
             const serviceAccountKey = JSON.parse(cleanCredentials);
+            
+            // Fix common issue: private_key contains literal \n which must be actual newlines
+            if (serviceAccountKey.private_key && serviceAccountKey.private_key.includes('\\n')) {
+              serviceAccountKey.private_key = serviceAccountKey.private_key.replace(/\\n/g, '\n');
+              console.log('🔧 Sanitized private_key newlines');
+            }
             
             // Validate required fields
             if (!serviceAccountKey.type || !serviceAccountKey.project_id || !serviceAccountKey.private_key_id) {
