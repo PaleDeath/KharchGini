@@ -1,131 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SpeechClient } from '@google-cloud/speech';
+import { getUserIdFromAuthHeader } from '@/lib/firebase/admin';
+import { apiRateLimiter } from '@/lib/rate-limit';
+import { validateOriginFromRequest } from '@/lib/csrf-protection';
+import { logger } from '@/lib/logger';
+import { speechToTextSchema } from '@/lib/validation-schemas';
 
 // Initialize Google Cloud Speech client
 let speechClient: SpeechClient | null = null;
 
 function getSpeechClient(): SpeechClient {
   if (!speechClient) {
-    // Check if we have Google Cloud credentials
     const hasCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
                           process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY ||
                           process.env.GOOGLE_CLOUD_PROJECT_ID;
 
     if (!hasCredentials) {
-      throw new Error('Google Cloud Speech-to-Text API credentials not configured. Please set up Google Cloud credentials in your .env file.');
+      throw new Error('Google Cloud Speech-to-Text API credentials not configured');
     }
 
     try {
-      // Initialize with project ID and credentials
       const clientConfig: any = {};
 
       if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
         clientConfig.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-        console.log('✅ Using project ID:', process.env.GOOGLE_CLOUD_PROJECT_ID);
       }
 
-      // Try service account key from environment variable first (for production)
       if (process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY) {
-        try {
-          // Remove any extra whitespace and handle potential encoding issues
-          const rawCredentials = process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY;
-          console.log('🔧 Raw credentials type:', typeof rawCredentials);
-          console.log('🔧 Raw credentials length:', rawCredentials?.length || 0);
-          console.log('🔧 Raw credentials first 100 chars:', rawCredentials?.substring(0, 100) || 'undefined');
-          
-          const cleanCredentials = rawCredentials.trim();
-          console.log('🔧 Clean credentials length:', cleanCredentials.length);
-          console.log('🔧 Clean credentials starts with {:', cleanCredentials.startsWith('{'));
-          console.log('🔧 Clean credentials ends with }:', cleanCredentials.endsWith('}'));
-          
-          if (!cleanCredentials.startsWith('{') || !cleanCredentials.endsWith('}')) {
-            throw new Error(`Invalid JSON format in GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY. Expected JSON object, got: ${cleanCredentials.substring(0, 100)}...`);
-          }
-          
+        const cleanCredentials = process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY.trim();
+        const serviceAccountKey = JSON.parse(cleanCredentials);
+        
+        if (serviceAccountKey.private_key && serviceAccountKey.private_key.includes('\\n')) {
+          serviceAccountKey.private_key = serviceAccountKey.private_key.replace(/\\n/g, '\n');
+        }
+        
+        clientConfig.credentials = serviceAccountKey;
+        logger.debug('Speech client using service account key');
+      }
+      else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        const cleanCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS.trim();
+        
+        if (cleanCredentials.startsWith('{')) {
           const serviceAccountKey = JSON.parse(cleanCredentials);
           
-          // Fix common issue: private_key contains literal \n which must be actual newlines
           if (serviceAccountKey.private_key && serviceAccountKey.private_key.includes('\\n')) {
             serviceAccountKey.private_key = serviceAccountKey.private_key.replace(/\\n/g, '\n');
-            console.log('🔧 Sanitized private_key newlines');
-          }
-          
-          // Validate required fields
-          if (!serviceAccountKey.type || !serviceAccountKey.project_id || !serviceAccountKey.private_key_id) {
-            throw new Error('Invalid service account key: missing required fields (type, project_id, private_key_id)');
           }
           
           clientConfig.credentials = serviceAccountKey;
-          console.log('✅ Using service account key from GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY');
-          console.log('✅ Service account email:', serviceAccountKey.client_email);
-          console.log('✅ Project ID from credentials:', serviceAccountKey.project_id);
-        } catch (parseError) {
-          console.error('❌ Failed to parse GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY:', parseError);
-          console.error('❌ Raw value type:', typeof process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY);
-          console.error('❌ Raw value length:', process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY?.length);
-          throw new Error(`Invalid service account key format in GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
+        } else {
+          clientConfig.keyFilename = cleanCredentials;
         }
+        
+        logger.debug('Speech client using application credentials');
       }
-      // Check if GOOGLE_APPLICATION_CREDENTIALS contains JSON (Vercel deployment)
-      else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        try {
-          // Remove any extra whitespace and handle potential encoding issues
-          const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-          console.log('🔧 GOOGLE_APPLICATION_CREDENTIALS type:', typeof rawCredentials);
-          console.log('🔧 GOOGLE_APPLICATION_CREDENTIALS length:', rawCredentials?.length || 0);
-          
-          const cleanCredentials = rawCredentials.trim();
-          
-          // Check if it starts with { to determine if it's JSON
-          if (cleanCredentials.startsWith('{')) {
-            console.log('🔧 Treating GOOGLE_APPLICATION_CREDENTIALS as JSON');
-            
-            if (!cleanCredentials.endsWith('}')) {
-              throw new Error(`Invalid JSON format in GOOGLE_APPLICATION_CREDENTIALS. Expected JSON object, got incomplete JSON.`);
-            }
-            
-            const serviceAccountKey = JSON.parse(cleanCredentials);
-            
-            // Fix common issue: private_key contains literal \n which must be actual newlines
-            if (serviceAccountKey.private_key && serviceAccountKey.private_key.includes('\\n')) {
-              serviceAccountKey.private_key = serviceAccountKey.private_key.replace(/\\n/g, '\n');
-              console.log('🔧 Sanitized private_key newlines');
-            }
-            
-            // Validate required fields
-            if (!serviceAccountKey.type || !serviceAccountKey.project_id || !serviceAccountKey.private_key_id) {
-              throw new Error('Invalid service account key: missing required fields (type, project_id, private_key_id)');
-            }
-            
-            clientConfig.credentials = serviceAccountKey;
-            console.log('✅ Using service account key from GOOGLE_APPLICATION_CREDENTIALS (JSON)');
-            console.log('✅ Service account email:', serviceAccountKey.client_email);
-          } else {
-            // Treat as file path (local development)
-            console.log('🔧 Treating GOOGLE_APPLICATION_CREDENTIALS as file path');
-            clientConfig.keyFilename = cleanCredentials;
-            console.log('✅ Using service account key from file:', cleanCredentials);
-          }
-        } catch (parseError) {
-          console.error('❌ Failed to parse GOOGLE_APPLICATION_CREDENTIALS:', parseError);
-          console.error('❌ Raw value type:', typeof process.env.GOOGLE_APPLICATION_CREDENTIALS);
-          console.error('❌ Raw value length:', process.env.GOOGLE_APPLICATION_CREDENTIALS?.length);
-          throw new Error(`Invalid service account key format in GOOGLE_APPLICATION_CREDENTIALS: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
-        }
-      }
-
-      console.log('🚀 Initializing Speech Client with config:', JSON.stringify({
-        projectId: clientConfig.projectId,
-        hasCredentials: !!clientConfig.credentials,
-        hasKeyFilename: !!clientConfig.keyFilename,
-        credentialsType: clientConfig.credentials ? 'JSON object' : 'file path'
-      }, null, 2));
 
       speechClient = new SpeechClient(clientConfig);
-      console.log('✅ Google Cloud Speech client initialized successfully');
+      logger.info('Google Cloud Speech client initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize Google Cloud Speech client:', error);
-      throw new Error(`Failed to initialize Google Cloud Speech client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Failed to initialize Speech client:', error);
+      throw new Error('Failed to initialize Speech service');
     }
   }
 
@@ -134,7 +68,63 @@ function getSpeechClient(): SpeechClient {
 
 export async function POST(request: NextRequest) {
   try {
-    const { audioData, config, audioFormat, audioSize } = await request.json();
+    // 1. CSRF Protection
+    await validateOriginFromRequest(request);
+
+    // 2. Authentication - Verify Firebase ID token
+    const authHeader = request.headers.get('Authorization');
+    let userId: string;
+    
+    try {
+      userId = await getUserIdFromAuthHeader(authHeader);
+      logger.debug('Speech API authenticated', { userId });
+    } catch (authError) {
+      logger.warn('Speech API authentication failed', authError);
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // 3. Rate Limiting - 10 requests per hour per user
+    const rateLimitResult = await apiRateLimiter.limit(userId);
+    
+    if (!rateLimitResult.success) {
+      const resetInMinutes = Math.ceil((rateLimitResult.reset - Date.now()) / 1000 / 60);
+      logger.warn('Rate limit exceeded for speech API', {
+        userId,
+        resetIn: `${resetInMinutes} minutes`,
+      });
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Rate limit exceeded. You can make ${rateLimitResult.limit} requests per hour. Try again in ${resetInMinutes} minutes.` 
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': new Date(rateLimitResult.reset).toISOString(),
+          }
+        }
+      );
+    }
+
+    // 4. Validate request body
+    const body = await request.json();
+    const validation = speechToTextSchema.safeParse(body);
+    
+    if (!validation.success) {
+      logger.warn('Invalid speech API request', { errors: validation.error.errors });
+      return NextResponse.json(
+        { success: false, error: 'Invalid request format' },
+        { status: 400 }
+      );
+    }
+
+    const { audioData, config, audioFormat, audioSize } = validation.data;
 
     if (!audioData) {
       return NextResponse.json(
@@ -143,28 +133,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Received audio data:', {
+    logger.debug('Received audio data', {
+      userId,
       format: audioFormat,
       size: audioSize,
       dataLength: audioData.length
     });
 
     try {
-      // Try Google Cloud Speech-to-Text API first
-      console.log('Initializing Google Cloud Speech client...');
+      logger.debug('Initializing Google Cloud Speech client');
       const client = getSpeechClient();
-      console.log('Speech client initialized successfully');
 
-      // Convert base64 audio to buffer
       const audioBuffer = Buffer.from(audioData, 'base64');
-      console.log(`Audio buffer size: ${audioBuffer.length} bytes`);
+      logger.debug(`Audio buffer size: ${audioBuffer.length} bytes`);
 
       // Determine encoding based on audio format
       let encoding: string = 'WEBM_OPUS';
       let sampleRate = 48000;
 
       if (audioFormat) {
-        console.log('Detected audio format:', audioFormat);
+        logger.debug('Detected audio format', { audioFormat });
         if (audioFormat.includes('opus')) {
           // Use OGG_OPUS instead of WEBM_OPUS for better compatibility
           encoding = 'OGG_OPUS';
@@ -180,7 +168,7 @@ export async function POST(request: NextRequest) {
           encoding = 'LINEAR16';
           sampleRate = 16000;
         } else {
-          console.log('Unknown audio format, using FLAC for maximum compatibility');
+          logger.debug('Unknown audio format, using FLAC for maximum compatibility');
           // Use FLAC as the most compatible format
           encoding = 'FLAC';
           sampleRate = 16000;
@@ -191,7 +179,7 @@ export async function POST(request: NextRequest) {
         sampleRate = 16000;
       }
 
-      console.log('Using encoding:', encoding, 'with sample rate:', sampleRate);
+      logger.debug('Audio encoding configured', { encoding, sampleRate });
 
       const speechConfig = {
         encoding: encoding as any,
@@ -214,15 +202,17 @@ export async function POST(request: NextRequest) {
 
       // Validate audio buffer
       if (audioBuffer.length < 1000) {
-        console.warn('Audio buffer is very small:', audioBuffer.length, 'bytes - may not contain speech');
+        logger.warn('Audio buffer is very small - may not contain speech', { 
+          size: audioBuffer.length 
+        });
       }
 
-      console.log('Sending request to Google Cloud Speech API with config:', speechConfig);
+      logger.debug('Sending request to Google Cloud Speech API');
       const [response] = await client.recognize(request);
-      console.log('Received response from Google Cloud Speech API:', JSON.stringify(response, null, 2));
+      logger.debug('Received response from Google Cloud Speech API');
 
       if (!response.results || response.results.length === 0) {
-        console.log('No speech results found in response');
+        logger.info('No speech detected in audio', { userId });
         return NextResponse.json({
           success: false,
           error: 'No speech detected in the audio. Please speak clearly and try again, or use the "Type Instead" option.',
@@ -237,7 +227,11 @@ export async function POST(request: NextRequest) {
 
       const confidence = response.results[0]?.alternatives?.[0]?.confidence || 0;
 
-      console.log(`Transcription successful: "${transcription}" (confidence: ${confidence})`);
+      logger.info('Transcription successful', { 
+        userId, 
+        confidence,
+        transcriptLength: transcription.length 
+      });
 
       return NextResponse.json({
         success: true,
@@ -247,12 +241,7 @@ export async function POST(request: NextRequest) {
       });
       
     } catch (speechError) {
-      console.error('Google Cloud Speech-to-Text failed:', speechError);
-      console.error('Error details:', {
-        message: speechError instanceof Error ? speechError.message : 'Unknown error',
-        stack: speechError instanceof Error ? speechError.stack : undefined,
-        name: speechError instanceof Error ? speechError.name : undefined
-      });
+      logger.error('Google Cloud Speech-to-Text failed', speechError);
 
       // Fallback to browser-based recognition indication
       return NextResponse.json({
@@ -263,7 +252,7 @@ export async function POST(request: NextRequest) {
     }
     
   } catch (error) {
-    console.error('Speech-to-text processing error:', error);
+    logger.error('Speech-to-text processing error', error);
     
     return NextResponse.json(
       { 
@@ -296,7 +285,7 @@ export async function PUT(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Streaming config error:', error);
+    logger.error('Streaming config error', error);
     
     return NextResponse.json(
       { 

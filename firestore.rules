@@ -1,15 +1,99 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only access their own data
+    // Helper function to check if user is authenticated and authorized
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Validation functions for data integrity
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['date', 'description', 'amount', 'type'])
+        && data.amount is number
+        && data.amount > 0
+        && data.amount <= 10000000  // 1 crore max
+        && data.type in ['income', 'expense']
+        && data.description is string
+        && data.description.size() > 0
+        && data.description.size() <= 500
+        && data.date is string
+        && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    
+    function isValidGoal(data) {
+      return data.keys().hasAll(['name', 'targetAmount', 'currentAmount'])
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 200
+        && data.targetAmount is number
+        && data.targetAmount > 0
+        && data.targetAmount <= 100000000  // 10 crore max
+        && data.currentAmount is number
+        && data.currentAmount >= 0
+        && data.currentAmount <= data.targetAmount;
+    }
+    
+    function isValidBudget(data) {
+      return data.keys().hasAll(['month', 'category', 'budgetAmount', 'spentAmount'])
+        && data.month is string
+        && data.month.matches('^[0-9]{4}-[0-9]{2}$')
+        && data.category is string
+        && data.category.size() > 0
+        && data.category.size() <= 100
+        && data.budgetAmount is number
+        && data.budgetAmount > 0
+        && data.budgetAmount <= 10000000
+        && data.spentAmount is number
+        && data.spentAmount >= 0;
+    }
+    
+    function isValidRecurringTransaction(data) {
+      return data.keys().hasAll(['description', 'amount', 'type', 'frequency', 'startDate', 'nextDueDate', 'isActive'])
+        && data.description is string
+        && data.description.size() > 0
+        && data.description.size() <= 500
+        && data.amount is number
+        && data.amount > 0
+        && data.amount <= 10000000
+        && data.type in ['income', 'expense']
+        && data.frequency in ['daily', 'weekly', 'monthly', 'yearly']
+        && data.startDate is string
+        && data.nextDueDate is string
+        && data.isActive is bool;
+    }
+    
+    // Users can only access their own user document
     match /users/{userId} {
-      // Allow read/write access only if the user is authenticated and accessing their own data
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
       
-      // Nested collections: transactions, goals, and budgets
-      match /{collection}/{document} {
-        // Allow read/write access to user's own transactions, goals, and budgets
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      // EXPLICIT collection access only - no wildcards
+      match /transactions/{transactionId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTransaction(request.resource.data);
+        allow update: if isOwner(userId) && isValidTransaction(request.resource.data);
+      }
+      
+      match /goals/{goalId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow update: if isOwner(userId) && isValidGoal(request.resource.data);
+      }
+      
+      match /budgets/{budgetId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidBudget(request.resource.data);
+        allow update: if isOwner(userId) && isValidBudget(request.resource.data);
+      }
+      
+      match /recurringTransactions/{recurringId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidRecurringTransaction(request.resource.data);
+        allow update: if isOwner(userId) && isValidRecurringTransaction(request.resource.data);
       }
     }
     
