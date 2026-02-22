@@ -1,15 +1,19 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import ClientProviders from '@/components/client-providers';
 import { AuthProvider } from '@/contexts/auth-context';
+import { RecurringProcessor } from '@/components/recurring-processor';
+
+export const viewport: Viewport = {
+  themeColor: '#3b82f6',
+};
 
 export const metadata: Metadata = {
   title: 'KharchGini',
   description: 'Smart personal finance management with AI-powered insights and expense tracking',
   manifest: '/manifest.json',
-  themeColor: '#3b82f6',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -43,6 +47,7 @@ export default function RootLayout({
       >
         <ClientProviders>
           <AuthProvider>
+            <RecurringProcessor />
             {children}
           </AuthProvider>
         </ClientProviders>
