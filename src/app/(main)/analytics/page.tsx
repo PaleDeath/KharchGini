@@ -580,7 +580,7 @@ export default function AnalyticsPage() {
                     <Target className="h-5 w-5" />
                     Budget Performance
                   </CardTitle>
-                  <CardDescription>How you're doing against your budgets</CardDescription>
+                  <CardDescription>How you&apos;re doing against your budgets</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">

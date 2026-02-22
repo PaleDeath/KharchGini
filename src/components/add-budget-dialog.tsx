@@ -138,7 +138,7 @@ export function AddBudgetDialog({ onBudgetAdded, defaultMonth }: AddBudgetDialog
             Create New Budget
           </DialogTitle>
           <DialogDescription>
-            Set a spending limit for a specific category this month. Track your progress and get alerts when you're close to your limit.
+            Set a spending limit for a specific category this month. Track your progress and get alerts when you&apos;re close to your limit.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>

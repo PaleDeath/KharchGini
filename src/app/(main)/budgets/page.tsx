@@ -180,7 +180,7 @@ export default function BudgetsPage() {
         <Alert className="mb-6 border-destructive bg-destructive/10">
           <AlertTriangle className="h-4 w-4 text-destructive" />
           <AlertDescription className="text-destructive">
-            <strong>Budget Alert:</strong> You've exceeded your budget in {overBudgetCategories.length} categor{overBudgetCategories.length > 1 ? 'ies' : 'y'}: {' '}
+            <strong>Budget Alert:</strong> You&apos;ve exceeded your budget in {overBudgetCategories.length} categor{overBudgetCategories.length > 1 ? 'ies' : 'y'}: {' '}
             {overBudgetCategories.map(b => b.category).join(', ')}.
           </AlertDescription>
         </Alert>
