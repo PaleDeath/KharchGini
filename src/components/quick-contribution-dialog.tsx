@@ -114,7 +114,7 @@ export function QuickContributionDialog({ goal, onGoalUpdated, children }: Quick
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-emerald-500" />
-            Add to '{goal.name}'
+            Add to &apos;{goal.name}&apos;
           </DialogTitle>
           <DialogDescription>
             Quick and easy way to add money to your goal. 

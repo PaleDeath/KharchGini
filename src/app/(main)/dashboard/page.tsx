@@ -135,7 +135,7 @@ export default function DashboardPage() {
         <Alert className="mb-6 border-orange-500 bg-orange-50 dark:bg-orange-900/20">
           <AlertTriangle className="h-4 w-4 text-orange-600" />
           <AlertDescription className="text-orange-800 dark:text-orange-200">
-            <strong>Budget Alert:</strong> You're over budget in {budgetSummary.categoriesOverBudget} categor{budgetSummary.categoriesOverBudget > 1 ? 'ies' : 'y'} this month.{' '}
+            <strong>Budget Alert:</strong> You&apos;re over budget in {budgetSummary.categoriesOverBudget} categor{budgetSummary.categoriesOverBudget > 1 ? 'ies' : 'y'} this month.{' '}
             <Link href="/budgets" className="underline font-medium">View details</Link>
           </AlertDescription>
         </Alert>
@@ -225,7 +225,7 @@ export default function DashboardPage() {
           <Card className="shadow-md lg:col-span-1">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base sm:text-lg">This Month's Budget</CardTitle>
+                <CardTitle className="text-base sm:text-lg">This Month&apos;s Budget</CardTitle>
                 <Button variant="outline" size="sm" asChild className="text-xs">
                   <Link href="/budgets">View All</Link>
                 </Button>

@@ -285,7 +285,7 @@ export function VoiceTransactionInput({
         {transcript && voiceState !== 'manual' && (
           <div className="p-3 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700">You said:</p>
-            <p className="text-sm text-gray-900 italic">"{transcript}"</p>
+            <p className="text-sm text-gray-900 italic">&quot;{transcript}&quot;</p>
           </div>
         )}
 
@@ -416,18 +416,18 @@ export function VoiceTransactionInput({
             <div className="space-y-1">
               <p className="font-medium">📝 Example phrases:</p>
               <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
-                <li>"Spent 500 rupees on coffee at Starbucks"</li>
-                <li>"Paid 2000 for Uber ride to airport"</li>
-                <li>"Received 50000 salary from company"</li>
-                <li>"Bought groceries for 1500 at BigBasket"</li>
-                <li>"Recharged mobile for 399 rupees"</li>
+                <li>&quot;Spent 500 rupees on coffee at Starbucks&quot;</li>
+                <li>&quot;Paid 2000 for Uber ride to airport&quot;</li>
+                <li>&quot;Received 50000 salary from company&quot;</li>
+                <li>&quot;Bought groceries for 1500 at BigBasket&quot;</li>
+                <li>&quot;Recharged mobile for 399 rupees&quot;</li>
               </ul>
             </div>
             <div className="space-y-1">
               <p className="font-medium">🎯 Supported formats:</p>
               <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
-                <li>Amounts: "500", "2 thousand", "1.5 lakh"</li>
-                <li>Currency: "rupees", "rs", "₹"</li>
+                <li>Amounts: &quot;500&quot;, &quot;2 thousand&quot;, &quot;1.5 lakh&quot;</li>
+                <li>Currency: &quot;rupees&quot;, &quot;rs&quot;, &quot;₹&quot;</li>
                 <li>Places: Brand names, locations</li>
                 <li>Categories: Auto-detected from description</li>
               </ul>

@@ -122,7 +122,7 @@ export function BillsCalendarWidget() {
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
             <CheckCircle2 className="h-8 w-8 sm:h-12 sm:w-12 mb-2 text-emerald-500" />
             <p className="text-sm">No bills due this week!</p>
-            <p className="text-xs">You're all caught up</p>
+            <p className="text-xs">You&apos;re all caught up</p>
           </div>
         ) : (
           upcomingBills.map((bill) => {
