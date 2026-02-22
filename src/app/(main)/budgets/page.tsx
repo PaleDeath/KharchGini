@@ -28,7 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { Budget } from "@/lib/types";
-import { deleteBudget, updateBudgetSpending } from '@/lib/firebase/firestore'; 
+import { deleteBudget, updateBudgetSpending } from '@/services/budgets';
 import { useToast } from "@/hooks/use-toast";
 import { Target, AlertTriangle, TrendingUp, Calendar, Edit, Trash2, RefreshCw, Sparkles, Brain } from "lucide-react";
 import { useBudgets, useBudgetSummary, useTransactions } from '@/hooks/use-firestore-data';

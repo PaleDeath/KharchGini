@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Trash2, Tags, AlertTriangle } from "lucide-react";
-import { bulkDeleteTransactions, bulkUpdateTransactionCategory } from '@/lib/firebase/firestore';
+import { bulkDeleteTransactions, bulkUpdateTransactionCategory } from '@/services/transactions';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 import { Alert, AlertDescription } from "@/components/ui/alert";

@@ -22,7 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, PlusCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { addGoal } from '@/lib/firebase/firestore';
+import { addGoal } from '@/services/goals';
 import { useToast } from "@/hooks/use-toast";
 import type { FinancialGoal } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';

@@ -29,7 +29,7 @@ import { CalendarIcon, Edit, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType } from "@/lib/types";
-import { updateTransaction } from '@/lib/firebase/firestore';
+import { updateTransaction } from '@/services/transactions';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 

@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Overview & insights' },
@@ -282,7 +283,9 @@ export default function MainAppLayout({
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:px-6 sm:py-0">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </SidebarInset>
     </SidebarProvider>

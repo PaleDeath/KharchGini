@@ -4,6 +4,7 @@ import React from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { PWAInstallBanner, PWAUpdateBanner, PWAStatusIndicator } from '@/components/pwa/install-banner';
+import { RecurringProcessor } from '@/components/recurring-processor';
 
 // This component wraps client-side context providers
 // like Theme providers, React Query, etc.
@@ -13,6 +14,7 @@ export default function ClientProviders({ children }: { children: React.ReactNod
     <ThemeProvider>
       {children}
       <Toaster />
+      <RecurringProcessor />
       <PWAInstallBanner />
       <PWAUpdateBanner />
       <PWAStatusIndicator />
