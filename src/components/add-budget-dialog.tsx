@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { addBudget } from '@/lib/firebase/firestore';
+import { addBudget } from '@/services/budgets';
 import { useToast } from "@/hooks/use-toast";
 import type { Budget } from "@/lib/types";
 import { useAuth } from '@/contexts/auth-context';

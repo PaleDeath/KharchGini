@@ -33,7 +33,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType } from "@/lib/types";
 import { categorizeTransactionAction } from '@/actions/transaction-actions';
-import { addTransaction } from '@/lib/firebase/firestore';
+import { addTransaction } from '@/services/transactions';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 
@@ -104,7 +104,11 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
       let category = '';
       try {
         if (data.description.length > 3) {
-          const result = await categorizeTransactionAction(data.description);
+          const result = await categorizeTransactionAction(
+            data.description,
+            data.amount,
+            data.date.toISOString()
+          );
           if (result.success && result.category && result.confidence && result.confidence > 0.7) {
             category = result.category;
           }

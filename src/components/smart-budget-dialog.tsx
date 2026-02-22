@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 import { useTransactions } from '@/hooks/use-firestore-data';
 import { generateSmartBudgetSuggestions, generateQuickBudgetTemplates, type BudgetSuggestion, type SmartBudgetRecommendation } from '@/lib/smart-budget-engine';
-import { addBudget } from '@/lib/firebase/firestore';
+import { addBudget } from '@/services/budgets';
 import type { Budget } from "@/lib/types";
 import { cn } from '@/lib/utils';
 

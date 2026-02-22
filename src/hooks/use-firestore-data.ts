@@ -2,13 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getTransactions, getGoals, getBudgets, getBudgetSummary, updateBudgetSpending, getRecurringTransactions, processRecurringTransactions } from '@/lib/firebase/firestore';
+import { getTransactions } from '@/services/transactions';
+import { getGoals } from '@/services/goals';
+import { getBudgets, getBudgetSummary, updateBudgetSpending } from '@/services/budgets';
+import { getRecurringTransactions, processRecurringTransactions } from '@/services/recurring';
 import type { Transaction, FinancialGoal, Budget, BudgetSummary, RecurringTransaction } from '@/lib/types';
+import type { DocumentSnapshot } from 'firebase/firestore';
 
-// Hook for loading transactions
-export function useTransactions() {
+// Hook for loading transactions with pagination
+export function useTransactions(initialLimit = 20) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
@@ -23,8 +30,10 @@ export function useTransactions() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getTransactions(user!.uid);
-        setTransactions(data);
+        const result = await getTransactions(user!.uid, initialLimit);
+        setTransactions(result.transactions);
+        setLastDoc(result.lastDoc);
+        setHasMore(result.transactions.length === initialLimit);
       } catch (err) {
         console.error('Error loading transactions:', err);
         setError(err instanceof Error ? err.message : 'Failed to load transactions');
@@ -34,15 +43,40 @@ export function useTransactions() {
     }
 
     loadTransactions();
-  }, [user?.uid]);
+  }, [user?.uid, initialLimit]);
+
+  const loadMore = async () => {
+    if (!user?.uid || !lastDoc || loadingMore) return;
+
+    try {
+      setLoadingMore(true);
+      const result = await getTransactions(user.uid, initialLimit, lastDoc);
+
+      if (result.transactions.length > 0) {
+        setTransactions(prev => [...prev, ...result.transactions]);
+        setLastDoc(result.lastDoc);
+        setHasMore(result.transactions.length === initialLimit);
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('Error loading more transactions:', err);
+      // Don't set main error, just log or maybe show toast
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const refreshTransactions = async () => {
     if (!user?.uid) return;
     
     try {
       setError(null);
-      const data = await getTransactions(user.uid);
-      setTransactions(data);
+      // Reset to initial state
+      const result = await getTransactions(user.uid, initialLimit);
+      setTransactions(result.transactions);
+      setLastDoc(result.lastDoc);
+      setHasMore(result.transactions.length === initialLimit);
     } catch (err) {
       console.error('Error refreshing transactions:', err);
       setError(err instanceof Error ? err.message : 'Failed to refresh transactions');
@@ -52,8 +86,11 @@ export function useTransactions() {
   return {
     transactions,
     loading,
+    loadingMore,
+    hasMore,
     error,
     refreshTransactions,
+    loadMore,
     setTransactions // For optimistic updates
   };
 }
@@ -284,4 +321,4 @@ export function useRecurringTransactions() {
     refreshRecurringTransactions,
     processRecurringTransactionsNow,
   };
-} 
+}
