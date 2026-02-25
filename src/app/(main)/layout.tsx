@@ -36,6 +36,7 @@ const navItems = [
   { href: '/goals', label: 'Goals', icon: Target, description: 'Financial targets' },
   { href: '/analytics', label: 'Analytics', icon: BarChart3, description: 'Advanced insights' },
   { href: '/ai-insights', label: 'AI Advisor', icon: Sparkles, description: 'AI financial insights' },
+  { href: '/settings', label: 'Settings', icon: Settings, description: 'App preferences & stats' },
 ];
 
 // Sidebar content component that can access sidebar context
