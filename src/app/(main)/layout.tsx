@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { GlobalVoiceListener } from '@/components/global-voice-listener';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Overview & insights' },
@@ -267,6 +268,7 @@ export default function MainAppLayout({
 
   return (
     <SidebarProvider defaultOpen>
+      <GlobalVoiceListener />
       <Sidebar variant="sidebar" collapsible="icon" className="border-r border-sidebar-border/50 bg-sidebar">
         <SidebarContentComponent />
       </Sidebar>
