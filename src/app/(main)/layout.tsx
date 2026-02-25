@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { GlobalVoiceListener } from '@/components/global-voice-listener';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Overview & insights' },
@@ -36,7 +37,6 @@ const navItems = [
   { href: '/goals', label: 'Goals', icon: Target, description: 'Financial targets' },
   { href: '/analytics', label: 'Analytics', icon: BarChart3, description: 'Advanced insights' },
   { href: '/ai-insights', label: 'AI Advisor', icon: Sparkles, description: 'AI financial insights' },
-  { href: '/settings', label: 'Settings', icon: Settings, description: 'App preferences & stats' },
 ];
 
 // Sidebar content component that can access sidebar context
@@ -268,6 +268,7 @@ export default function MainAppLayout({
 
   return (
     <SidebarProvider defaultOpen>
+      <GlobalVoiceListener />
       <Sidebar variant="sidebar" collapsible="icon" className="border-r border-sidebar-border/50 bg-sidebar">
         <SidebarContentComponent />
       </Sidebar>

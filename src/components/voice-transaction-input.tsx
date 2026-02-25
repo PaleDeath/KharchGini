@@ -10,26 +10,32 @@ import { Mic, MicOff, Volume2, Check, X, Loader2, Type } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSpeechRecognitionService, VoiceTransactionData } from '@/lib/voice/speech-recognition';
 import { useToast } from "@/hooks/use-toast";
-import { trackVoiceCommandAttempt, trackVoiceCommandSuccess } from '@/lib/voice-tracking';
+import { SpeechErrorBoundary } from "@/components/SpeechErrorBoundary";
 
 interface VoiceTransactionInputProps {
   onTransactionParsed: (data: VoiceTransactionData) => void;
   onCancel?: () => void;
   className?: string;
+  initialManualMode?: boolean;
 }
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'result' | 'error' | 'manual';
 
-export function VoiceTransactionInput({ 
+function VoiceTransactionInputContent({
   onTransactionParsed, 
   onCancel, 
-  className 
+  className,
+  initialManualMode = false
 }: VoiceTransactionInputProps) {
-  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const [voiceState, setVoiceState] = useState<VoiceState>(initialManualMode ? 'manual' : 'idle');
   const [transcript, setTranscript] = useState('');
   const [parsedData, setParsedData] = useState<VoiceTransactionData | null>(null);
   const [error, setError] = useState('');
   const [manualInput, setManualInput] = useState('');
+
+  // Async error throwing mechanism for Error Boundary
+  const [asyncError, setAsyncError] = useState<Error | null>(null);
+
   const { toast } = useToast();
 
   const speechService = getSpeechRecognitionService();
@@ -39,27 +45,26 @@ export function VoiceTransactionInput({
   const isProduction = typeof window !== 'undefined' && 
     (window.location.protocol === 'https:' && !window.location.hostname.includes('localhost'));
 
+  // Throw async errors to boundary
+  useEffect(() => {
+    if (asyncError) {
+      throw asyncError;
+    }
+  }, [asyncError]);
+
   // Auto-switch to manual in production environments where voice often fails
   useEffect(() => {
-    if (isProduction && !isSupported) {
+    if (isProduction && !isSupported && !initialManualMode) {
       setVoiceState('manual');
     }
-  }, [isProduction, isSupported]);
+  }, [isProduction, isSupported, initialManualMode]);
 
   const startListening = async () => {
     if (!isSupported) {
-      toast({
-        variant: "destructive",
-        title: "Voice Not Supported",
-        description: "Voice input is not available. Please use the manual input option below."
-      });
-      setVoiceState('manual');
+      // Trigger the Error Boundary for unsupported browsers
+      setAsyncError(new Error("Voice recognition is not supported in this browser."));
       return;
     }
-
-    // Track attempt
-    trackVoiceCommandAttempt();
-    const startTime = performance.now();
 
     setVoiceState('listening');
     setError('');
@@ -83,16 +88,25 @@ export function VoiceTransactionInput({
       const parsed = await speechService.parseVoiceInput(result);
       console.log('🧠 Parsed result:', parsed);
       
-      // Track success
-      const endTime = performance.now();
-      trackVoiceCommandSuccess(endTime - startTime);
-
       setParsedData(parsed);
       setVoiceState('result');
       
     } catch (error) {
       console.error('❌ Voice recognition error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Voice recognition failed';
+
+      // Check for critical errors that should trigger the boundary
+      const isCritical =
+        errorMessage.includes('not supported') ||
+        errorMessage.includes('not available') ||
+        errorMessage.includes('Permission denied') ||
+        errorMessage.includes('Microphone access denied');
+
+      if (isCritical) {
+        setAsyncError(error instanceof Error ? error : new Error(errorMessage));
+        return;
+      }
+
       setError(errorMessage);
       setVoiceState('error');
 
@@ -121,7 +135,6 @@ export function VoiceTransactionInput({
         duration: isNetworkError ? 5000 : 3000
       });
 
-      // Auto-switch to manual for network/service errors (common in production)
       if (switchToManual) {
         setTimeout(() => {
           console.log('🔄 Auto-switching to manual input due to production environment limitations');
@@ -154,6 +167,7 @@ export function VoiceTransactionInput({
     setParsedData(null);
     setError('');
     setManualInput('');
+    setAsyncError(null);
   };
 
   const handleCancel = () => {
@@ -164,6 +178,7 @@ export function VoiceTransactionInput({
   const switchToManual = () => {
     setVoiceState('manual');
     setError('');
+    setAsyncError(null);
   };
 
   const processManualInput = async () => {
@@ -188,18 +203,53 @@ export function VoiceTransactionInput({
     }
   };
 
-  if (!isSupported) {
+  if (voiceState === 'manual') {
     return (
-      <Card className={cn("w-full max-w-md", className)}>
-        <CardHeader className="text-center">
-          <CardTitle className="flex items-center justify-center gap-2">
-            <MicOff className="h-5 w-5 text-muted-foreground" />
-            Voice Input Unavailable
+      <Card className={cn("w-full h-full flex flex-col", className)}>
+        <CardHeader className="text-center flex-shrink-0 pb-4">
+          <CardTitle className="flex items-center justify-center gap-2 text-lg">
+            <Volume2 className="h-5 w-5" />
+            Transaction Input
           </CardTitle>
-          <CardDescription>
-            Voice input requires Chrome, Edge, or Safari browser with microphone permissions.
+          <CardDescription className="text-sm">
+            Type your transaction like 'Spent 500 rupees on coffee' or 'Received 2000 salary'
           </CardDescription>
         </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto space-y-4 p-4">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-purple-100 transition-all duration-300">
+              <Type className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-purple-600 font-medium">Type your transaction below</p>
+          </div>
+          <div className="space-y-3">
+            <Label htmlFor="manual-input">Transaction Description</Label>
+            <Input
+              id="manual-input"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              placeholder="e.g., Spent 500 rupees on coffee at Starbucks"
+              onKeyPress={(e) => e.key === 'Enter' && processManualInput()}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={processManualInput} className="flex-1">
+              <Check className="h-4 w-4 mr-2" />
+              Process Input
+            </Button>
+            <Button onClick={resetState} variant="outline">
+              <Mic className="h-4 w-4 mr-2" />
+              Use Voice
+            </Button>
+            {onCancel && (
+              <Button onClick={handleCancel} variant="ghost" size="sm">
+                Cancel
+              </Button>
+            )}
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -212,10 +262,7 @@ export function VoiceTransactionInput({
           Voice Transaction Input
         </CardTitle>
         <CardDescription className="text-sm">
-          {voiceState === 'manual'
-            ? "Type your transaction like 'Spent 500 rupees on coffee' or 'Received 2000 salary'"
-            : "Enhanced voice recognition with Google Cloud AI - speak naturally!"
-          }
+          Enhanced voice recognition with Google Cloud AI - speak naturally!
         </CardDescription>
       </CardHeader>
 
@@ -228,14 +275,12 @@ export function VoiceTransactionInput({
             voiceState === 'processing' && "bg-blue-100",
             voiceState === 'result' && "bg-green-100",
             voiceState === 'error' && "bg-red-100",
-            voiceState === 'manual' && "bg-purple-100",
             voiceState === 'idle' && "bg-gray-100"
           )}>
             {voiceState === 'listening' && <Mic className="h-6 w-6 text-red-600" />}
             {voiceState === 'processing' && <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />}
             {voiceState === 'result' && <Check className="h-6 w-6 text-green-600" />}
             {voiceState === 'error' && <X className="h-6 w-6 text-red-600" />}
-            {voiceState === 'manual' && <Type className="h-6 w-6 text-purple-600" />}
             {voiceState === 'idle' && <Mic className="h-6 w-6 text-gray-600" />}
           </div>
         </div>
@@ -257,9 +302,6 @@ export function VoiceTransactionInput({
           {voiceState === 'result' && (
             <p className="text-sm text-green-600 font-medium">Transaction parsed successfully!</p>
           )}
-          {voiceState === 'manual' && (
-            <p className="text-sm text-purple-600 font-medium">Type your transaction below</p>
-          )}
           {voiceState === 'error' && (
             <div className="text-center space-y-2">
               <p className="text-sm text-red-600 font-medium">Error: {error}</p>
@@ -276,22 +318,8 @@ export function VoiceTransactionInput({
           )}
         </div>
 
-        {/* Manual Input Field */}
-        {voiceState === 'manual' && (
-          <div className="space-y-3">
-            <Label htmlFor="manual-input">Transaction Description</Label>
-            <Input
-              id="manual-input"
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              placeholder="e.g., Spent 500 rupees on coffee at Starbucks"
-              onKeyPress={(e) => e.key === 'Enter' && processManualInput()}
-            />
-          </div>
-        )}
-
         {/* Transcript Display */}
-        {transcript && voiceState !== 'manual' && (
+        {transcript && (
           <div className="p-3 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700">You said:</p>
             <p className="text-sm text-gray-900 italic">"{transcript}"</p>
@@ -367,19 +395,6 @@ export function VoiceTransactionInput({
               Stop Recording
             </Button>
           )}
-
-          {voiceState === 'manual' && (
-            <>
-              <Button onClick={processManualInput} className="flex-1">
-                <Check className="h-4 w-4 mr-2" />
-                Process Input
-              </Button>
-              <Button onClick={resetState} variant="outline">
-                <Mic className="h-4 w-4 mr-2" />
-                Use Voice
-              </Button>
-            </>
-          )}
           
           {voiceState === 'result' && (
             <>
@@ -432,18 +447,26 @@ export function VoiceTransactionInput({
                 <li>"Recharged mobile for 399 rupees"</li>
               </ul>
             </div>
-            <div className="space-y-1">
-              <p className="font-medium">🎯 Supported formats:</p>
-              <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
-                <li>Amounts: "500", "2 thousand", "1.5 lakh"</li>
-                <li>Currency: "rupees", "rs", "₹"</li>
-                <li>Places: Brand names, locations</li>
-                <li>Categories: Auto-detected from description</li>
-              </ul>
-            </div>
           </div>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// Wrapper component that includes the Error Boundary
+export function VoiceTransactionInput(props: VoiceTransactionInputProps) {
+  const [forcedManualMode, setForcedManualMode] = useState(false);
+
+  return (
+    <SpeechErrorBoundary
+      onManualInput={() => setForcedManualMode(true)}
+      key={forcedManualMode ? 'manual' : 'voice'}
+    >
+      <VoiceTransactionInputContent
+        {...props}
+        initialManualMode={forcedManualMode}
+      />
+    </SpeechErrorBoundary>
   );
 }
