@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, PlusCircle, Loader2, Mic } from "lucide-react";
 import { VoiceTransactionInput } from "@/components/voice-transaction-input";
+import { VoiceInput } from "@/components/voice-input";
 import { VoiceTransactionData } from "@/lib/voice/speech-recognition";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -37,10 +38,19 @@ import { addTransaction } from '@/services/transactions';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 
+const EXPENSE_CATEGORIES = [
+  "Food & Dining", "Transportation", "Shopping", "Bills & Utilities", "Healthcare", "Entertainment", "Education", "Travel & Vacation", "Insurance", "Investments", "Personal Care", "Home & Garden", "Gifts & Donations", "Professional Services", "Miscellaneous"
+];
+
+const INCOME_CATEGORIES = [
+  "Salary", "Business Income", "Investment Returns", "Rental Income", "Other Income"
+];
+
 const transactionFormSchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z.coerce.number().positive("Amount must be positive (₹)"),
   type: z.enum(["income", "expense"], { required_error: "Type is required" }),
+  category: z.string().optional(),
   date: z.date({ required_error: "Date is required" }),
 });
 
@@ -70,6 +80,54 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
     },
   });
 
+  const [prevFormValues, setPrevFormValues] = useState<TransactionFormValues | null>(null);
+  const [autoFilledFields, setAutoFilledFields] = useState<Record<string, boolean>>({});
+
+  const handleVoiceData = (data: VoiceTransactionData) => {
+    // Save current values for undo
+    const currentValues = form.getValues();
+    setPrevFormValues({ ...currentValues });
+
+    const newAutoFilled: Record<string, boolean> = {};
+
+    if (data.amount) {
+      form.setValue("amount", data.amount);
+      newAutoFilled.amount = true;
+    }
+
+    if (data.description) {
+      form.setValue("description", data.description);
+      newAutoFilled.description = true;
+    }
+
+    if (data.type) {
+      form.setValue("type", data.type);
+      newAutoFilled.type = true;
+    }
+
+    // Determine the type to check categories against
+    const typeToCheck = data.type || currentValues.type;
+    const validCategories = typeToCheck === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
+    if (data.category && validCategories.includes(data.category)) {
+      form.setValue("category", data.category);
+      newAutoFilled.category = true;
+    }
+
+    setAutoFilledFields(newAutoFilled);
+  };
+
+  const handleUndoVoiceInput = () => {
+    if (prevFormValues) {
+      form.reset(prevFormValues);
+      setPrevFormValues(null);
+      setAutoFilledFields({});
+      toast({
+        title: "Changes Undone",
+        description: "Restored previous values.",
+      });
+    }
+  };
   const handleVoiceTransaction = async (voiceData: VoiceTransactionData) => {
     if (!user?.uid) {
       toast({ variant: "destructive", title: "Error", description: "User not logged in." });
@@ -201,7 +259,7 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
                 id="description"
                 placeholder="e.g., Grocery shopping"
                 {...form.register("description")}
-                className={cn(form.formState.errors.description && "border-destructive")}
+                className={cn(form.formState.errors.description && "border-destructive", autoFilledFields.description && "border-green-500 bg-green-50 dark:bg-green-900/20")}
                 disabled={isLoading}
               />
               {form.formState.errors.description && <p className="text-xs text-destructive mt-1">{form.formState.errors.description.message}</p>}
@@ -209,6 +267,20 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
+            <div className="col-span-4 flex justify-end gap-2 mb-1">
+              {prevFormValues && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleUndoVoiceInput}
+                  className="text-muted-foreground h-8 text-xs"
+                >
+                  Undo Voice Input
+                </Button>
+              )}
+              <VoiceInput onVoiceData={handleVoiceData} />
+            </div>
             <Label htmlFor="amount" className="text-right">Amount (₹)</Label>
             <div className="col-span-3">
               <Input
@@ -217,7 +289,7 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
                 step="1"
                 placeholder="e.g., 1500"
                 {...form.register("amount")}
-                className={cn(form.formState.errors.amount && "border-destructive")}
+                className={cn(form.formState.errors.amount && "border-destructive", autoFilledFields.amount && "border-green-500 bg-green-50 dark:bg-green-900/20")}
                 disabled={isLoading}
               />
               {form.formState.errors.amount && <p className="text-xs text-destructive mt-1">{form.formState.errors.amount.message}</p>}
@@ -232,7 +304,7 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
                 name="type"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
-                    <SelectTrigger className={cn(form.formState.errors.type && "border-destructive")}>
+                    <SelectTrigger className={cn(form.formState.errors.type && "border-destructive", autoFilledFields.type && "border-green-500 bg-green-50 dark:bg-green-900/20")}>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -247,6 +319,28 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="category" className="text-right">Category</Label>
+            <div className="col-span-3">
+              <Controller
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                    <SelectTrigger className={cn(
+                      form.formState.errors.category && "border-destructive",
+                      autoFilledFields.category && "border-green-500 bg-green-50 dark:bg-green-900/20"
+                    )}>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(form.watch("type") === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
             <Label htmlFor="date" className="text-right">Date</Label>
             <div className="col-span-3">
               <Controller
