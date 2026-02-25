@@ -366,9 +366,29 @@ export class SpeechRecognitionService {
     }
   }
 
+  private convertWordsToNumbers(transcript: string): string {
+    const numbers: { [key: string]: number } = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+      'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
+      'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
+      'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
+      'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
+    };
+
+    let processed = transcript.toLowerCase();
+
+    Object.entries(numbers).forEach(([word, num]) => {
+       const regex = new RegExp(`\\b${word}\\b`, 'g');
+       processed = processed.replace(regex, num.toString());
+    });
+
+    return processed;
+  }
+
   // Parse voice input using regex patterns and AI
   public async parseVoiceInput(transcript: string): Promise<VoiceTransactionData> {
-    const cleanTranscript = transcript.toLowerCase().trim();
+    const cleanTranscript = this.convertWordsToNumbers(transcript.toLowerCase().trim());
     
     // Extract amount using regex patterns
     const amount = this.extractAmount(cleanTranscript);
@@ -400,20 +420,24 @@ export class SpeechRecognitionService {
 
   private extractAmount(transcript: string): number | undefined {
     // Enhanced patterns for Indian currency and speech recognition
+    // ORDER MATTERS: Specific patterns first
     const patterns = [
+      // Complex patterns first
+      // Allow "rupees" between number and "and": "100 rupees and 50 paise"
+      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:(?:rupees?|rs\.?|₹)\s*)?(?:and|&)\s*(\d+)/i, // "50 and 75 paise"
+
+      // "50 point 75"
+      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:point|dot)\s*(\d+)/i,
+
+      // Multipliers with optional decimals
+      /(?:rupees?|rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s*(?:thousand|k)/i,
+      /(?:rupees?|rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s*(?:hundred)/i,
+      /(?:rupees?|rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s*(?:lakh|lac)/i,
+      /(?:rupees?|rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s*(?:crore)/i,
+
       // Standard currency patterns
       /(?:rupees?|rs\.?|₹)\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
       /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:rupees?|rs\.?|₹)/i,
-
-      // Indian number words (common in speech)
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:thousand|k)/i,
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:hundred)/i,
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:lakh|lac)/i,
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:crore)/i,
-
-      // Speech recognition common mistakes
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:point|dot)\s*(\d+)/i, // "50 point 75"
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:and|&)\s*(\d+)/i, // "50 and 75 paise"
 
       // Fallback for just numbers
       /(\d+(?:,\d{3})*(?:\.\d{2})?)/i
@@ -506,6 +530,7 @@ export class SpeechRecognitionService {
       // Basic command words
       'add', 'spent', 'spend', 'paid', 'pay', 'bought', 'buy', 'for',
       'rupees', 'rs', '₹', 'on', 'at', 'in', 'the', 'a', 'an', 'of', 'to', 'from',
+      'i', 'we', 'he', 'she', 'they', 'my', 'our', 'received', 'receive', 'gave', 'give',
 
       // Indian terms
       'kharcha', 'kharch', 'diya', 'liya', 'khareed', 'mila', 'aaya',
@@ -527,7 +552,7 @@ export class SpeechRecognitionService {
       description = description.replace(/rupees?|rs\.?|₹/gi, '');
 
       // Remove amount-related patterns
-      description = description.replace(/\d+\s*(?:thousand|k|hundred|lakh|lac|crore)/gi, '');
+      description = description.replace(/\d+(?:\.\d+)?\s*(?:thousand|k|hundred|lakh|lac|crore)/gi, '');
       description = description.replace(/\d+\s*(?:point|dot)\s*\d+/gi, '');
       description = description.replace(/\d+\s*(?:and|&)\s*\d+/gi, '');
     }
@@ -557,83 +582,84 @@ export class SpeechRecognitionService {
   private categorizeDescription(description: string): string {
     const desc = description.toLowerCase();
 
+    const checkKeywords = (keywords: string[]) => {
+      return keywords.some(keyword => {
+        // Use word boundary check for short words or specific matches
+        if (keyword.length <= 3) {
+          return new RegExp(`\\b${keyword}\\b`, 'i').test(desc);
+        }
+        return desc.includes(keyword);
+      });
+    };
+
+    // Entertainment (Prioritize over bills to avoid mismatches like "movie" vs "vi" in bills)
+    if (checkKeywords([
+      'movie', 'cinema', 'theatre', 'bookmyshow', 'pvr', 'inox',
+      'multiplex', 'concert', 'show', 'event', 'ticket', 'game',
+      'sports', 'gym', 'fitness', 'netflix', 'amazon prime', 'hotstar',
+      'spotify', 'youtube'
+    ])) {
+      return 'Entertainment';
+    }
+
     // Food & Dining (Enhanced with Indian terms)
-    if (desc.includes('coffee') || desc.includes('tea') || desc.includes('restaurant') ||
-        desc.includes('food') || desc.includes('cafe') || desc.includes('lunch') ||
-        desc.includes('dinner') || desc.includes('breakfast') || desc.includes('meal') ||
-        desc.includes('pizza') || desc.includes('burger') || desc.includes('sandwich') ||
-        desc.includes('chai') || desc.includes('dosa') || desc.includes('idli') ||
-        desc.includes('biryani') || desc.includes('thali') || desc.includes('paratha') ||
-        desc.includes('roti') || desc.includes('dal') || desc.includes('rice') ||
-        desc.includes('swiggy') || desc.includes('zomato') || desc.includes('dominos') ||
-        desc.includes('mcdonalds') || desc.includes('kfc') || desc.includes('subway') ||
-        desc.includes('starbucks') || desc.includes('ccd') || desc.includes('barista')) {
+    if (checkKeywords([
+      'coffee', 'tea', 'restaurant', 'food', 'cafe', 'lunch', 'dinner',
+      'breakfast', 'meal', 'pizza', 'burger', 'sandwich', 'chai', 'dosa',
+      'idli', 'biryani', 'thali', 'paratha', 'roti', 'dal', 'rice',
+      'swiggy', 'zomato', 'dominos', 'mcdonalds', 'kfc', 'subway',
+      'starbucks', 'ccd', 'barista'
+    ])) {
       return 'Food & Dining';
     }
 
     // Transportation (Enhanced with Indian terms)
-    if (desc.includes('fuel') || desc.includes('petrol') || desc.includes('diesel') ||
-        desc.includes('gas') || desc.includes('taxi') || desc.includes('uber') ||
-        desc.includes('ola') || desc.includes('bus') || desc.includes('metro') ||
-        desc.includes('auto') || desc.includes('rickshaw') || desc.includes('rapido') ||
-        desc.includes('train') || desc.includes('flight') || desc.includes('airline') ||
-        desc.includes('parking') || desc.includes('toll') || desc.includes('fastag') ||
-        desc.includes('bike') || desc.includes('scooter') || desc.includes('car') ||
-        desc.includes('indigo') || desc.includes('spicejet') || desc.includes('irctc')) {
+    if (checkKeywords([
+      'fuel', 'petrol', 'diesel', 'gas', 'taxi', 'uber', 'ola', 'bus',
+      'metro', 'auto', 'rickshaw', 'rapido', 'train', 'flight', 'airline',
+      'parking', 'toll', 'fastag', 'bike', 'scooter', 'car', 'indigo',
+      'spicejet', 'irctc'
+    ])) {
       return 'Transportation';
     }
 
     // Shopping (Enhanced with Indian brands)
-    if (desc.includes('shopping') || desc.includes('clothes') || desc.includes('shirt') ||
-        desc.includes('shoes') || desc.includes('bag') || desc.includes('book') ||
-        desc.includes('electronics') || desc.includes('mobile') || desc.includes('laptop') ||
-        desc.includes('amazon') || desc.includes('flipkart') || desc.includes('myntra') ||
-        desc.includes('ajio') || desc.includes('nykaa') || desc.includes('bigbasket') ||
-        desc.includes('grofers') || desc.includes('blinkit') || desc.includes('zepto') ||
-        desc.includes('mall') || desc.includes('market') || desc.includes('store') ||
-        desc.includes('reliance') || desc.includes('dmart') || desc.includes('more') ||
-        desc.includes('spencer') || desc.includes('big bazaar')) {
+    if (checkKeywords([
+      'shopping', 'clothes', 'shirt', 'shoes', 'bag', 'book',
+      'electronics', 'mobile', 'laptop', 'amazon', 'flipkart', 'myntra',
+      'ajio', 'nykaa', 'bigbasket', 'grofers', 'blinkit', 'zepto',
+      'mall', 'market', 'store', 'reliance', 'dmart', 'more',
+      'spencer', 'big bazaar'
+    ])) {
       return 'Shopping';
     }
 
     // Healthcare (Enhanced with Indian terms)
-    if (desc.includes('doctor') || desc.includes('hospital') || desc.includes('medicine') ||
-        desc.includes('pharmacy') || desc.includes('medical') || desc.includes('health') ||
-        desc.includes('apollo') || desc.includes('fortis') || desc.includes('max') ||
-        desc.includes('aiims') || desc.includes('clinic') || desc.includes('checkup') ||
-        desc.includes('test') || desc.includes('lab') || desc.includes('pathology') ||
-        desc.includes('dental') || desc.includes('dentist') || desc.includes('eye') ||
-        desc.includes('optical') || desc.includes('lenskart') || desc.includes('titan eye')) {
+    if (checkKeywords([
+      'doctor', 'hospital', 'medicine', 'pharmacy', 'medical', 'health',
+      'apollo', 'fortis', 'max', 'aiims', 'clinic', 'checkup', 'test',
+      'lab', 'pathology', 'dental', 'dentist', 'eye', 'optical',
+      'lenskart', 'titan eye'
+    ])) {
       return 'Healthcare';
     }
 
     // Bills & Utilities (Enhanced with Indian services)
-    if (desc.includes('electricity') || desc.includes('water') || desc.includes('internet') ||
-        desc.includes('mobile') || desc.includes('phone') || desc.includes('bill') ||
-        desc.includes('recharge') || desc.includes('utility') || desc.includes('broadband') ||
-        desc.includes('wifi') || desc.includes('jio') || desc.includes('airtel') ||
-        desc.includes('vi') || desc.includes('bsnl') || desc.includes('idea') ||
-        desc.includes('tata sky') || desc.includes('dish tv') || desc.includes('sun direct') ||
-        desc.includes('d2h') || desc.includes('netflix') || desc.includes('amazon prime') ||
-        desc.includes('hotstar') || desc.includes('spotify') || desc.includes('youtube')) {
+    if (checkKeywords([
+      'electricity', 'water', 'internet', 'mobile', 'phone', 'bill',
+      'recharge', 'utility', 'broadband', 'wifi', 'jio', 'airtel',
+      'vi', 'bsnl', 'idea', 'tata sky', 'dish tv', 'sun direct',
+      'd2h'
+    ])) {
       return 'Bills & Utilities';
     }
 
-    // Entertainment (New category)
-    if (desc.includes('movie') || desc.includes('cinema') || desc.includes('theatre') ||
-        desc.includes('bookmyshow') || desc.includes('pvr') || desc.includes('inox') ||
-        desc.includes('multiplex') || desc.includes('concert') || desc.includes('show') ||
-        desc.includes('event') || desc.includes('ticket') || desc.includes('game') ||
-        desc.includes('sports') || desc.includes('gym') || desc.includes('fitness')) {
-      return 'Entertainment';
-    }
-
     // Education (New category)
-    if (desc.includes('course') || desc.includes('class') || desc.includes('tuition') ||
-        desc.includes('coaching') || desc.includes('book') || desc.includes('study') ||
-        desc.includes('exam') || desc.includes('fee') || desc.includes('school') ||
-        desc.includes('college') || desc.includes('university') || desc.includes('udemy') ||
-        desc.includes('coursera') || desc.includes('byju') || desc.includes('unacademy')) {
+    if (checkKeywords([
+      'course', 'class', 'tuition', 'coaching', 'study', 'exam',
+      'fee', 'school', 'college', 'university', 'udemy', 'coursera',
+      'byju', 'unacademy'
+    ])) {
       return 'Education';
     }
 
