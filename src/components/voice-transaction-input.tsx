@@ -10,6 +10,7 @@ import { Mic, MicOff, Volume2, Check, X, Loader2, Type } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSpeechRecognitionService, VoiceTransactionData } from '@/lib/voice/speech-recognition';
 import { useToast } from "@/hooks/use-toast";
+import { trackVoiceCommandAttempt, trackVoiceCommandSuccess } from '@/lib/voice-tracking';
 
 interface VoiceTransactionInputProps {
   onTransactionParsed: (data: VoiceTransactionData) => void;
@@ -56,6 +57,10 @@ export function VoiceTransactionInput({
       return;
     }
 
+    // Track attempt
+    trackVoiceCommandAttempt();
+    const startTime = performance.now();
+
     setVoiceState('listening');
     setError('');
     setTranscript('');
@@ -78,6 +83,10 @@ export function VoiceTransactionInput({
       const parsed = await speechService.parseVoiceInput(result);
       console.log('🧠 Parsed result:', parsed);
       
+      // Track success
+      const endTime = performance.now();
+      trackVoiceCommandSuccess(endTime - startTime);
+
       setParsedData(parsed);
       setVoiceState('result');
       

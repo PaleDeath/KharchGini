@@ -6,7 +6,7 @@ import { StatCard } from "@/components/stat-card";
 import { FinancialHealthWidget } from "@/components/financial-health-widget";
 import { BillsCalendarWidget } from "@/components/bills-calendar-widget";
 
-import { DollarSign, TrendingUp, TrendingDown, Landmark, PieChart, CreditCard, Wallet, AlertTriangle, Repeat } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Landmark, PieChart, CreditCard, Wallet, AlertTriangle, Repeat, Mic, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,6 +19,7 @@ import { useTransactions, useBudgetSummary, useRecurringTransactions } from '@/h
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
+import { getVoiceStats } from '@/lib/voice-tracking';
 
 interface SpendingDataItem {
   name: string;
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [netWorth, setNetWorth] = useState(0); 
   const [financialHealthScore, setFinancialHealthScore] = useState(0);
+  const [showVoiceTip, setShowVoiceTip] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const { transactions, loading: transactionsLoading, refreshTransactions } = useTransactions();
@@ -44,6 +46,14 @@ export default function DashboardPage() {
     const today = new Date().toISOString().split('T')[0];
     return recurringTransactions.filter(rt => rt.isActive && rt.nextDueDate <= today);
   }, [recurringTransactions]);
+
+  // Check voice stats for onboarding tip
+  useEffect(() => {
+    const stats = getVoiceStats();
+    if (stats.voiceCommandsUsed === 0) {
+      setShowVoiceTip(true);
+    }
+  }, []);
 
   // Auto-process recurring transactions on dashboard load
   useEffect(() => {
@@ -118,6 +128,25 @@ export default function DashboardPage() {
     <>
       <PageHeader title="Dashboard" description="Your financial overview at a glance." />
       
+      {/* Voice Onboarding Tip */}
+      {showVoiceTip && (
+        <Alert className="mb-6 border-purple-500 bg-purple-50 dark:bg-purple-900/20 relative">
+          <Mic className="h-4 w-4 text-purple-600" />
+          <AlertDescription className="text-purple-800 dark:text-purple-200 pr-8">
+            <strong>Try Voice Input!</strong> Adding transactions is faster with voice.
+            Go to <Link href="/transactions" className="underline font-medium">Transactions</Link> and click the microphone icon.
+          </AlertDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 h-6 w-6 text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+            onClick={() => setShowVoiceTip(false)}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </Alert>
+      )}
+
       {/* Bills Due Alert */}
       {dueRecurringTransactions.length > 0 && (
         <Alert className="mb-6 border-blue-500 bg-blue-50 dark:bg-blue-900/20">
@@ -375,5 +404,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
