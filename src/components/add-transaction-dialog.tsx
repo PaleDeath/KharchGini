@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -47,15 +47,36 @@ const transactionFormSchema = z.object({
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 interface AddTransactionDialogProps {
-  onTransactionAdded: (newTransaction: Transaction) => void; 
+  onTransactionAdded: (newTransaction: Transaction) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultTab?: 'manual' | 'voice';
+  initialData?: VoiceTransactionData | null;
 }
 
-export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddTransactionDialog({
+  onTransactionAdded,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  defaultTab = 'manual',
+  initialData
+}: AddTransactionDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'manual' | 'voice'>('manual');
+  const [activeTab, setActiveTab] = useState<'manual' | 'voice'>(defaultTab);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
+
+  // Reset tab when dialog opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab(defaultTab);
+    }
+  }, [open, defaultTab]);
 
   // Detect iOS for better date picker experience
   const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -69,6 +90,16 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
       date: new Date(),
     },
   });
+
+  // Handle initial data
+  useEffect(() => {
+    if (open && initialData) {
+      if (initialData.amount) form.setValue('amount', initialData.amount);
+      if (initialData.description) form.setValue('description', initialData.description);
+      if (initialData.type) form.setValue('type', initialData.type);
+      // We don't auto-set category here as the form doesn't have a category field exposed in the manual tab (it's auto-categorized on submit)
+    }
+  }, [open, initialData, form]);
 
   const handleVoiceTransaction = async (voiceData: VoiceTransactionData) => {
     if (!user?.uid) {
@@ -89,8 +120,6 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
       description: "Please review and confirm the transaction details."
     });
   };
-
-
 
   const onSubmit = async (data: TransactionFormValues) => {
     if (!user?.uid) {
@@ -157,12 +186,14 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <PlusCircle className="h-4 w-4" />
-          Add Transaction
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button className="gap-2">
+            <PlusCircle className="h-4 w-4" />
+            Add Transaction
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Add Transaction</DialogTitle>
@@ -188,8 +219,6 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
               />
             </div>
           </TabsContent>
-
-
 
           <TabsContent value="manual" className="mt-4 flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
