@@ -10,7 +10,7 @@ const EXPENSE_KEYWORDS = ['spent', 'paid', 'bought', 'purchased', 'cost', 'expen
 const INCOME_KEYWORDS = ['received', 'salary', 'credited', 'income', 'earned', 'got', 'deposit', 'added'];
 
 const CATEGORY_MAP: Record<string, string> = {
-  // Food
+  // Food & Dining
   'food': 'Food & Dining',
   'lunch': 'Food & Dining',
   'dinner': 'Food & Dining',
@@ -18,13 +18,13 @@ const CATEGORY_MAP: Record<string, string> = {
   'snack': 'Food & Dining',
   'snacks': 'Food & Dining',
   'restaurant': 'Food & Dining',
-  'dining': 'Food & Dining',
-  'grocery': 'Food & Dining',
-  'groceries': 'Food & Dining',
   'zomato': 'Food & Dining',
   'swiggy': 'Food & Dining',
+  'cafe': 'Food & Dining',
+  'coffee': 'Food & Dining',
+  'tea': 'Food & Dining',
 
-  // Transportation
+  // Transportation (Fuel)
   'petrol': 'Transportation',
   'fuel': 'Transportation',
   'diesel': 'Transportation',
@@ -36,53 +36,41 @@ const CATEGORY_MAP: Record<string, string> = {
   'bus': 'Transportation',
   'train': 'Transportation',
   'flight': 'Transportation',
-  'transport': 'Transportation',
-  'commute': 'Transportation',
 
-  // Shopping
-  'shopping': 'Shopping',
-  'clothes': 'Shopping',
-  'clothing': 'Shopping',
-  'amazon': 'Shopping',
-  'flipkart': 'Shopping',
-  'myntra': 'Shopping',
-
-  // Bills & Utilities
+  // Bills & Utilities (Housing/Rent)
   'rent': 'Bills & Utilities',
+  'housing': 'Bills & Utilities',
   'bill': 'Bills & Utilities',
   'utility': 'Bills & Utilities',
   'electricity': 'Bills & Utilities',
   'water': 'Bills & Utilities',
   'internet': 'Bills & Utilities',
   'wifi': 'Bills & Utilities',
-  'phone': 'Bills & Utilities',
-  'mobile': 'Bills & Utilities',
   'recharge': 'Bills & Utilities',
+  'mobile': 'Bills & Utilities',
+
+  // Shopping
+  'shopping': 'Shopping',
+  'clothes': 'Shopping',
+  'amazon': 'Shopping',
+  'flipkart': 'Shopping',
+  'myntra': 'Shopping',
+  'grocery': 'Shopping',
+  'groceries': 'Shopping',
 
   // Entertainment
   'movie': 'Entertainment',
   'cinema': 'Entertainment',
   'netflix': 'Entertainment',
-  'prime': 'Entertainment',
-  'hotstar': 'Entertainment',
-  'game': 'Entertainment',
 
   // Healthcare
   'medicine': 'Healthcare',
   'doctor': 'Healthcare',
   'hospital': 'Healthcare',
   'pharmacy': 'Healthcare',
-  'health': 'Healthcare',
 
-  // Income
+  // Income specific
   'salary': 'Salary',
-  'wages': 'Salary',
-  'paycheck': 'Salary',
-  'freelance': 'Business Income',
-  'business': 'Business Income',
-  'dividend': 'Investment Returns',
-  'interest': 'Investment Returns',
-  'rent received': 'Rental Income',
 };
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -158,25 +146,36 @@ function convertWordsToNumbers(text: string): string {
   return result.join('').replace(/\s+/g, ' ').trim();
 }
 
-export function parseVoiceCommand(transcript: string): ParsedTransaction {
+export function parseCommand(transcript: string): ParsedTransaction {
+  // Convert number words to digits first
   const normalizedTranscript = convertWordsToNumbers(transcript);
   const lowerTranscript = normalizedTranscript.toLowerCase();
 
-  // Extract Amount
-  const numberMatches = lowerTranscript.matchAll(/(\d+(?:,\d+)*(?:\.\d{1,2})?)/g);
+  // Extract Amount using Regex
+  // Matches: 500, 1,000, 10.50
+  const amountRegex = /(\d+(?:,\d+)*(?:\.\d{1,2})?)/g;
+  const numberMatches = Array.from(lowerTranscript.matchAll(amountRegex));
+
   let bestAmount: number | null = null;
   let bestConfidence = 0;
 
   for (const match of numberMatches) {
       const val = parseFloat(match[1].replace(/,/g, ''));
+      // Basic confidence starts at 0.5 (found a number)
       let confidence = 0.5;
 
       const index = match.index || 0;
-      const before = lowerTranscript.substring(Math.max(0, index - 10), index);
-      const after = lowerTranscript.substring(index + match[0].length, index + match[0].length + 10);
+      const before = lowerTranscript.substring(Math.max(0, index - 20), index); // Increased context window
+      const after = lowerTranscript.substring(index + match[0].length, index + match[0].length + 20);
 
+      // Check context for currency symbols/words
       if (/(rs|inr|rupees?|₹)/.test(before) || /(rs|inr|rupees?|₹)/.test(after)) {
           confidence += 0.4;
+      }
+
+      // If it's the only number, boost confidence
+      if (numberMatches.length === 1) {
+          confidence += 0.2;
       }
 
       if (confidence > bestConfidence) {
@@ -186,29 +185,29 @@ export function parseVoiceCommand(transcript: string): ParsedTransaction {
   }
 
   // Detect Type
-  let type: 'income' | 'expense' = 'expense';
-  let typeConfidence = 0;
+  let type: 'income' | 'expense' = 'expense'; // Default to expense
+  let typeDetected = false;
 
   if (INCOME_KEYWORDS.some(k => lowerTranscript.includes(k))) {
     type = 'income';
-    typeConfidence = 0.8;
+    typeDetected = true;
   } else if (EXPENSE_KEYWORDS.some(k => lowerTranscript.includes(k))) {
     type = 'expense';
-    typeConfidence = 0.8;
+    typeDetected = true;
   }
 
   // Detect Category
   let category: string | null = null;
-  const categoryKeys = Object.keys(CATEGORY_MAP).sort((a, b) => b.length - a.length);
+  const categoryKeys = Object.keys(CATEGORY_MAP).sort((a, b) => b.length - a.length); // Match longest keywords first
 
   for (const key of categoryKeys) {
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Use \\b for word boundary in RegExp string
     if (new RegExp(`\\b${escapedKey}\\b`, 'i').test(lowerTranscript)) {
       category = CATEGORY_MAP[key];
 
-      if (typeConfidence < 0.8) {
-        if (['Salary', 'Business Income', 'Investment Returns', 'Rental Income', 'Other Income'].includes(category)) {
+      // Auto-switch type based on specific categories if type wasn't explicitly stated
+      if (!typeDetected) {
+        if (['Salary', 'Business Income', 'Investment Returns', 'Rental Income'].includes(category)) {
           type = 'income';
         } else {
           type = 'expense';
@@ -220,19 +219,26 @@ export function parseVoiceCommand(transcript: string): ParsedTransaction {
 
   // Calculate Final Confidence
   let confidence = 0;
-  if (bestAmount !== null) confidence += 0.4;
-  if (category !== null) confidence += 0.3;
-  if (typeConfidence > 0) confidence += 0.2;
-  if (bestAmount !== null && category !== null) confidence += 0.1;
+  if (bestAmount !== null && category !== null) {
+      confidence = 1.0;
+  } else if (bestAmount !== null || category !== null) {
+      confidence = 0.5;
+  } else {
+      confidence = 0;
+  }
 
-  confidence = Math.min(confidence, 1.0);
-  if (bestAmount === null) confidence = 0;
+  // Clean description
+  let description = transcript.trim();
+  // Capitalize first letter
+  if (description.length > 0) {
+      description = description.charAt(0).toUpperCase() + description.slice(1);
+  }
 
   return {
     amount: bestAmount,
     category,
     type,
-    description: transcript.trim(),
+    description,
     confidence
   };
 }
