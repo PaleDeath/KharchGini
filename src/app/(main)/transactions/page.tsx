@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from "@/components/page-header";
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
@@ -13,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash2, Edit, Tags, Loader2, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Plus, Wand2, Sparkles } from "lucide-react";
+import { MoreHorizontal, Trash2, Edit, Tags, Loader2, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Plus, Wand2, Sparkles, Upload } from "lucide-react";
 import type { Transaction } from "@/lib/types";
 import { categorizeTransactionAction, bulkCategorizeUncategorizedAction } from '@/actions/transaction-actions';
 import { updateTransaction, deleteTransaction } from '@/services/transactions';
@@ -265,6 +266,12 @@ export default function TransactionsPage() {
                 </Button>
               </BulkActionsDialog>
             )}
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link href="/transactions/import">
+                <Upload className="h-4 w-4" />
+                Import
+              </Link>
+            </Button>
             <CategoryReference />
             <AddRecurringTransactionDialog onRecurringTransactionAdded={(newRecurring) => {
               toast({ 
