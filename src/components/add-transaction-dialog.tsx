@@ -28,8 +28,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, PlusCircle, Loader2, Mic } from "lucide-react";
 import { VoiceTransactionInput } from "@/components/voice-transaction-input";
-import { VoiceInput } from "@/components/voice-input";
+import { VoiceInput } from "@/components/VoiceInput";
 import { VoiceTransactionData } from "@/lib/voice/speech-recognition";
+import { ParsedTransaction } from "@/lib/voiceParser";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType } from "@/lib/types";
@@ -83,7 +84,7 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
   const [prevFormValues, setPrevFormValues] = useState<TransactionFormValues | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<Record<string, boolean>>({});
 
-  const handleVoiceData = (data: VoiceTransactionData) => {
+  const handleVoiceData = (data: ParsedTransaction) => {
     // Save current values for undo
     const currentValues = form.getValues();
     setPrevFormValues({ ...currentValues });
