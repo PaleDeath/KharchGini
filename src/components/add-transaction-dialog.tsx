@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -58,13 +58,31 @@ const transactionFormSchema = z.object({
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 interface AddTransactionDialogProps {
-  onTransactionAdded: (newTransaction: Transaction) => void; 
+  onTransactionAdded: (newTransaction: Transaction) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultTab?: 'manual' | 'voice';
+  initialData?: VoiceTransactionData | null;
 }
 
-export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddTransactionDialog({
+  onTransactionAdded,
+  open: controlledOpen,
+  onOpenChange,
+  defaultTab = 'manual',
+  initialData,
+}: AddTransactionDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'manual' | 'voice'>('manual');
+  const [activeTab, setActiveTab] = useState<'manual' | 'voice'>(defaultTab);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (value: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(value);
+    } else {
+      setInternalOpen(value);
+    }
+  };
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -83,6 +101,38 @@ export function AddTransactionDialog({ onTransactionAdded }: AddTransactionDialo
 
   const [prevFormValues, setPrevFormValues] = useState<TransactionFormValues | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
+
+  useEffect(() => {
+    if (!initialData) return;
+
+    const newAutoFilled: Record<string, boolean> = {};
+
+    if (initialData.amount) {
+      form.setValue('amount', initialData.amount);
+      newAutoFilled.amount = true;
+    }
+
+    if (initialData.description) {
+      form.setValue('description', initialData.description);
+      newAutoFilled.description = true;
+    }
+
+    if (initialData.type) {
+      form.setValue('type', initialData.type);
+      newAutoFilled.type = true;
+    }
+
+    if (initialData.category) {
+      form.setValue('category', initialData.category);
+      newAutoFilled.category = true;
+    }
+
+    setAutoFilledFields(newAutoFilled);
+  }, [form, initialData]);
 
   const handleVoiceData = (data: ParsedTransaction) => {
     // Save current values for undo
