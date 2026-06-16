@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { FinancialGoal } from "@/lib/types";
-import { deleteGoal } from '@/lib/firebase/firestore'; 
+import { deleteGoal } from '@/services/goals';
 import { useToast } from "@/hooks/use-toast";
 import { Target, Edit, Trash2, Plus, MoreHorizontal } from "lucide-react";
 import { useGoals } from '@/hooks/use-firestore-data';
@@ -43,7 +43,6 @@ export default function GoalsPage() {
   const handleGoalAdded = (newGoal: FinancialGoal) => {
      // Refresh goals from Firestore to get the latest data
      refreshGoals();
-     toast({ title: "Goal Added", description: `'${newGoal.name}' has been successfully added.`});
   };
 
   const handleGoalUpdated = (updatedGoal: FinancialGoal) => {

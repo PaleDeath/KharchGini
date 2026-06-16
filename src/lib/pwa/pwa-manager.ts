@@ -182,7 +182,7 @@ export class PWAManager {
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(
           process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
-        )
+        ) as any // Casting to any to avoid type mismatch issues between Uint8Array and BufferSource
       });
 
       console.log('Push subscription successful:', subscription);

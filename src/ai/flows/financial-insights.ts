@@ -1,71 +1,77 @@
-// Type definitions for Financial Insights AI Flow
-// This module is temporarily disabled due to Genkit Node.js module conflicts
+import { z } from 'zod';
+import { ai } from '../genkit';
 
-export interface FinancialInsightsInput {
-  // Financial data
-  income: number;
-  expenses: number;
-  
-  // Personal context
-  userType: 'student' | 'professional' | 'freelancer' | 'business_owner' | 'retired' | 'other';
-  age: number;
-  dependents: number;
-  
-  // Financial situation
-  currentSavings: number;
-  monthlyFixedExpenses: number;
-  
-  // Goals and patterns
-  financialGoals: string;
-  spendingPatterns: string;
-  
-  // Optional context
-  location?: 'metro' | 'tier2' | 'tier3' | 'rural';
-  riskTolerance?: 'conservative' | 'moderate' | 'aggressive';
-}
+export const FinancialInsightsInputSchema = z.object({
+  income: z.number(),
+  expenses: z.number(),
+  userType: z.enum(['student', 'professional', 'freelancer', 'business_owner', 'retired', 'other']),
+  age: z.number(),
+  dependents: z.number(),
+  currentSavings: z.number(),
+  monthlyFixedExpenses: z.number(),
+  financialGoals: z.string(),
+  spendingPatterns: z.string(),
+  location: z.enum(['metro', 'tier2', 'tier3', 'rural']).optional(),
+  riskTolerance: z.enum(['conservative', 'moderate', 'aggressive']).optional(),
+});
 
-export interface PrioritizedRecommendation {
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  timeframe: string;
-}
+export const PrioritizedRecommendationSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  priority: z.enum(['high', 'medium', 'low']),
+  timeframe: z.string(),
+});
 
-export interface MonthlyBudgetSuggestion {
-  needs: number;
-  wants: number;
-  savings: number;
-  reasoning: string;
-}
+export const MonthlyBudgetSuggestionSchema = z.object({
+  needs: z.number(),
+  wants: z.number(),
+  savings: z.number(),
+  reasoning: z.string(),
+});
 
-export interface FinancialInsightsOutput {
-  personalizedGreeting: string;
-  financialHealthScore: number;
-  keyInsights: string[];
-  prioritizedRecommendations: PrioritizedRecommendation[];
-  monthlyBudgetSuggestion: MonthlyBudgetSuggestion;
-  specificTips: string[];
-  warningSignals?: string[];
-  encouragement: string;
-}
+export const FinancialInsightsOutputSchema = z.object({
+  personalizedGreeting: z.string(),
+  financialHealthScore: z.number().min(0).max(100),
+  keyInsights: z.array(z.string()),
+  prioritizedRecommendations: z.array(PrioritizedRecommendationSchema),
+  monthlyBudgetSuggestion: MonthlyBudgetSuggestionSchema,
+  specificTips: z.array(z.string()),
+  warningSignals: z.array(z.string()).optional(),
+  encouragement: z.string(),
+});
 
-// Temporarily disabled function - will be implemented when Genkit issues are resolved
+export type FinancialInsightsInput = z.infer<typeof FinancialInsightsInputSchema>;
+export type FinancialInsightsOutput = z.infer<typeof FinancialInsightsOutputSchema>;
+
+export const financialInsightsFlow = ai.defineFlow({
+  name: 'financialInsights',
+  inputSchema: FinancialInsightsInputSchema,
+  outputSchema: FinancialInsightsOutputSchema,
+}, async (input) => {
+  const prompt = `
+    Analyze the financial situation for a ${input.age}-year-old ${input.userType} with ${input.dependents} dependents.
+    Income: ${input.income}, Expenses: ${input.expenses}, Savings: ${input.currentSavings}.
+    Fixed Expenses: ${input.monthlyFixedExpenses}.
+    Goals: ${input.financialGoals}.
+    Spending Patterns: ${input.spendingPatterns}.
+    Location: ${input.location || 'Unknown'}, Risk Tolerance: ${input.riskTolerance || 'Unknown'}.
+
+    Provide a personalized financial health assessment, including a score (0-100), key insights, prioritized recommendations,
+    a suggested monthly budget allocation (needs/wants/savings percentages), specific tips, any warning signals, and encouragement.
+  `;
+
+  const { output } = await ai.generate({
+    prompt,
+    output: { schema: FinancialInsightsOutputSchema },
+  });
+
+  if (!output) {
+    throw new Error('Failed to generate financial insights');
+  }
+
+  return output;
+});
+
 export async function generateFinancialInsights(input: FinancialInsightsInput): Promise<FinancialInsightsOutput> {
-  // This function is temporarily disabled due to Genkit Node.js module conflicts
-  // Return a placeholder response
-  return {
-    personalizedGreeting: "Financial insights are temporarily unavailable due to system maintenance.",
-    financialHealthScore: 0,
-    keyInsights: ["AI insights are currently being updated for better performance."],
-    prioritizedRecommendations: [],
-    monthlyBudgetSuggestion: {
-      needs: 50,
-      wants: 30,
-      savings: 20,
-      reasoning: "Standard 50/30/20 budget allocation."
-    },
-    specificTips: ["Please check back later for personalized financial advice."],
-    warningSignals: [],
-    encouragement: "Your financial journey is important to us. We're working to provide better insights soon!"
-  };
+  return await financialInsightsFlow(input);
 }

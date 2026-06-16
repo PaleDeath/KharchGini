@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal, Trash2, Edit, Tags, Loader2, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Plus, Wand2, Sparkles } from "lucide-react";
 import type { Transaction } from "@/lib/types";
 import { categorizeTransactionAction, bulkCategorizeUncategorizedAction } from '@/actions/transaction-actions';
-import { updateTransaction, deleteTransaction } from '@/lib/firebase/firestore';
+import { updateTransaction, deleteTransaction } from '@/services/transactions';
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from '@/components/ui/badge';
 import { useTransactions } from '@/hooks/use-firestore-data';
@@ -47,7 +47,7 @@ export default function TransactionsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { transactions, loading, error, refreshTransactions } = useTransactions();
+  const { transactions, loading, loadingMore, hasMore, error, refreshTransactions, loadMore } = useTransactions();
   const [isBulkCategorizing, setIsBulkCategorizing] = useState(false);
 
   // Filtering and sorting state
@@ -74,7 +74,6 @@ export default function TransactionsPage() {
   const handleTransactionAdded = (newTransaction: Transaction) => {
     // Refresh transactions from Firestore to get the latest data
     refreshTransactions();
-    toast({ title: "Transaction Added", description: "Your transaction has been recorded."});
   };
 
   const handleTransactionUpdated = (updatedTransaction: Transaction) => {
@@ -209,7 +208,7 @@ export default function TransactionsPage() {
       if (result.success) {
         if (result.categorizedCount && result.categorizedCount > 0 && result.categorizedTransactions) {
           // Update transactions locally with the categorized results
-          const { bulkUpdateTransactionCategory } = await import('@/lib/firebase/firestore');
+          const { bulkUpdateTransactionCategory } = await import('@/services/transactions');
 
           // Group by category for efficient batch updates
           const categoryGroups: Record<string, string[]> = {};
@@ -613,6 +612,27 @@ export default function TransactionsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Load More Button */}
+      {hasMore && !loading && filters.search === '' && filters.type === 'all' && filters.category === '' && (
+        <div className="flex justify-center mt-6 mb-8">
+          <Button
+            variant="outline"
+            onClick={() => loadMore()}
+            disabled={loadingMore}
+            className="w-full max-w-xs"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading more...
+              </>
+            ) : (
+              "Load More Transactions"
+            )}
+          </Button>
+        </div>
+      )}
     </>
   );
 }

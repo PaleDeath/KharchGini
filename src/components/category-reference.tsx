@@ -100,7 +100,7 @@ export function CategoryReference() {
               <h4 className="font-semibold mb-2 text-foreground">💡 AI Categorization Tips</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Include brand names (Zomato, Uber, Amazon) for better accuracy</li>
-                <li>• Be specific in descriptions (e.g., "Uber ride to office" vs "travel")</li>
+                <li>• Be specific in descriptions (e.g., &quot;Uber ride to office&quot; vs &quot;travel&quot;)</li>
                 <li>• The AI recognizes Indian brands and payment methods</li>
                 <li>• You can manually edit categories anytime</li>
                 <li>• Confidence scores help you understand AI certainty</li>

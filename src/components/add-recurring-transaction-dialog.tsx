@@ -29,7 +29,7 @@ import { CalendarIcon, PlusCircle, Loader2, Repeat } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { RecurringTransaction, TransactionType, RecurringFrequency } from "@/lib/types";
-import { addRecurringTransaction, calculateNextDueDate } from '@/lib/firebase/firestore';
+import { addRecurringTransaction, calculateNextDueDate } from '@/services/recurring';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 

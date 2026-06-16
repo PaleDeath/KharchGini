@@ -20,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { RecurringTransaction } from "@/lib/types";
-import { deleteRecurringTransaction, updateRecurringTransaction } from '@/lib/firebase/firestore'; 
+import { deleteRecurringTransaction, updateRecurringTransaction } from '@/services/recurring';
 import { useToast } from "@/hooks/use-toast";
 import { Repeat, Edit, Trash2, Calendar, Clock, RefreshCw, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { useRecurringTransactions } from '@/hooks/use-firestore-data';
@@ -185,7 +185,7 @@ export default function RecurringTransactionsPage() {
           <AlertTriangle className="h-4 w-4 text-orange-600" />
           <AlertDescription className="text-orange-800 dark:text-orange-200">
             <strong>{dueRecurringTransactions.length} recurring transaction{dueRecurringTransactions.length !== 1 ? 's are' : ' is'} due</strong> and ready to be processed. 
-            Click "Process Due" to create the transactions automatically.
+            Click &quot;Process Due&quot; to create the transactions automatically.
           </AlertDescription>
         </Alert>
       )}

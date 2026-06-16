@@ -2,8 +2,6 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Disable output file tracing (fixes EPERM: operation not permitted, open '.next/trace' on Windows)
-  outputFileTracing: false,
   typescript: {
     ignoreBuildErrors: false, // Enable type checking for production
   },

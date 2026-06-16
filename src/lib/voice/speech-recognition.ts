@@ -1,4 +1,5 @@
 'use client';
+import { parseHindiNumbers, containsHindiCurrency } from './hindi-utils';
 
 export interface VoiceTransactionData {
   amount?: number;
@@ -34,7 +35,7 @@ export class SpeechRecognitionService {
       if (this.recognition) {
         this.recognition.continuous = false;
         this.recognition.interimResults = false;
-        this.recognition.lang = 'en-US'; // Use US English for better compatibility
+        this.recognition.lang = 'hi-IN'; // Use Hindi (India) for Hinglish support
         this.recognition.maxAlternatives = 1; // Reduce alternatives for faster processing
       }
     }
@@ -368,7 +369,8 @@ export class SpeechRecognitionService {
 
   // Parse voice input using regex patterns and AI
   public async parseVoiceInput(transcript: string): Promise<VoiceTransactionData> {
-    const cleanTranscript = transcript.toLowerCase().trim();
+    const rawTranscript = transcript.toLowerCase().trim();
+    const cleanTranscript = parseHindiNumbers(rawTranscript);
     
     // Extract amount using regex patterns
     const amount = this.extractAmount(cleanTranscript);
@@ -402,18 +404,18 @@ export class SpeechRecognitionService {
     // Enhanced patterns for Indian currency and speech recognition
     const patterns = [
       // Standard currency patterns
-      /(?:rupees?|rs\.?|₹)\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
-      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:rupees?|rs\.?|₹)/i,
+      /(?:rupees?|rs\.?|₹|rupaye)\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:rupees?|rs\.?|₹|rupaye)/i,
 
       // Indian number words (common in speech)
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:thousand|k)/i,
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:hundred)/i,
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:lakh|lac)/i,
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:crore)/i,
+      /(?:rupees?|rs\.?|₹|rupaye)?\s*(\d+)\s*(?:thousand|k|hazaar)/i,
+      /(?:rupees?|rs\.?|₹|rupaye)?\s*(\d+)\s*(?:hundred|sau)/i,
+      /(?:rupees?|rs\.?|₹|rupaye)?\s*(\d+)\s*(?:lakh|lac)/i,
+      /(?:rupees?|rs\.?|₹|rupaye)?\s*(\d+)\s*(?:crore)/i,
 
       // Speech recognition common mistakes
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:point|dot)\s*(\d+)/i, // "50 point 75"
-      /(?:rupees?|rs\.?|₹)?\s*(\d+)\s*(?:and|&)\s*(\d+)/i, // "50 and 75 paise"
+      /(?:rupees?|rs\.?|₹|rupaye)?\s*(\d+)\s*(?:point|dot)\s*(\d+)/i, // "50 point 75"
+      /(?:rupees?|rs\.?|₹|rupaye)?\s*(\d+)\s*(?:and|&)\s*(\d+)/i, // "50 and 75 paise"
 
       // Fallback for just numbers
       /(\d+(?:,\d{3})*(?:\.\d{2})?)/i
@@ -425,9 +427,9 @@ export class SpeechRecognitionService {
         let amount = 0;
 
         // Handle special cases
-        if (pattern.source.includes('thousand|k')) {
+        if (pattern.source.includes('thousand|k|hazaar')) {
           amount = parseFloat(match[1]) * 1000;
-        } else if (pattern.source.includes('hundred')) {
+        } else if (pattern.source.includes('hundred|sau')) {
           amount = parseFloat(match[1]) * 100;
         } else if (pattern.source.includes('lakh|lac')) {
           amount = parseFloat(match[1]) * 100000;
@@ -460,12 +462,13 @@ export class SpeechRecognitionService {
 
       // Indian context
       'kharcha', 'kharch', 'diya', 'liya', 'khareed', 'khareedar', 'bill', 'payment',
-      'recharge', 'top up', 'topup', 'emi', 'installment', 'subscription',
+      'recharge', 'top up', 'topup', 'emi', 'installment', 'subscription', 'gaye', 'cut',
 
       // Common places/activities
       'restaurant', 'cafe', 'mall', 'market', 'pharmacy', 'medical store',
       'auto', 'taxi', 'uber', 'ola', 'metro', 'bus', 'train', 'flight',
-      'movie', 'cinema', 'theatre', 'gym', 'salon', 'parlour'
+      'movie', 'cinema', 'theatre', 'gym', 'salon', 'parlour',
+      'kirana', 'doodh', 'sabzi', 'bijli', 'pani', 'rent', 'kiraya'
     ];
 
     const incomeKeywords = [
@@ -476,6 +479,7 @@ export class SpeechRecognitionService {
       // Indian context
       'mila', 'aaya', 'credit', 'deposit', 'transfer', 'payment received',
       'commission', 'incentive', 'overtime', 'allowance', 'reimbursement',
+      'wapas', 'laaya', 'joda',
 
       // Business terms
       'sale', 'sold', 'client payment', 'project payment', 'consulting',
@@ -499,20 +503,20 @@ export class SpeechRecognitionService {
   }
 
   private extractDescription(transcript: string, amount?: number): string | undefined {
-    let description = transcript.toLowerCase();
+    let description = transcript;
 
-    // Enhanced command words removal (including Indian terms)
+    // Common words to remove from description to clean it up
     const commandWords = [
-      // Basic command words
       'add', 'spent', 'spend', 'paid', 'pay', 'bought', 'buy', 'for',
       'rupees', 'rs', '₹', 'on', 'at', 'in', 'the', 'a', 'an', 'of', 'to', 'from',
+      'rupaye', 'ka', 'ke', 'mein', 'ko',
 
       // Indian terms
       'kharcha', 'kharch', 'diya', 'liya', 'khareed', 'mila', 'aaya',
 
       // Amount-related words
       'thousand', 'hundred', 'lakh', 'lac', 'crore', 'point', 'dot', 'and',
-      'k', 'paise', 'paisa',
+      'k', 'paise', 'paisa', 'sau', 'hazaar',
 
       // Transaction words
       'transaction', 'expense', 'income', 'payment', 'bill', 'cost', 'charge'
@@ -521,13 +525,13 @@ export class SpeechRecognitionService {
     // Remove amount and related words from description
     if (amount) {
       // Remove the exact amount
-      description = description.replace(new RegExp(`\\b${amount}\\b`, 'g'), '');
+      description = description.replace(new RegExp(`\b${amount}\b`, 'g'), '');
 
       // Remove currency symbols and words
-      description = description.replace(/rupees?|rs\.?|₹/gi, '');
+      description = description.replace(/rupees?|rs\.?|₹|rupaye/gi, '');
 
       // Remove amount-related patterns
-      description = description.replace(/\d+\s*(?:thousand|k|hundred|lakh|lac|crore)/gi, '');
+      description = description.replace(/\d+\s*(?:thousand|k|hundred|lakh|lac|crore|sau|hazaar)/gi, '');
       description = description.replace(/\d+\s*(?:point|dot)\s*\d+/gi, '');
       description = description.replace(/\d+\s*(?:and|&)\s*\d+/gi, '');
     }
@@ -537,7 +541,7 @@ export class SpeechRecognitionService {
 
     // Remove command words
     commandWords.forEach(word => {
-      description = description.replace(new RegExp(`\\b${word}\\b`, 'gi'), '');
+      description = description.replace(new RegExp(`\b${word}\b`, 'gi'), '');
     });
 
     // Clean up extra spaces and punctuation
@@ -567,7 +571,10 @@ export class SpeechRecognitionService {
         desc.includes('roti') || desc.includes('dal') || desc.includes('rice') ||
         desc.includes('swiggy') || desc.includes('zomato') || desc.includes('dominos') ||
         desc.includes('mcdonalds') || desc.includes('kfc') || desc.includes('subway') ||
-        desc.includes('starbucks') || desc.includes('ccd') || desc.includes('barista')) {
+        desc.includes('starbucks') || desc.includes('ccd') || desc.includes('barista') ||
+        desc.includes('samosa') || desc.includes('kachori') || desc.includes('mithai') ||
+        desc.includes('sabzi') || desc.includes('vegetable') || desc.includes('fruit') ||
+        desc.includes('doodh') || desc.includes('milk')) {
       return 'Food & Dining';
     }
 
@@ -592,7 +599,7 @@ export class SpeechRecognitionService {
         desc.includes('grofers') || desc.includes('blinkit') || desc.includes('zepto') ||
         desc.includes('mall') || desc.includes('market') || desc.includes('store') ||
         desc.includes('reliance') || desc.includes('dmart') || desc.includes('more') ||
-        desc.includes('spencer') || desc.includes('big bazaar')) {
+        desc.includes('spencer') || desc.includes('big bazaar') || desc.includes('kirana')) {
       return 'Shopping';
     }
 
@@ -603,7 +610,8 @@ export class SpeechRecognitionService {
         desc.includes('aiims') || desc.includes('clinic') || desc.includes('checkup') ||
         desc.includes('test') || desc.includes('lab') || desc.includes('pathology') ||
         desc.includes('dental') || desc.includes('dentist') || desc.includes('eye') ||
-        desc.includes('optical') || desc.includes('lenskart') || desc.includes('titan eye')) {
+        desc.includes('optical') || desc.includes('lenskart') || desc.includes('titan eye') ||
+        desc.includes('dawa')) {
       return 'Healthcare';
     }
 
@@ -615,7 +623,8 @@ export class SpeechRecognitionService {
         desc.includes('vi') || desc.includes('bsnl') || desc.includes('idea') ||
         desc.includes('tata sky') || desc.includes('dish tv') || desc.includes('sun direct') ||
         desc.includes('d2h') || desc.includes('netflix') || desc.includes('amazon prime') ||
-        desc.includes('hotstar') || desc.includes('spotify') || desc.includes('youtube')) {
+        desc.includes('hotstar') || desc.includes('spotify') || desc.includes('youtube') ||
+        desc.includes('bijli') || desc.includes('pani') || desc.includes('gas cylinder')) {
       return 'Bills & Utilities';
     }
 
@@ -635,6 +644,11 @@ export class SpeechRecognitionService {
         desc.includes('college') || desc.includes('university') || desc.includes('udemy') ||
         desc.includes('coursera') || desc.includes('byju') || desc.includes('unacademy')) {
       return 'Education';
+    }
+
+    // Housing
+    if (desc.includes('rent') || desc.includes('kiraya') || desc.includes('maintenance')) {
+        return 'Housing';
     }
 
     return 'Miscellaneous';

@@ -1,20 +1,13 @@
 'use server';
 
-// Temporarily disabled due to Genkit Node.js module conflicts
-// import { generateFinancialInsights as generateFinancialInsightsAI, type FinancialInsightsInput, type FinancialInsightsOutput } from '@/ai/flows/financial-insights';
+import { generateFinancialInsights, type FinancialInsightsInput, type FinancialInsightsOutput } from '@/ai/flows/financial-insights';
 
-// Temporarily disabled due to Genkit Node.js module conflicts
-export async function getFinancialInsightsAction(input: any): Promise<{ success: boolean; insights?: any; error?: string }> {
+export async function getFinancialInsightsAction(input: FinancialInsightsInput): Promise<{ success: boolean; insights?: FinancialInsightsOutput; error?: string }> {
   try {
-    // Return fallback insights
+    const insights = await generateFinancialInsights(input);
     return {
       success: true,
-      insights: {
-        summary: "Financial insights temporarily unavailable due to system maintenance.",
-        recommendations: [],
-        alerts: [],
-        trends: []
-      }
+      insights
     };
   } catch (error) {
     console.error("Error generating financial insights:", error);
