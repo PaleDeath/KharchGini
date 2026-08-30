@@ -1,0 +1,151 @@
+rules_version = '2';
+
+// KharchGini — Firestore security rules
+//
+// Money is stored as INTEGER PAISE everywhere. `amount is int` below is a real
+// invariant, not a formality: it makes it impossible to write a float amount
+// and reintroduce rounding drift.
+//
+// Every document lives under users/{userId}/... and is readable/writable only
+// by that user. There is deliberately no wildcard collection match — each
+// collection validates its own shape.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function data() {
+      return request.resource.data;
+    }
+
+    // ₹0 .. ₹10,00,00,000 expressed in paise.
+    function validPaise(v) {
+      return v is int && v >= 0 && v <= 100000000000;
+    }
+
+    function validDate(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function validMonth(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}$');
+    }
+
+    function shortText(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    match /users/{userId} {
+      // Profile / preferences document.
+      allow read: if owns(userId);
+      allow write: if owns(userId)
+                   && data().keys().hasOnly([
+                        'displayName', 'currency', 'weekStartsOn', 'payday',
+                        'createdAt', 'updatedAt', 'onboardedAt', 'privacyMode'
+                      ]);
+
+      match /accounts/{accountId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && shortText(data().name, 60)
+          && data().type in ['cash', 'bank', 'wallet', 'card', 'savings']
+          // openingBalance may be negative for a card carrying a balance.
+          && data().openingBalance is int
+          && data().openingBalance >= -100000000000
+          && data().openingBalance <= 100000000000;
+      }
+
+      match /entries/{entryId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && validPaise(data().amount)
+          && data().amount > 0
+          && data().direction in ['in', 'out', 'transfer']
+          && validDate(data().date)
+          && shortText(data().accountId, 64)
+          && (!('note' in data()) || shortText(data().note, 500))
+          && (!('merchant' in data()) || shortText(data().merchant, 120))
+          && (!('tags' in data()) || (data().tags is list && data().tags.size() <= 12))
+          // A transfer must name a destination, and it must differ from the source.
+          && (data().direction != 'transfer'
+              || (shortText(data().counterAccountId, 64)
+                  && data().counterAccountId != data().accountId));
+      }
+
+      match /categories/{categoryId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && shortText(data().name, 40)
+          && data().kind in ['need', 'want', 'save', 'income'];
+      }
+
+      match /envelopes/{envelopeId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && validMonth(data().month)
+          && shortText(data().categoryId, 64)
+          && validPaise(data().allocated);
+      }
+
+      match /goals/{goalId} {
+        allow read, delete: if owns(userId);
+        // NOTE: there is no `currentAmount` field by design. Goal progress is
+        // derived from real transfers into the goal's backing account, so it
+        // cannot be typed in and cannot disagree with the ledger.
+        allow create, update: if owns(userId)
+          && shortText(data().name, 60)
+          && validPaise(data().targetAmount)
+          && data().targetAmount > 0
+          && shortText(data().accountId, 64)
+          && (!('targetDate' in data()) || validDate(data().targetDate));
+      }
+
+      match /rules/{ruleId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && data().field in ['description', 'merchant', 'amount']
+          && data().op in ['contains', 'equals', 'startsWith', 'gt', 'lt']
+          && shortText(data().value, 120);
+      }
+
+      match /merchants/{merchantKey} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && shortText(data().categoryId, 64)
+          && data().confirmations is int
+          && data().confirmations >= 0;
+      }
+
+      match /recurring/{recurringId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && shortText(data().description, 120)
+          && validPaise(data().amount)
+          && data().direction in ['in', 'out', 'transfer']
+          && data().frequency in ['daily', 'weekly', 'monthly', 'yearly']
+          && validDate(data().startDate)
+          && validDate(data().nextDueDate)
+          && data().isActive is bool;
+      }
+
+      match /reviews/{reviewId} {
+        allow read, delete: if owns(userId);
+        allow create, update: if owns(userId)
+          && shortText(data().weekOf, 10)
+          && data().itemsResolved is int;
+      }
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

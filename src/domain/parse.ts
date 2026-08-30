@@ -1,0 +1,481 @@
+/**
+ * The command bar grammar.
+ *
+ * One line of text becomes a complete entry. This is the single highest-leverage
+ * thing in the application: it is the difference between logging a ₹50 chai and
+ * not bothering, and "not bothering" is how every expense tracker dies.
+ *
+ *   280 chai                        → ₹280 out, Eating Out, today, default account
+ *   2,100 groceries hdfc yesterday  → ₹2,100 out, Groceries, HDFC, 23 Aug
+ *   +45000 salary                   → ₹45,000 in, Salary
+ *   5000 hdfc to savings            → transfer between two accounts
+ *   1.5k dinner #goa                → tagged
+ *   650 medicines // for amma       → with a note
+ *   ?food this month                → a question, not an entry
+ *   ?can i afford 15000             → a question about the future
+ *
+ * Everything is parsed locally with regular expressions. No network, no API
+ * key, no latency, and it works in a basement with no signal. The preview
+ * always shows what was understood before anything is written, so a wrong
+ * guess costs a glance rather than a bad row in the ledger.
+ */
+
+import { parseAmount, type Paise } from './money';
+import {
+  addDays,
+  addMonthsToKey,
+  endOfMonth,
+  monthOf,
+  startOfMonth,
+  startOfWeek,
+  today as todayISO,
+  type ISODate,
+} from './dates';
+import { guessCategory, type GuessContext } from './categorize';
+import type { Account, CategorySource, Direction } from './types';
+
+/* -------------------------------------------------------------------------- */
+/* Result shapes                                                               */
+/* -------------------------------------------------------------------------- */
+
+export interface ParsedEntry {
+  amount: Paise;
+  direction: Direction;
+  date: ISODate;
+  description: string;
+  accountId: string;
+  counterAccountId?: string;
+  categoryId?: string;
+  merchant?: string;
+  tags: string[];
+  note?: string;
+  categorySource: CategorySource;
+  confidence: number;
+}
+
+export type QueryKind = 'afford' | 'spend';
+
+export interface ParsedQuery {
+  kind: QueryKind;
+  /** Free text left after the range words were removed, e.g. "food". */
+  subject: string;
+  from: ISODate;
+  to: ISODate;
+  rangeLabel: string;
+  /** Present when the question was "can I afford X". */
+  affordAmount?: Paise;
+}
+
+export type ParseResult =
+  | { kind: 'empty' }
+  | { kind: 'entry'; entry: ParsedEntry }
+  | { kind: 'query'; query: ParsedQuery }
+  | { kind: 'error'; message: string };
+
+export interface ParseContext extends GuessContext {
+  accounts: Account[];
+  defaultAccountId: string;
+  today?: ISODate;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dates in prose                                                              */
+/* -------------------------------------------------------------------------- */
+
+const MONTH_TOKENS: Record<string, number> = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+  may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9, oct: 10, october: 10,
+  nov: 11, november: 11, dec: 12, december: 12,
+};
+
+const WEEKDAY_TOKENS: Record<string, number> = {
+  sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2,
+  wed: 3, weds: 3, wednesday: 3, thu: 4, thur: 4, thurs: 4, thursday: 4,
+  fri: 5, friday: 5, sat: 6, saturday: 6,
+};
+
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+interface DateHit {
+  date: ISODate;
+  matched: string;
+}
+
+/**
+ * Finds and removes a date phrase. Day-first for numeric forms, because
+ * 12/8 means 12 August to everyone who will ever use this.
+ */
+function extractDate(text: string, today: ISODate): { text: string; hit?: DateHit } {
+  const patterns: { re: RegExp; resolve: (m: RegExpExecArray) => ISODate | null }[] = [
+    { re: /\b(today|tdy)\b/i, resolve: () => today },
+    { re: /\b(yesterday|yest|ydy)\b/i, resolve: () => addDays(today, -1) },
+    { re: /\b(tomorrow|tmrw|tmw)\b/i, resolve: () => addDays(today, 1) },
+    {
+      re: /\b(\d{1,2})\s*d(?:ays?)?\s+ago\b/i,
+      resolve: (m) => addDays(today, -Number(m[1])),
+    },
+    {
+      re: /\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/,
+      resolve: (m) => {
+        const day = Number(m[1]);
+        const month = Number(m[2]);
+        if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+        let year = m[3] ? Number(m[3]) : Number(today.slice(0, 4));
+        if (year < 100) year += 2000;
+        return `${year}-${pad(month)}-${pad(day)}`;
+      },
+    },
+    {
+      re: /\b(\d{1,2})\s+(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\b/i,
+      resolve: (m) => resolveDayMonth(Number(m[1]), MONTH_TOKENS[m[2]!.toLowerCase()]!, today),
+    },
+    {
+      re: /\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\s+(\d{1,2})\b/i,
+      resolve: (m) => resolveDayMonth(Number(m[2]), MONTH_TOKENS[m[1]!.toLowerCase()]!, today),
+    },
+    {
+      re: /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|weds|wed|thurs|thur|thu|fri|sat)\b/i,
+      resolve: (m) => lastWeekday(WEEKDAY_TOKENS[m[1]!.toLowerCase()]!, today),
+    },
+  ];
+
+  for (const { re, resolve } of patterns) {
+    const match = re.exec(text);
+    if (!match) continue;
+    const resolved = resolve(match);
+    if (!resolved) continue;
+    return {
+      text: (text.slice(0, match.index) + ' ' + text.slice(match.index + match[0].length))
+        .replace(/\s+/g, ' ')
+        .trim(),
+      hit: { date: resolved, matched: match[0] },
+    };
+  }
+
+  return { text };
+}
+
+/** "12 aug" means the most recent 12 August, never one in the future. */
+function resolveDayMonth(day: number, month: number, today: ISODate): ISODate | null {
+  if (!month || day < 1 || day > 31) return null;
+  const year = Number(today.slice(0, 4));
+  const candidate = `${year}-${pad(month)}-${pad(day)}`;
+  return candidate > today ? `${year - 1}-${pad(month)}-${pad(day)}` : candidate;
+}
+
+/** "tue" means the Tuesday just gone, or today if today is Tuesday. */
+function lastWeekday(target: number, today: ISODate): ISODate {
+  const current = new Date(`${today}T12:00:00Z`).getUTCDay();
+  const back = (current - target + 7) % 7;
+  return addDays(today, -back);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Account matching                                                            */
+/* -------------------------------------------------------------------------- */
+
+function normalise(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** "hdfc" finds "HDFC Bank"; "sav" finds "Savings". Exact beats prefix beats substring. */
+export function findAccount(accounts: Account[], token: string): Account | undefined {
+  const needle = normalise(token);
+  if (needle.length < 2) return undefined;
+
+  const live = accounts.filter((a) => !a.archived);
+  return (
+    live.find((a) => normalise(a.name) === needle) ??
+    live.find((a) => normalise(a.name).startsWith(needle)) ??
+    live.find((a) => normalise(a.name).includes(needle))
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The parser                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export function parseCommand(input: string, ctx: ParseContext): ParseResult {
+  const today = ctx.today ?? todayISO();
+  const raw = input.trim();
+  if (!raw) return { kind: 'empty' };
+
+  if (raw.startsWith('?')) {
+    return { kind: 'query', query: parseQuery(raw.slice(1).trim(), today) };
+  }
+
+  let text = raw;
+  const tags: string[] = [];
+  let note: string | undefined;
+
+  // A note is everything after "//" — taken first so its contents are never
+  // mistaken for tags, dates or amounts.
+  const noteAt = text.indexOf('//');
+  if (noteAt >= 0) {
+    note = text.slice(noteAt + 2).trim() || undefined;
+    text = text.slice(0, noteAt).trim();
+  }
+
+  // #tags
+  text = text
+    .replace(/#([\p{L}\p{N}_-]+)/gu, (_full, tag: string) => {
+      tags.push(tag.toLowerCase());
+      return ' ';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // @account — explicit, so it wins over any bare-token guess later.
+  let explicitAccount: Account | undefined;
+  text = text
+    .replace(/@([\p{L}\p{N}_-]+)/gu, (full, name: string) => {
+      const found = findAccount(ctx.accounts, name);
+      if (found) {
+        explicitAccount = found;
+        return ' ';
+      }
+      return full;
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Dates before amounts, so "12/8" is not read as the number 12.
+  const dateResult = extractDate(text, today);
+  text = dateResult.text;
+  const date = dateResult.hit?.date ?? today;
+
+  // Amount: leading token first, trailing token as a fallback.
+  const amountResult = extractAmount(text);
+  if (!amountResult) {
+    return {
+      kind: 'error',
+      message: 'Start with an amount — try “280 chai”, or “?” to ask a question.',
+    };
+  }
+
+  const { amount } = amountResult;
+  let direction = amountResult.direction;
+  text = amountResult.rest;
+
+  if (amount <= 0) return { kind: 'error', message: 'Amount must be more than zero.' };
+
+  // Transfers: "… to <account>" or "… > <account>".
+  let counterAccountId: string | undefined;
+  let sourceAccount = explicitAccount;
+
+  const transferMatch = /(?:^|\s)(?:to|>|→)\s+(.+)$/i.exec(text);
+  if (transferMatch) {
+    const destination = findAccount(ctx.accounts, transferMatch[1]!.trim());
+    if (destination) {
+      counterAccountId = destination.id;
+      direction = 'transfer';
+      text = text.slice(0, transferMatch.index).trim();
+
+      // Whatever is left may name the source: "5000 hdfc to savings".
+      const remainingTokens = text.split(' ').filter(Boolean);
+      const lastToken = remainingTokens[remainingTokens.length - 1];
+      if (!sourceAccount && lastToken) {
+        const found = findAccount(ctx.accounts, lastToken);
+        if (found && found.id !== destination.id) {
+          sourceAccount = found;
+          remainingTokens.pop();
+          text = remainingTokens.join(' ');
+        }
+      }
+    }
+  }
+
+  // A bare account name, but only when the description survives it.
+  if (!sourceAccount) {
+    const tokens = text.split(' ').filter(Boolean);
+    if (tokens.length >= 2) {
+      const last = tokens[tokens.length - 1]!;
+      const found = findAccount(ctx.accounts, last);
+      if (found) {
+        sourceAccount = found;
+        tokens.pop();
+        text = tokens.join(' ');
+      }
+    }
+  }
+
+  const description = text.trim() || (direction === 'transfer' ? 'Transfer' : 'Untitled');
+  const guess = guessCategory(description, amount, direction, ctx);
+
+  return {
+    kind: 'entry',
+    entry: {
+      amount,
+      direction,
+      date,
+      description,
+      accountId: sourceAccount?.id ?? ctx.defaultAccountId,
+      ...(counterAccountId ? { counterAccountId } : {}),
+      ...(guess.categoryId ? { categoryId: guess.categoryId } : {}),
+      ...(guess.merchant ? { merchant: guess.merchant } : {}),
+      tags: [...tags, ...guess.tags],
+      ...(note ? { note } : {}),
+      categorySource: guess.source,
+      confidence: guess.confidence,
+    },
+  };
+}
+
+interface AmountHit {
+  amount: Paise;
+  direction: Direction;
+  rest: string;
+}
+
+function extractAmount(text: string): AmountHit | null {
+  const tokens = text.split(' ').filter(Boolean);
+  if (tokens.length === 0) return null;
+
+  const tryToken = (index: number): AmountHit | null => {
+    const token = tokens[index];
+    if (!token) return null;
+
+    let direction: Direction = 'out';
+    let body = token;
+    if (body.startsWith('+')) {
+      direction = 'in';
+      body = body.slice(1);
+    } else if (body.startsWith('-') || body.startsWith('−')) {
+      body = body.slice(1);
+    }
+
+    const amount = parseAmount(body);
+    if (amount === null) return null;
+
+    const rest = tokens.filter((_, i) => i !== index).join(' ');
+    return { amount: Math.abs(amount), direction, rest };
+  };
+
+  return tryToken(0) ?? tryToken(tokens.length - 1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Questions                                                                   */
+/* -------------------------------------------------------------------------- */
+
+interface Range {
+  from: ISODate;
+  to: ISODate;
+  label: string;
+}
+
+function extractRange(text: string, today: ISODate): { text: string; range: Range } {
+  // "last 30 days" is handled first: it is the only form carrying a number, and
+  // the generic table below cannot express it.
+  const lastN = /\blast (\d{1,3}) days\b/i.exec(text);
+  if (lastN) {
+    const days = Number(lastN[1]);
+    return {
+      text: text.replace(lastN[0], ' ').replace(/\s+/g, ' ').trim(),
+      range: { from: addDays(today, -days), to: today, label: `last ${days} days` },
+    };
+  }
+
+  const month = monthOf(today);
+  const options: { re: RegExp; make: () => Range }[] = [
+    {
+      re: /\bthis month\b/i,
+      make: () => ({ from: startOfMonth(month), to: endOfMonth(month), label: 'this month' }),
+    },
+    {
+      re: /\blast month\b/i,
+      make: () => {
+        const prev = addMonthsToKey(month, -1);
+        return { from: startOfMonth(prev), to: endOfMonth(prev), label: 'last month' };
+      },
+    },
+    {
+      re: /\bthis week\b/i,
+      make: () => ({ from: startOfWeek(today), to: today, label: 'this week' }),
+    },
+    {
+      re: /\blast week\b/i,
+      make: () => {
+        const start = addDays(startOfWeek(today), -7);
+        return { from: start, to: addDays(start, 6), label: 'last week' };
+      },
+    },
+    {
+      re: /\bthis year\b/i,
+      make: () => ({
+        from: `${today.slice(0, 4)}-01-01`,
+        to: `${today.slice(0, 4)}-12-31`,
+        label: 'this year',
+      }),
+    },
+    {
+      re: /\btoday\b/i,
+      make: () => ({ from: today, to: today, label: 'today' }),
+    },
+    {
+      re: /\byesterday\b/i,
+      make: () => {
+        const day = addDays(today, -1);
+        return { from: day, to: day, label: 'yesterday' };
+      },
+    },
+  ];
+
+  for (const option of options) {
+    const match = option.re.exec(text);
+    if (!match) continue;
+    return {
+      text: text.replace(match[0], ' ').replace(/\s+/g, ' ').trim(),
+      range: option.make(),
+    };
+  }
+
+  // Default horizon: the month you are living in.
+  return {
+    text,
+    range: { from: startOfMonth(month), to: endOfMonth(month), label: 'this month' },
+  };
+}
+
+function parseQuery(input: string, today: ISODate): ParsedQuery {
+  const affordMatch = /(?:can i afford|afford)\s+(.+)$/i.exec(input);
+  if (affordMatch) {
+    const amount = parseAmount(affordMatch[1]!.trim().split(' ')[0] ?? '');
+    const { range } = extractRange(input, today);
+    return {
+      kind: 'afford',
+      subject: affordMatch[1]!.trim(),
+      from: range.from,
+      to: range.to,
+      rangeLabel: range.label,
+      ...(amount !== null ? { affordAmount: amount } : {}),
+    };
+  }
+
+  const { text, range } = extractRange(input, today);
+  return {
+    kind: 'spend',
+    subject: text.replace(/\b(on|for|in|spent|spend)\b/gi, ' ').replace(/\s+/g, ' ').trim(),
+    from: range.from,
+    to: range.to,
+    rangeLabel: range.label,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Help text — shown in the empty command bar                                  */
+/* -------------------------------------------------------------------------- */
+
+export const COMMAND_EXAMPLES: { input: string; means: string }[] = [
+  { input: '280 chai', means: '₹280 spent today' },
+  { input: '2100 groceries hdfc yesterday', means: 'from a named account, on a past day' },
+  { input: '+45000 salary', means: 'money in' },
+  { input: '5000 hdfc to savings', means: 'a transfer, not an expense' },
+  { input: '1.5k dinner #goa', means: 'tagged for a trip' },
+  { input: '650 medicines // for amma', means: 'with a note' },
+  { input: '?food this month', means: 'ask a question' },
+  { input: '?can i afford 15000', means: 'check before you buy' },
+];

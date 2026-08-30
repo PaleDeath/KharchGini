@@ -1,0 +1,42 @@
+{
+  "name": "KharchGini",
+  "short_name": "KharchGini",
+  "description": "Know what you can spend today.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fbfaf7",
+  "theme_color": "#fbfaf7",
+  "categories": ["finance", "productivity"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add an entry",
+      "short_name": "Add",
+      "url": "/?add=1",
+      "description": "Open the command bar straight away"
+    },
+    {
+      "name": "This month",
+      "short_name": "Money",
+      "url": "/money",
+      "description": "Every entry, searchable"
+    }
+  ]
+}
