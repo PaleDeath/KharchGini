@@ -8,12 +8,12 @@ const isDev = process.env.NODE_ENV === 'development';
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  `script-src 'self' 'unsafe-inline' https://apis.google.com https://*.firebaseapp.com https://vercel.live${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://*.googleusercontent.com https://vercel.live https://vercel.com",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com",
-  "frame-src 'self' https://*.firebaseapp.com",
+  "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://vercel.live",
+  "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://vercel.live",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
