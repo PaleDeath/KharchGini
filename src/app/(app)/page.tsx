@@ -3,6 +3,7 @@
 import {
   ChevronDown,
   Flame,
+  HelpCircle,
   ListChecks,
   Receipt,
   TrendingDown,
@@ -37,6 +38,8 @@ import type { Entry } from '@/domain/types';
 import { EntryRow } from '@/components/entry/entry-row';
 import { EntrySheet } from '@/components/entry/entry-sheet';
 import { ReviewSheet } from '@/components/review/review-sheet';
+import { GettingStartedCard } from '@/components/shell/getting-started-card';
+import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
 import { Card, Divider, Empty, Section } from '@/components/ui/card';
 import { Money } from '@/components/ui/money';
 import { useLedger } from '@/lib/store';
@@ -45,8 +48,10 @@ import { cn } from '@/lib/utils';
 export default function TodayPage() {
   const { ledger, postRecurring } = useLedger();
   const [editing, setEditing] = useState<Entry | null>(null);
+  const [creating, setCreating] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [showMath, setShowMath] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   const day = todayISO();
 
@@ -115,13 +120,32 @@ export default function TodayPage() {
             {name ? `, ${name}` : ''}
           </h1>
         </div>
-        {streak > 1 ? (
-          <span className="flex items-center gap-1 rounded-full bg-raised px-2.5 py-1 text-[12px] font-medium text-muted">
-            <Flame className="h-3.5 w-3.5 text-warn" />
-            {streak} days
-          </span>
-        ) : null}
+        <div className="flex items-center gap-1.5">
+          {streak > 1 ? (
+            <span className="flex items-center gap-1 rounded-full bg-raised px-2.5 py-1 text-[12px] font-medium text-muted">
+              <Flame className="h-3.5 w-3.5 text-warn" />
+              {streak} days
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setShowTour(true)}
+            aria-label="How KharchGini works"
+            title="How KharchGini works"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-raised hover:text-ink transition-colors"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
+        </div>
       </header>
+
+      {/* Quick-start checklist for new accounts */}
+      <GettingStartedCard
+        onOpenTour={() => setShowTour(true)}
+        onOpenAdd={() => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: '/' }));
+        }}
+      />
 
       {/* The hero. Everything else on this screen exists to explain it. */}
       <Card className={cn('overflow-hidden', sts.negative && 'border-bad/40')}>
@@ -331,6 +355,7 @@ export default function TodayPage() {
 
       <EntrySheet entry={editing} onClose={() => setEditing(null)} />
       <ReviewSheet open={reviewing} onClose={() => setReviewing(false)} />
+      <WalkthroughDialog open={showTour} onClose={() => setShowTour(false)} />
     </div>
   );
 }

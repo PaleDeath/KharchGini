@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { CommandBar } from '@/components/command/command-bar';
 import { Gate } from '@/components/shell/gate';
 import { BottomNav, SideNav } from '@/components/shell/nav';
+import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
 
 /** True when a keystroke belongs to something the user is typing into. */
 function isTyping(target: EventTarget | null): boolean {
@@ -20,6 +21,7 @@ function isTyping(target: EventTarget | null): boolean {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const [adding, setAdding] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
   const pathname = usePathname();
 
   // The home-screen shortcut lands on `/?add=1`. Read straight from the URL
@@ -55,22 +57,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <Gate>
-      <SideNav onAdd={() => setAdding(true)} />
+      <SideNav onAdd={() => setAdding(true)} onOpenTour={() => setTourOpen(true)} />
       <BottomNav onAdd={() => setAdding(true)} />
 
       <main className="md:pl-56">
-        {/*
-         * Keyed on the path so the entrance actually replays: a CSS animation
-         * fires when an element mounts, and without a changing key this
-         * wrapper would survive every navigation and animate exactly once, on
-         * the first load of the session.
-         *
-         * A fade, not a slide. Switching tabs is lateral, not a step deeper
-         * into anything — and the lists inside are already rising, so adding
-         * vertical movement here would just double it.
-         *
-         * Bottom padding clears the nav bar and the floating add button.
-         */}
         <div
           key={pathname}
           className="mx-auto max-w-2xl animate-fade-in px-4 pb-32 pt-5 md:px-8 md:pb-16 md:pt-8"
@@ -80,6 +70,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </main>
 
       <CommandBar open={adding} onOpenChange={setAdding} />
+      <WalkthroughDialog open={tourOpen} onClose={() => setTourOpen(false)} />
     </Gate>
   );
 }

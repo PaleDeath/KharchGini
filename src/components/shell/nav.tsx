@@ -83,7 +83,7 @@ export function BottomNav({ onAdd }: { onAdd: () => void }) {
 }
 
 /** Rail on a desktop, where vertical space is cheap and horizontal space is not. */
-export function SideNav({ onAdd }: { onAdd: () => void }) {
+export function SideNav({ onAdd, onOpenTour }: { onAdd: () => void; onOpenTour?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -123,6 +123,21 @@ export function SideNav({ onAdd }: { onAdd: () => void }) {
           );
         })}
       </div>
+
+      {onOpenTour ? (
+        <div className="mt-auto pt-4 border-t border-line">
+          <button
+            type="button"
+            onClick={onOpenTour}
+            className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-muted hover:bg-raised hover:text-ink transition-colors"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent/15 text-accent text-xs font-semibold">
+              ?
+            </span>
+            How it works
+          </button>
+        </div>
+      ) : null}
     </aside>
   );
 }

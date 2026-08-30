@@ -3,6 +3,7 @@
 import {
   Download,
   FileUp,
+  HelpCircle,
   LogOut,
   Plus,
   Shapes,
@@ -36,6 +37,7 @@ import { CATEGORY_KIND_LABEL, type Category, type UserPrefs } from '@/domain/typ
 import { CategoryIcon } from '@/components/category/category-icon';
 import { CategorySheet } from '@/components/category/category-sheet';
 import { ImportSheet } from '@/components/settings/import-sheet';
+import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, Empty, Section } from '@/components/ui/card';
 import { Field, Input, Segmented, Switch } from '@/components/ui/input';
@@ -66,6 +68,7 @@ export default function YouPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState('');
+  const [tourOpen, setTourOpen] = useState(false);
   const [name, setName] = useState(ledger.prefs.displayName ?? '');
   const [payday, setPayday] = useState(
     ledger.prefs.payday ? String(ledger.prefs.payday) : '',
@@ -469,6 +472,22 @@ export default function YouPage() {
               hint="For the metro. Hover or tap a figure to read it."
             />
           </div>
+
+          <div className="border-t border-line pt-3.5 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-medium text-ink">How KharchGini works</p>
+              <p className="text-[12px] text-muted">Review the core philosophy and guide</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTourOpen(true)}
+              className="gap-1.5 text-[12px] shrink-0"
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-accent" />
+              View guide
+            </Button>
+          </div>
         </Card>
       </Section>
 
@@ -540,6 +559,7 @@ export default function YouPage() {
         onClose={() => setCategoryOpen(false)}
       />
       <ImportSheet open={importOpen} onClose={() => setImportOpen(false)} />
+      <WalkthroughDialog open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }
