@@ -1,18 +1,47 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Banknote, CreditCard, Landmark, Trash2, Wallet } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { formatAmount, formatMoney, parseAmount } from '@/domain/money';
 import { accountBalance } from '@/domain/derive';
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountType } from '@/domain/types';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select, Switch } from '@/components/ui/input';
+import { CustomSelect, type Option } from '@/components/ui/custom-select';
+import { Field, Input, Switch } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
 
 const TYPES = Object.keys(ACCOUNT_TYPE_LABEL) as AccountType[];
+
+const ACCOUNT_TYPE_OPTIONS: Option<AccountType>[] = [
+  {
+    value: 'bank',
+    label: 'Bank Account (Current/Salary)',
+    icon: <Landmark className="h-4 w-4 text-accent" />,
+  },
+  {
+    value: 'savings',
+    label: 'Savings / Fixed Deposit',
+    icon: <Landmark className="h-4 w-4 text-teal-500" />,
+  },
+  {
+    value: 'card',
+    label: 'Credit Card',
+    icon: <CreditCard className="h-4 w-4 text-orange-500" />,
+  },
+  {
+    value: 'cash',
+    label: 'Cash in Hand',
+    icon: <Banknote className="h-4 w-4 text-emerald-500" />,
+  },
+  {
+    value: 'wallet',
+    label: 'Wallet / UPI Balance',
+    icon: <Wallet className="h-4 w-4 text-blue-500" />,
+  },
+];
 
 /**
  * Accounts are the reason this app can answer "what can I spend".
@@ -155,14 +184,12 @@ export function AccountSheet({
           />
         </Field>
 
-        <Field label="Type">
-          <Select value={type} onChange={(e) => setType(e.target.value as AccountType)}>
-            {TYPES.map((option) => (
-              <option key={option} value={option}>
-                {ACCOUNT_TYPE_LABEL[option]}
-              </option>
-            ))}
-          </Select>
+        <Field label="Account Type">
+          <CustomSelect
+            value={type}
+            onChange={setType}
+            options={ACCOUNT_TYPE_OPTIONS}
+          />
         </Field>
 
         <Field

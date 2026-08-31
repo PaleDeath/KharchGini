@@ -7,7 +7,8 @@ import { formatMonth, type MonthKey } from '@/domain/dates';
 import { suggestAllocation } from '@/domain/derive';
 import { formatAmount, formatMoney, parseAmount } from '@/domain/money';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select, Switch } from '@/components/ui/input';
+import { CategorySelect } from '@/components/ui/category-select';
+import { Field, Input, Switch } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
@@ -131,18 +132,12 @@ export function EnvelopeSheet({
     >
       <div className="space-y-3.5">
         <Field label="Category">
-          <Select
+          <CategorySelect
             value={selected}
-            onChange={(e) => setSelected(e.target.value)}
+            onChange={setSelected}
+            categories={spendable}
             disabled={categoryId !== null}
-          >
-            {spendable.length === 0 ? <option value="">No categories yet</option> : null}
-            {spendable.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </Select>
+          />
         </Field>
 
         <Field label="Amount for the month">

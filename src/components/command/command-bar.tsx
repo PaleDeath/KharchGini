@@ -30,12 +30,14 @@ import {
   type ParsedQuery,
   type ParseResult,
 } from '@/domain/parse';
-import type { Direction, EntryDraft } from '@/domain/types';
+import type { Category, Direction, EntryDraft } from '@/domain/types';
 import { useLedger } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { Button } from '@/components/ui/button';
-import { Input, Segmented, Select } from '@/components/ui/input';
+import { CategorySelect } from '@/components/ui/category-select';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { Input, Segmented } from '@/components/ui/input';
 import { Money, Badge } from '@/components/ui/money';
 import { QuickDatePicker } from '@/components/ui/quick-date-picker';
 import { Sheet } from '@/components/ui/sheet';
@@ -303,11 +305,31 @@ function Preview({
 }: {
   entry: ParsedEntry;
   accounts: { id: string; name: string }[];
-  categories: { id: string; name: string; icon: string; kind?: string }[];
+  categories: Category[];
   onChange: (changes: Partial<ParsedEntry>) => void;
 }) {
   const isTransfer = entry.direction === 'transfer';
   const isSMS = entry.note?.includes('Ref') || entry.note?.includes('Card');
+
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((acc) => ({
+        value: acc.id,
+        label: acc.name,
+      })),
+    [accounts],
+  );
+
+  const counterAccountOptions = useMemo(
+    () =>
+      accounts
+        .filter((a) => a.id !== entry.accountId)
+        .map((acc) => ({
+          value: acc.id,
+          label: acc.name,
+        })),
+    [accounts, entry.accountId],
+  );
 
   return (
     <div className="space-y-3 rounded-card border border-line bg-raised/60 p-3.5">
@@ -365,17 +387,11 @@ function Preview({
             <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
               {isTransfer ? 'From' : 'Account'}
             </span>
-            <Select
+            <CustomSelect
               value={entry.accountId}
-              onChange={(e) => onChange({ accountId: e.target.value })}
-              className="h-10 text-[13px]"
-            >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </Select>
+              onChange={(accountId) => onChange({ accountId })}
+              options={accountOptions}
+            />
           </label>
 
           <label className="col-span-1">
@@ -383,40 +399,24 @@ function Preview({
               {isTransfer ? 'To' : 'Category'}
             </span>
             {isTransfer ? (
-              <Select
+              <CustomSelect
                 value={entry.counterAccountId ?? ''}
-                onChange={(e) => onChange({ counterAccountId: e.target.value })}
-                className="h-10 text-[13px]"
-              >
-                <option value="">Choose an account…</option>
-                {accounts
-                  .filter((account) => account.id !== entry.accountId)
-                  .map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-              </Select>
+                onChange={(counterAccountId) => onChange({ counterAccountId })}
+                options={counterAccountOptions}
+                placeholder="Choose account…"
+              />
             ) : (
-              <Select
+              <CategorySelect
                 value={entry.categoryId ?? ''}
-                onChange={(e) => onChange({ categoryId: e.target.value || undefined })}
-                className="h-10 text-[13px]"
-              >
-                <option value="">Uncategorised</option>
-                {categories
-                  .filter((category) => {
-                    if (entry.direction === 'in') {
-                      return category.kind === 'income' || category.id === entry.categoryId;
-                    }
-                    return category.kind !== 'income' || category.id === entry.categoryId;
-                  })
-                  .map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-              </Select>
+                onChange={(categoryId) => onChange({ categoryId: categoryId || undefined })}
+                categories={categories.filter((category) => {
+                  if (entry.direction === 'in') {
+                    return category.kind === 'income' || category.id === entry.categoryId;
+                  }
+                  return category.kind !== 'income' || category.id === entry.categoryId;
+                })}
+                allowClear
+              />
             )}
           </label>
         </div>

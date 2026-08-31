@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { CATEGORY_KIND_LABEL, type Category, type CategoryKind } from '@/domain/types';
 import { CategoryIcon, ICON_NAMES } from '@/components/category/category-icon';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Segmented, Select } from '@/components/ui/input';
+import { CategorySelect } from '@/components/ui/category-select';
+import { Field, Input, Segmented } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
@@ -162,14 +163,13 @@ export function CategorySheet({
 
         {!hasChildren && parents.length > 0 ? (
           <Field label="Sits under" hint="Optional. One level deep — Food → Delivery.">
-            <Select value={parentId} onChange={(e) => setParentId(e.target.value)}>
-              <option value="">Nothing, it stands alone</option>
-              {parents.map((parent) => (
-                <option key={parent.id} value={parent.id}>
-                  {parent.name}
-                </option>
-              ))}
-            </Select>
+            <CategorySelect
+              value={parentId}
+              onChange={setParentId}
+              categories={parents}
+              placeholder="Nothing, it stands alone"
+              allowClear
+            />
           </Field>
         ) : null}
 

@@ -1,13 +1,15 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Banknote, CreditCard, Landmark, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { today as todayISO } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
 import type { Direction, Entry } from '@/domain/types';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Segmented, Select, Switch, Textarea } from '@/components/ui/input';
+import { CategorySelect } from '@/components/ui/category-select';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { Field, Input, Segmented, Switch, Textarea } from '@/components/ui/input';
 import { QuickDatePicker } from '@/components/ui/quick-date-picker';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
@@ -67,6 +69,43 @@ export function EntrySheet({
     () => ledger.accounts.filter((a) => !a.archived || a.id === entry?.accountId),
     [ledger.accounts, entry?.accountId],
   );
+
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((acc) => ({
+        value: acc.id,
+        label: acc.name,
+        icon:
+          acc.type === 'card' ? (
+            <CreditCard className="h-4 w-4 text-orange-500" />
+          ) : acc.type === 'cash' ? (
+            <Banknote className="h-4 w-4 text-emerald-500" />
+          ) : (
+            <Landmark className="h-4 w-4 text-accent" />
+          ),
+      })),
+    [accounts],
+  );
+
+  const counterAccountOptions = useMemo(
+    () =>
+      accounts
+        .filter((a) => a.id !== accountId)
+        .map((acc) => ({
+          value: acc.id,
+          label: acc.name,
+          icon:
+            acc.type === 'card' ? (
+              <CreditCard className="h-4 w-4 text-orange-500" />
+            ) : acc.type === 'cash' ? (
+              <Banknote className="h-4 w-4 text-emerald-500" />
+            ) : (
+              <Landmark className="h-4 w-4 text-accent" />
+            ),
+        })),
+    [accounts, accountId],
+  );
+
   const categories = useMemo(() => {
     return ledger.categories.filter((c) => {
       if (c.archived && c.id !== entry?.categoryId) return false;
@@ -199,44 +238,33 @@ export function EntrySheet({
         </Field>
 
         <Field label={isTransfer ? 'From account' : 'Account'}>
-          <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </Select>
+          <CustomSelect
+            value={accountId}
+            onChange={setAccountId}
+            options={accountOptions}
+          />
         </Field>
 
         {isTransfer ? (
           <Field label="To account">
-            <Select
+            <CustomSelect
               value={counterAccountId}
-              onChange={(e) => setCounterAccountId(e.target.value)}
-            >
-              <option value="">Choose…</option>
-              {accounts
-                .filter((a) => a.id !== accountId)
-                .map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-            </Select>
+              onChange={setCounterAccountId}
+              options={counterAccountOptions}
+              placeholder="Choose destination account…"
+            />
           </Field>
         ) : (
           <Field
             label="Category"
             hint="Changing this teaches the app how to file this merchant next time."
           >
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Uncategorised</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </Select>
+            <CategorySelect
+              value={categoryId}
+              onChange={setCategoryId}
+              categories={categories}
+              allowClear
+            />
           </Field>
         )}
 

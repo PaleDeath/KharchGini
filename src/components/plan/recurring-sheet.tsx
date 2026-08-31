@@ -1,18 +1,33 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Banknote, CreditCard, Landmark, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { addMonths, today as todayISO, type ISODate } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
 import { FREQUENCY_LABEL, type Direction, type Frequency, type Recurring } from '@/domain/types';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Segmented, Select, Switch } from '@/components/ui/input';
+import { CategorySelect } from '@/components/ui/category-select';
+import { CustomSelect, type Option } from '@/components/ui/custom-select';
+import { Field, Input, Segmented, Switch } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
 
 const FREQUENCIES = Object.keys(FREQUENCY_LABEL) as Frequency[];
+
+const FREQUENCY_OPTIONS: Option<Frequency>[] = [
+  { value: 'daily', label: 'Every day' },
+  { value: 'weekly', label: 'Every week' },
+  { value: 'monthly', label: 'Every month' },
+  { value: 'yearly', label: 'Every year' },
+];
+
+const DURATION_OPTIONS: Option<'never' | 'months' | 'date'>[] = [
+  { value: 'never', label: 'Runs indefinitely' },
+  { value: 'months', label: 'Fixed installments (EMIs)' },
+  { value: 'date', label: 'Specific end date' },
+];
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: 'out', label: 'Goes out' },
@@ -59,6 +74,43 @@ export function RecurringSheet({
     () => ledger.accounts.filter((a) => !a.archived || a.id === recurring?.accountId),
     [ledger.accounts, recurring?.accountId],
   );
+
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((acc) => ({
+        value: acc.id,
+        label: acc.name,
+        icon:
+          acc.type === 'card' ? (
+            <CreditCard className="h-4 w-4 text-orange-500" />
+          ) : acc.type === 'cash' ? (
+            <Banknote className="h-4 w-4 text-emerald-500" />
+          ) : (
+            <Landmark className="h-4 w-4 text-accent" />
+          ),
+      })),
+    [accounts],
+  );
+
+  const counterAccountOptions = useMemo(
+    () =>
+      accounts
+        .filter((a) => a.id !== accountId)
+        .map((acc) => ({
+          value: acc.id,
+          label: acc.name,
+          icon:
+            acc.type === 'card' ? (
+              <CreditCard className="h-4 w-4 text-orange-500" />
+            ) : acc.type === 'cash' ? (
+              <Banknote className="h-4 w-4 text-emerald-500" />
+            ) : (
+              <Landmark className="h-4 w-4 text-accent" />
+            ),
+        })),
+    [accounts, accountId],
+  );
+
   const categories = useMemo(() => {
     return ledger.categories.filter((c) => {
       if (c.archived && c.id !== recurring?.categoryId) return false;
@@ -219,16 +271,11 @@ export function RecurringSheet({
             />
           </Field>
           <Field label="How often">
-            <Select
+            <CustomSelect
               value={frequency}
-              onChange={(e) => setFrequency(e.target.value as Frequency)}
-            >
-              {FREQUENCIES.map((option) => (
-                <option key={option} value={option}>
-                  {FREQUENCY_LABEL[option]}
-                </option>
-              ))}
-            </Select>
+              onChange={setFrequency}
+              options={FREQUENCY_OPTIONS}
+            />
           </Field>
         </div>
 
@@ -237,14 +284,11 @@ export function RecurringSheet({
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </Field>
           <Field label="Duration" hint="When it stops repeating">
-            <Select
+            <CustomSelect
               value={endMode}
-              onChange={(e) => setEndMode(e.target.value as 'never' | 'months' | 'date')}
-            >
-              <option value="never">Runs indefinitely</option>
-              <option value="months">Fixed installments (EMIs)</option>
-              <option value="date">Specific end date</option>
-            </Select>
+              onChange={setEndMode}
+              options={DURATION_OPTIONS}
+            />
           </Field>
         </div>
 
@@ -268,42 +312,30 @@ export function RecurringSheet({
         ) : null}
 
         <Field label={isTransfer ? 'From account' : 'Account'}>
-          <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.length === 0 ? <option value="">No accounts yet</option> : null}
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </Select>
+          <CustomSelect
+            value={accountId}
+            onChange={setAccountId}
+            options={accountOptions}
+          />
         </Field>
 
         {isTransfer ? (
           <Field label="To account">
-            <Select
+            <CustomSelect
               value={counterAccountId}
-              onChange={(e) => setCounterAccountId(e.target.value)}
-            >
-              <option value="">Choose…</option>
-              {accounts
-                .filter((a) => a.id !== accountId)
-                .map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-            </Select>
+              onChange={setCounterAccountId}
+              options={counterAccountOptions}
+              placeholder="Choose destination account…"
+            />
           </Field>
         ) : (
           <Field label="Category">
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Uncategorised</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </Select>
+            <CategorySelect
+              value={categoryId}
+              onChange={setCategoryId}
+              categories={categories}
+              allowClear
+            />
           </Field>
         )}
 

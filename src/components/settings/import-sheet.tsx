@@ -1,6 +1,6 @@
 'use client';
 
-import { FileUp, TriangleAlert } from 'lucide-react';
+import { Banknote, CreditCard, FileUp, Landmark, TriangleAlert } from 'lucide-react';
 import Papa from 'papaparse';
 import { useMemo, useRef, useState } from 'react';
 
@@ -9,7 +9,8 @@ import { guessCategory } from '@/domain/categorize';
 import { formatMoney, parseAmount } from '@/domain/money';
 import type { Direction, EntryDraft, Ledger } from '@/domain/types';
 import { Button } from '@/components/ui/button';
-import { Field, Select } from '@/components/ui/input';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { Field } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
@@ -102,6 +103,23 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
     }
   };
 
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((acc) => ({
+        value: acc.id,
+        label: acc.name,
+        icon:
+          acc.type === 'card' ? (
+            <CreditCard className="h-4 w-4 text-orange-500" />
+          ) : acc.type === 'cash' ? (
+            <Banknote className="h-4 w-4 text-emerald-500" />
+          ) : (
+            <Landmark className="h-4 w-4 text-accent" />
+          ),
+      })),
+    [accounts],
+  );
+
   const reset = () => {
     setFileName('');
     setFields([]);
@@ -109,22 +127,21 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const column = (label: string, key: keyof Mapping, hint?: string) => (
-    <Field label={label} hint={hint}>
-      <Select
-        value={map[key]}
-        onChange={(e) => setMap((current) => ({ ...current, [key]: e.target.value }))}
-        className="h-10 text-[13px]"
-      >
-        <option value={NONE}>Not in this file</option>
-        {fields.map((field) => (
-          <option key={field} value={field}>
-            {field}
-          </option>
-        ))}
-      </Select>
-    </Field>
-  );
+  const column = (label: string, key: keyof Mapping, hint?: string) => {
+    const options = [
+      { value: NONE, label: 'Not in this file' },
+      ...fields.map((field) => ({ value: field, label: field })),
+    ];
+    return (
+      <Field label={label} hint={hint}>
+        <CustomSelect
+          value={map[key]}
+          onChange={(val) => setMap((current) => ({ ...current, [key]: val }))}
+          options={options}
+        />
+      </Field>
+    );
+  };
 
   return (
     <Sheet
@@ -183,18 +200,12 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
               {column('Debit column', 'debit', 'If money out has its own column.')}
               {column('Credit column', 'credit', 'If money in has its own column.')}
               <Field label="Goes into account">
-                <Select
+                <CustomSelect
                   value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
-                  className="h-10 text-[13px]"
-                >
-                  {accounts.length === 0 ? <option value="">No accounts yet</option> : null}
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={setAccountId}
+                  options={accountOptions}
+                  placeholder="Choose an account…"
+                />
               </Field>
             </div>
 

@@ -1,13 +1,14 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Banknote, Landmark, Trash2, TrendingUp } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { formatAmount, parseAmount } from '@/domain/money';
 import type { Goal } from '@/domain/types';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select } from '@/components/ui/input';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { Field, Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
@@ -59,8 +60,26 @@ export function GoalSheet({
   const [icon, setIcon] = useState('target');
   const [busy, setBusy] = useState(false);
 
-  const candidates = ledger.accounts.filter(
-    (account) => !account.archived && account.type !== 'card',
+  const candidates = useMemo(
+    () => ledger.accounts.filter((account) => !account.archived && account.type !== 'card'),
+    [ledger.accounts],
+  );
+
+  const accountOptions = useMemo(
+    () =>
+      candidates.map((acc) => ({
+        value: acc.id,
+        label: acc.name,
+        icon:
+          acc.type === 'cash' ? (
+            <Banknote className="h-4 w-4 text-emerald-500" />
+          ) : acc.type === 'savings' ? (
+            <Landmark className="h-4 w-4 text-teal-500" />
+          ) : (
+            <Landmark className="h-4 w-4 text-accent" />
+          ),
+      })),
+    [candidates],
   );
 
   useEffect(() => {
@@ -198,14 +217,12 @@ export function GoalSheet({
           label="Money lives in"
           hint="Progress is this account's balance. Move money there and the bar moves; nothing else will."
         >
-          <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {candidates.length === 0 ? <option value="">No accounts yet</option> : null}
-            {candidates.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </Select>
+          <CustomSelect
+            value={accountId}
+            onChange={setAccountId}
+            options={accountOptions}
+            placeholder="Choose an account…"
+          />
         </Field>
       </div>
     </Sheet>
