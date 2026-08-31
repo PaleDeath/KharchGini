@@ -5,6 +5,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
+import { BrandLogo } from '@/components/shell/brand-logo';
 import { describeAuthError, useAuth } from '@/lib/auth';
 import { missingFirebaseKeys } from '@/lib/firebase';
 import { useLedger } from '@/lib/store';
@@ -53,7 +54,7 @@ function Centred({ children }: { children: ReactNode }) {
 function Splash({ label }: { label: string }) {
   return (
     <Centred>
-      <Wallet className="h-8 w-8 text-accent" />
+      <BrandLogo size={40} className="shadow-lg shadow-accent/25" />
       <p className="flex items-center gap-2 text-sm text-muted">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
         {label}…
@@ -159,8 +160,8 @@ function SignIn() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-6 py-12">
-      <div className="space-y-1.5">
-        <Wallet className="h-7 w-7 text-accent" />
+      <div className="space-y-2">
+        <BrandLogo size={44} className="shadow-lg shadow-accent/25" />
         <h1 className="text-2xl font-semibold tracking-tight">KharchGini</h1>
         <p className="text-sm text-muted">
           {mode === 'up'

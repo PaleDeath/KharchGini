@@ -7,6 +7,8 @@ import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+import { BrandLogo } from '@/components/shell/brand-logo';
+
 export interface Tab {
   href: string;
   label: string;
@@ -88,9 +90,7 @@ export function SideNav({ onAdd, onOpenTour }: { onAdd: () => void; onOpenTour?:
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-line bg-surface px-3 py-5 md:flex">
       <div className="flex items-center gap-2.5 px-2 pb-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-accent to-emerald-400 text-white shadow-md shadow-accent/25">
-          <Sparkles className="h-4 w-4 stroke-[2.2]" />
-        </div>
+        <BrandLogo size={28} />
         <span className="text-[15px] font-bold tracking-tight text-ink">KharchGini</span>
       </div>
 
