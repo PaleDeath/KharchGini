@@ -234,13 +234,40 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     };
   }, [uid]);
 
-  // First run: give the account a category list and one cash account.
+  // First run: only seed if the ledger is completely empty across all collections and prefs.
   useEffect(() => {
     if (!uid || loading || seeded.current) return;
-    if (categories.length > 0 || prefs.onboardedAt) return;
+    const hasAnyData =
+      accounts.length > 0 ||
+      entries.length > 0 ||
+      categories.length > 0 ||
+      envelopes.length > 0 ||
+      goals.length > 0 ||
+      rules.length > 0 ||
+      recurring.length > 0 ||
+      Boolean(prefs.onboardedAt) ||
+      Boolean(prefs.createdAt);
+
+    if (hasAnyData) {
+      seeded.current = true;
+      return;
+    }
+
     seeded.current = true;
     seedNewUser(uid).catch((e: Error) => setError(e.message));
-  }, [uid, loading, categories.length, prefs.onboardedAt]);
+  }, [
+    uid,
+    loading,
+    accounts.length,
+    entries.length,
+    categories.length,
+    envelopes.length,
+    goals.length,
+    rules.length,
+    recurring.length,
+    prefs.onboardedAt,
+    prefs.createdAt,
+  ]);
 
   const ledger = useMemo<Ledger>(
     () => ({ accounts, entries, categories, envelopes, goals, rules, merchants, recurring, reviews, prefs }),

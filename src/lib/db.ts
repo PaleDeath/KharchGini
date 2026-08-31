@@ -182,9 +182,10 @@ export async function patch<K extends CollectionName>(
   id: string,
   changes: Partial<CollectionShapes[K]>,
 ): Promise<void> {
-  await updateDoc(
+  await setDoc(
     doc(col(uid, name), id),
-    cleanForUpdate({ ...changes, updatedAt: nowStamp() }),
+    cleanForUpdate({ ...changes, id, updatedAt: nowStamp() }),
+    { merge: true },
   );
 }
 
@@ -208,7 +209,8 @@ export async function putMany<K extends CollectionName>(
 
   for (let i = 0; i < rows.length; i += BATCH_LIMIT) {
     const batch = writeBatch(getDb());
-    for (const row of rows.slice(i, i + BATCH_LIMIT)) {
+    const chunk = rows.slice(i, i + BATCH_LIMIT);
+    for (const row of chunk) {
       batch.set(doc(reference, row.id), clean(row));
     }
     await batch.commit();
@@ -236,7 +238,7 @@ export async function removeMany(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Gives a new account a usable starting state: a full category list and one
+ * Written once, silently, on first login: default categories and a starting
  * cash account, so the very first thing a person does can be recording a ₹50
  * chai rather than configuring a taxonomy.
  *
@@ -246,15 +248,22 @@ export async function removeMany(
 export async function seedNewUser(uid: string): Promise<void> {
   const stamp = nowStamp();
 
-  await putMany(uid, 'categories', buildSeedCategories());
-  await put(uid, 'accounts', SEED_ACCOUNT.id, {
-    name: SEED_ACCOUNT.name,
-    type: SEED_ACCOUNT.type,
-    openingBalance: SEED_ACCOUNT.openingBalance,
-    sortOrder: SEED_ACCOUNT.sortOrder,
-    createdAt: stamp,
-    updatedAt: stamp,
-  });
+  const existingAccounts = await loadOnce(uid, 'accounts');
+  const existingCategories = await loadOnce(uid, 'categories');
+
+  if (existingCategories.length === 0) {
+    await putMany(uid, 'categories', buildSeedCategories());
+  }
+  if (existingAccounts.length === 0) {
+    await put(uid, 'accounts', SEED_ACCOUNT.id, {
+      name: SEED_ACCOUNT.name,
+      type: SEED_ACCOUNT.type,
+      openingBalance: SEED_ACCOUNT.openingBalance,
+      sortOrder: SEED_ACCOUNT.sortOrder,
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+  }
   await savePrefs(uid, { onboardedAt: stamp, createdAt: stamp });
 }
 
