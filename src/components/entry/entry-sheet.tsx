@@ -66,10 +66,25 @@ export function EntrySheet({
     () => ledger.accounts.filter((a) => !a.archived || a.id === entry?.accountId),
     [ledger.accounts, entry?.accountId],
   );
-  const categories = useMemo(
-    () => ledger.categories.filter((c) => !c.archived || c.id === entry?.categoryId),
-    [ledger.categories, entry?.categoryId],
-  );
+  const categories = useMemo(() => {
+    return ledger.categories.filter((c) => {
+      if (c.archived && c.id !== entry?.categoryId) return false;
+      if (direction === 'in') return c.kind === 'income' || c.id === categoryId;
+      return c.kind !== 'income' || c.id === categoryId;
+    });
+  }, [ledger.categories, entry?.categoryId, direction, categoryId]);
+
+  const handleDirectionChange = (nextDir: Direction) => {
+    setDirection(nextDir);
+    if (categoryId) {
+      const currentCat = ledger.categories.find((c) => c.id === categoryId);
+      if (nextDir === 'in' && currentCat && currentCat.kind !== 'income') {
+        setCategoryId('');
+      } else if (nextDir === 'out' && currentCat && currentCat.kind === 'income') {
+        setCategoryId('');
+      }
+    }
+  };
 
   const save = async () => {
     if (!entry) return;
@@ -162,7 +177,7 @@ export function EntrySheet({
       }
     >
       <div className="space-y-3.5">
-        <Segmented options={DIRECTIONS} value={direction} onChange={setDirection} />
+        <Segmented options={DIRECTIONS} value={direction} onChange={handleDirectionChange} />
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Amount">

@@ -302,7 +302,7 @@ function Preview({
 }: {
   entry: ParsedEntry;
   accounts: { id: string; name: string }[];
-  categories: { id: string; name: string; icon: string }[];
+  categories: { id: string; name: string; icon: string; kind?: string }[];
   onChange: (changes: Partial<ParsedEntry>) => void;
 }) {
   const isTransfer = entry.direction === 'transfer';
@@ -334,7 +334,18 @@ function Preview({
       <Segmented
         options={DIRECTIONS}
         value={entry.direction}
-        onChange={(direction) => onChange({ direction })}
+        onChange={(direction) => {
+          let nextCategory = entry.categoryId;
+          if (nextCategory) {
+            const currentCat = categories.find((c) => c.id === nextCategory);
+            if (direction === 'in' && currentCat && currentCat.kind !== 'income') {
+              nextCategory = undefined;
+            } else if (direction === 'out' && currentCat && currentCat.kind === 'income') {
+              nextCategory = undefined;
+            }
+          }
+          onChange({ direction, categoryId: nextCategory });
+        }}
       />
 
       <div className="grid grid-cols-2 gap-2">
@@ -394,11 +405,18 @@ function Preview({
               className="h-10 text-[13px]"
             >
               <option value="">Uncategorised</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+              {categories
+                .filter((category) => {
+                  if (entry.direction === 'in') {
+                    return category.kind === 'income' || category.id === entry.categoryId;
+                  }
+                  return category.kind !== 'income' || category.id === entry.categoryId;
+                })
+                .map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
             </Select>
           )}
         </label>

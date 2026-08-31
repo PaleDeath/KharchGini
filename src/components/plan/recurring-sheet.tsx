@@ -1,7 +1,7 @@
 'use client';
 
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { addMonths, today as todayISO, type ISODate } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
@@ -55,8 +55,29 @@ export function RecurringSheet({
   const [variableAmount, setVariableAmount] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const accounts = ledger.accounts.filter((a) => !a.archived);
-  const categories = ledger.categories.filter((c) => !c.archived);
+  const accounts = useMemo(
+    () => ledger.accounts.filter((a) => !a.archived || a.id === recurring?.accountId),
+    [ledger.accounts, recurring?.accountId],
+  );
+  const categories = useMemo(() => {
+    return ledger.categories.filter((c) => {
+      if (c.archived && c.id !== recurring?.categoryId) return false;
+      if (direction === 'in') return c.kind === 'income' || c.id === categoryId;
+      return c.kind !== 'income' || c.id === categoryId;
+    });
+  }, [ledger.categories, recurring?.categoryId, direction, categoryId]);
+
+  const handleDirectionChange = (nextDir: Direction) => {
+    setDirection(nextDir);
+    if (categoryId) {
+      const currentCat = ledger.categories.find((c) => c.id === categoryId);
+      if (nextDir === 'in' && currentCat && currentCat.kind !== 'income') {
+        setCategoryId('');
+      } else if (nextDir === 'out' && currentCat && currentCat.kind === 'income') {
+        setCategoryId('');
+      }
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -177,7 +198,7 @@ export function RecurringSheet({
       }
     >
       <div className="space-y-3.5">
-        <Segmented options={DIRECTIONS} value={direction} onChange={setDirection} />
+        <Segmented options={DIRECTIONS} value={direction} onChange={handleDirectionChange} />
 
         <Field label="What is it">
           <Input
