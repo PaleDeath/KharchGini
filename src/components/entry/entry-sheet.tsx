@@ -146,8 +146,14 @@ export function EntrySheet({
       title="Edit entry"
       footer={
         <>
-          <Button variant="ghost" size="icon" onClick={remove} disabled={busy} aria-label="Delete">
-            <Trash2 className="h-4 w-4 text-bad" />
+          <Button
+            variant="ghost"
+            onClick={remove}
+            disabled={busy}
+            className="gap-1.5 text-bad hover:bg-bad/10 hover:text-bad font-medium"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
           </Button>
           <Button variant="primary" onClick={save} disabled={busy} className="flex-1">
             Save

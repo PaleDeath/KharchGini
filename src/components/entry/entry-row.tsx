@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Repeat } from 'lucide-react';
+import { ArrowRight, Check, Repeat } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { formatDay } from '@/domain/dates';
@@ -23,6 +23,7 @@ export function EntryRow({
   onOpen,
   showDate,
   selected,
+  selectable,
 }: {
   entry: Entry;
   categories: Map<string, Category>;
@@ -30,6 +31,7 @@ export function EntryRow({
   onOpen?: (entry: Entry) => void;
   showDate?: boolean;
   selected?: boolean;
+  selectable?: boolean;
 }) {
   const category = entry.categoryId ? categories.get(entry.categoryId) : undefined;
   const account = accounts.get(entry.accountId);
@@ -50,6 +52,19 @@ export function EntryRow({
 
   const inner = (
     <>
+      {selectable ? (
+        <span
+          className={cn(
+            'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all',
+            selected
+              ? 'border-accent bg-accent text-white shadow-xs'
+              : 'border-line bg-surface hover:border-muted',
+          )}
+        >
+          {selected ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : null}
+        </span>
+      ) : null}
+
       {isTransfer ? (
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-raised text-muted"
@@ -86,7 +101,7 @@ export function EntryRow({
 
   const shared = cn(
     'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
-    selected && 'bg-accent/8',
+    selected && 'bg-accent/10',
   );
 
   if (!onOpen) return <div className={shared}>{inner}</div>;

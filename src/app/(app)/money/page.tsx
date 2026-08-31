@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Pencil, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { CheckSquare, Download, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import {
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, Empty, Section } from '@/components/ui/card';
 import { Input, Segmented } from '@/components/ui/input';
 import { Money } from '@/components/ui/money';
+import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
 import { cn, download, toCSV } from '@/lib/utils';
 
@@ -29,11 +30,15 @@ type Range = 'this' | 'last' | 'all';
 type Filter = 'all' | Direction;
 
 export default function MoneyPage() {
-  const { ledger } = useLedger();
+  const { ledger, deleteEntries, addEntries } = useLedger();
+  const toast = useToast();
 
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [addingAccount, setAddingAccount] = useState(false);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [range, setRange] = useState<Range>('this');
   const [filter, setFilter] = useState<Filter>('all');
@@ -122,16 +127,94 @@ export default function MoneyPage() {
     );
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((e) => e.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const toRestore = ledger.entries
+      .filter((e) => selectedIds.has(e.id))
+      .map(({ id: _id, createdAt: _c, updatedAt: _u, ...draft }) => draft);
+
+    try {
+      await deleteEntries(ids);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      toast(
+        `Deleted ${ids.length} ${ids.length === 1 ? 'entry' : 'entries'}.`,
+        {
+          tone: 'info',
+          undo: () => addEntries(toRestore).then(() => undefined),
+        },
+      );
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not delete entries', { tone: 'bad' });
+    }
+  };
+
   const editingAccount = editingAccountId ? (ledger.accounts.find((a) => a.id === editingAccountId) ?? null) : null;
 
   return (
     <div className="space-y-5">
       <header className="flex items-center justify-between gap-3 px-1">
         <h1 className="text-xl font-semibold tracking-tight">Money</h1>
-        <Button size="sm" variant="ghost" onClick={exportCSV} disabled={filtered.length === 0}>
-          <Download className="h-3.5 w-3.5" />
-          Export
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {selectionMode ? (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleSelectAll}
+                className="text-xs"
+              >
+                {selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setSelectionMode(false);
+                  setSelectedIds(new Set());
+                }}
+                className="text-xs"
+              >
+                Done
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectionMode(true)}
+                disabled={filtered.length === 0}
+                className="text-xs gap-1"
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                Select
+              </Button>
+              <Button size="sm" variant="ghost" onClick={exportCSV} disabled={filtered.length === 0}>
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </Button>
+            </>
+          )}
+        </div>
       </header>
 
       {/* Balances first: this is where the money actually is. */}
@@ -315,7 +398,9 @@ export default function MoneyPage() {
                       entry={entry}
                       categories={categories}
                       accounts={accounts}
-                      onOpen={setEditing}
+                      selectable={selectionMode}
+                      selected={selectedIds.has(entry.id)}
+                      onOpen={selectionMode ? () => toggleSelect(entry.id) : setEditing}
                     />
                   ))}
                 </Card>
@@ -324,6 +409,25 @@ export default function MoneyPage() {
           </div>
         </Section>
       )}
+
+      {/* Floating Multi-Select Action Bar */}
+      {selectionMode && selectedIds.size > 0 ? (
+        <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-2xl border border-line bg-surface/95 backdrop-blur-md px-4 py-2.5 shadow-2xl animate-pop-in">
+          <span className="text-sm font-semibold text-ink whitespace-nowrap">
+            {selectedIds.size} {selectedIds.size === 1 ? 'selected' : 'selected'}
+          </span>
+          <div className="h-4 w-px bg-line" />
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={handleBulkDelete}
+            className="gap-1.5 shadow-sm"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete ({selectedIds.size})
+          </Button>
+        </div>
+      ) : null}
 
       <EntrySheet entry={editing} onClose={() => setEditing(null)} />
       <AccountSheet
