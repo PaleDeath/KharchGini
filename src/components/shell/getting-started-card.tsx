@@ -19,6 +19,8 @@ import { Card } from '@/components/ui/card';
 import { useLedger } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
+const DISMISS_KEY = 'kharchgini_getting_started_dismissed';
+
 export function GettingStartedCard({
   onOpenTour,
   onOpenAdd,
@@ -27,7 +29,12 @@ export function GettingStartedCard({
   onOpenAdd: () => void;
 }) {
   const { ledger } = useLedger();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(DISMISS_KEY) === 'true';
+    }
+    return false;
+  });
 
   // Derive setup milestones
   const hasAccountsSetup = ledger.accounts.some((a) => a.openingBalance !== 0 || a.name !== 'Cash') || ledger.accounts.length > 1;
@@ -37,7 +44,14 @@ export function GettingStartedCard({
   const completedSteps = [hasAccountsSetup, hasRecurringOrPayday, hasLoggedEntry].filter(Boolean).length;
   const allDone = completedSteps === 3;
 
-  if (dismissed || (allDone && ledger.entries.length >= 3)) {
+  const handleDismiss = () => {
+    setDismissed(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DISMISS_KEY, 'true');
+    }
+  };
+
+  if (dismissed || allDone) {
     return null;
   }
 
@@ -68,7 +82,7 @@ export function GettingStartedCard({
           </Button>
           <button
             type="button"
-            onClick={() => setDismissed(true)}
+            onClick={handleDismiss}
             aria-label="Dismiss checklist"
             className="flex h-7 w-7 items-center justify-center rounded-lg text-faint hover:bg-raised hover:text-muted transition-colors"
           >
