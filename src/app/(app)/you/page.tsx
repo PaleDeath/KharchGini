@@ -35,6 +35,7 @@ import {
 import { formatAmount, formatMoney } from '@/domain/money';
 import { CATEGORY_KIND_LABEL, type Category, type UserPrefs } from '@/domain/types';
 import { CategoryIcon } from '@/components/category/category-icon';
+import { CategoryEntriesSheet } from '@/components/category/category-entries-sheet';
 import { CategorySheet } from '@/components/category/category-sheet';
 import { ImportSheet } from '@/components/settings/import-sheet';
 import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
@@ -55,7 +56,7 @@ const THEMES: { value: Theme; label: string }[] = [
 ];
 
 export default function YouPage() {
-  const { ledger, updatePrefs, settle, deleteRule, deleteEverything } = useLedger();
+  const { ledger, updatePrefs, settle, deleteRule, deleteEverything, restoreLedger } = useLedger();
   const { user, leave } = useAuth();
   const { theme, setTheme } = useTheme();
   const toast = useToast();
@@ -63,11 +64,13 @@ export default function YouPage() {
   const day = todayISO();
   const month = currentMonth();
 
+  const [drilldownCategory, setDrilldownCategory] = useState<string | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState('');
+  const [restoring, setRestoring] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [name, setName] = useState(ledger.prefs.displayName ?? '');
   const [payday, setPayday] = useState(
@@ -247,25 +250,30 @@ export default function YouPage() {
 
       {spend.length > 0 ? (
         <Section title={`Where it went in ${formatMonthShort(month)}`}>
-          <Card className="space-y-2.5 px-4 py-3.5">
+          <Card className="divide-y divide-line overflow-hidden">
             {spend.map((row) => (
-              <div key={row.categoryId ?? 'none'}>
-                <div className="flex items-center gap-2">
+              <button
+                key={row.categoryId ?? 'none'}
+                type="button"
+                onClick={() => setDrilldownCategory(row.categoryId ?? '')}
+                className="flex w-full flex-col px-4 py-3 text-left hover:bg-raised transition-colors group"
+              >
+                <div className="flex items-center gap-2 w-full">
                   <CategoryIcon
                     name={row.category?.icon}
                     color={row.category?.color}
                     className="h-3.5 w-3.5 shrink-0"
                   />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">
                     {row.category?.name ?? 'Uncategorised'}
                   </span>
                   <span className="shrink-0 text-[11px] text-faint">
                     {Math.round(row.pctOfTotal)}%
                   </span>
-                  <Money value={row.total} className="shrink-0 text-[13px]" tone="plain" />
+                  <Money value={row.total} className="shrink-0 text-[13px] font-semibold" tone="plain" />
                 </div>
-                <Bar value={row.total} max={spend[0]?.total ?? row.total} className="mt-1.5" />
-              </div>
+                <Bar value={row.total} max={spend[0]?.total ?? row.total} className="mt-2 w-full" />
+              </button>
             ))}
           </Card>
         </Section>
@@ -495,7 +503,7 @@ export default function YouPage() {
         <Card className="space-y-2 px-4 py-4">
           <p className="text-[13px] leading-relaxed text-muted">
             {ledger.entries.length} entries, {ledger.accounts.length} accounts. It is yours: take it
-            out whenever you like, in a format any spreadsheet opens.
+            out whenever you like, or restore a previous JSON backup.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
@@ -515,6 +523,34 @@ export default function YouPage() {
               <Download className="h-3.5 w-3.5" />
               Full backup
             </Button>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                disabled={restoring}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setRestoring(true);
+                  try {
+                    const text = await file.text();
+                    const json = JSON.parse(text);
+                    const count = await restoreLedger(json);
+                    toast(`Restored ${count} items from backup.`, { tone: 'good' });
+                  } catch (err) {
+                    toast(err instanceof Error ? err.message : 'Invalid backup JSON file', { tone: 'bad' });
+                  } finally {
+                    setRestoring(false);
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-[13px] font-medium text-ink hover:bg-raised transition-colors active:scale-95">
+                <FileUp className="h-3.5 w-3.5 text-accent" />
+                {restoring ? 'Restoring...' : 'Restore JSON'}
+              </span>
+            </label>
           </div>
         </Card>
       </Section>
@@ -553,6 +589,12 @@ export default function YouPage() {
         </Card>
       </Section>
 
+      <CategoryEntriesSheet
+        categoryId={drilldownCategory}
+        month={month}
+        open={drilldownCategory !== null}
+        onClose={() => setDrilldownCategory(null)}
+      />
       <CategorySheet
         category={category}
         open={categoryOpen}

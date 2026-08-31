@@ -34,6 +34,7 @@ import type {
   Entry,
   Envelope,
   Goal,
+  Ledger,
   MerchantMemory,
   Recurring,
   Review,
@@ -281,3 +282,54 @@ export async function wipeUser(uid: string): Promise<void> {
   }
   await setDoc(userDoc(uid), {});
 }
+
+/**
+ * Restores a full ledger backup JSON payload into the user's Firestore document tree.
+ */
+export async function restoreBackup(
+  uid: string,
+  backup: Partial<Ledger>,
+): Promise<{ totalRestored: number }> {
+  let count = 0;
+  if (Array.isArray(backup.accounts) && backup.accounts.length > 0) {
+    await putMany(uid, 'accounts', backup.accounts);
+    count += backup.accounts.length;
+  }
+  if (Array.isArray(backup.entries) && backup.entries.length > 0) {
+    await putMany(uid, 'entries', backup.entries);
+    count += backup.entries.length;
+  }
+  if (Array.isArray(backup.categories) && backup.categories.length > 0) {
+    await putMany(uid, 'categories', backup.categories);
+    count += backup.categories.length;
+  }
+  if (Array.isArray(backup.envelopes) && backup.envelopes.length > 0) {
+    await putMany(uid, 'envelopes', backup.envelopes);
+    count += backup.envelopes.length;
+  }
+  if (Array.isArray(backup.goals) && backup.goals.length > 0) {
+    await putMany(uid, 'goals', backup.goals);
+    count += backup.goals.length;
+  }
+  if (Array.isArray(backup.rules) && backup.rules.length > 0) {
+    await putMany(uid, 'rules', backup.rules);
+    count += backup.rules.length;
+  }
+  if (Array.isArray(backup.merchants) && backup.merchants.length > 0) {
+    await putMany(uid, 'merchants', backup.merchants);
+    count += backup.merchants.length;
+  }
+  if (Array.isArray(backup.recurring) && backup.recurring.length > 0) {
+    await putMany(uid, 'recurring', backup.recurring);
+    count += backup.recurring.length;
+  }
+  if (Array.isArray(backup.reviews) && backup.reviews.length > 0) {
+    await putMany(uid, 'reviews', backup.reviews);
+    count += backup.reviews.length;
+  }
+  if (backup.prefs && typeof backup.prefs === 'object') {
+    await savePrefs(uid, backup.prefs);
+  }
+  return { totalRestored: count };
+}
+

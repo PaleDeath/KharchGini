@@ -62,6 +62,7 @@ import {
   remove,
   removeMany,
   savePrefs,
+  restoreBackup,
   seedNewUser,
   subscribe,
   subscribePrefs,
@@ -133,9 +134,10 @@ export interface LedgerValue {
   // Review
   completeReview: (itemsResolved: number) => Promise<void>;
 
-  // Preferences and the nuclear option
+  // Preferences and data sovereignty
   updatePrefs: (changes: Partial<UserPrefs>) => Promise<void>;
   deleteEverything: () => Promise<void>;
+  restoreLedger: (backup: Partial<Ledger>) => Promise<number>;
 }
 
 const LedgerContext = createContext<LedgerValue | null>(null);
@@ -610,6 +612,15 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     await wipeUser(requireUid());
   }, [requireUid]);
 
+  const restoreLedger = useCallback(
+    async (backup: Partial<Ledger>): Promise<number> => {
+      const id = requireUid();
+      const res = await restoreBackup(id, backup);
+      return res.totalRestored;
+    },
+    [requireUid],
+  );
+
   /**
    * Fixed-amount recurring entries post themselves once, on load. Anything with
    * a variable amount waits for a person, because a guessed rent is a wrong
@@ -656,7 +667,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       addGoal, updateGoal, deleteGoal,
       addRule, deleteRule,
       addRecurring, updateRecurring, deleteRecurring, postRecurring, skipRecurring,
-      completeReview, updatePrefs, deleteEverything,
+      completeReview, updatePrefs, deleteEverything, restoreLedger,
     }),
     [
       ledger, loading, error, uid,
@@ -667,7 +678,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       addGoal, updateGoal, deleteGoal,
       addRule, deleteRule,
       addRecurring, updateRecurring, deleteRecurring, postRecurring, skipRecurring,
-      completeReview, updatePrefs, deleteEverything,
+      completeReview, updatePrefs, deleteEverything, restoreLedger,
     ],
   );
 

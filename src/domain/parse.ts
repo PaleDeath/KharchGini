@@ -198,6 +198,137 @@ export function findAccount(accounts: Account[], token: string): Account | undef
 /* The parser                                                                  */
 /* -------------------------------------------------------------------------- */
 
+export interface QuickPreset {
+  label: string;
+  command: string;
+  categoryHint?: string;
+  icon?: string;
+}
+
+export const QUICK_PRESETS: QuickPreset[] = [
+  { label: '☕ Chai', command: '20 chai', categoryHint: 'food' },
+  { label: '🍛 Lunch', command: '250 lunch', categoryHint: 'food' },
+  { label: '🛺 Auto / Cab', command: '120 auto to office', categoryHint: 'transport' },
+  { label: '🛒 Groceries', command: '850 groceries', categoryHint: 'groceries' },
+  { label: '☕ Coffee', command: '160 cold brew', categoryHint: 'food' },
+  { label: '💊 Pharmacy', command: '320 medicines', categoryHint: 'health' },
+  { label: '⛽ Petrol', command: '1500 petrol', categoryHint: 'transport' },
+  { label: '🍽️ Dinner', command: '1200 dinner with friends', categoryHint: 'eating-out' },
+];
+
+/**
+ * Intelligent parser for Indian Bank & UPI transaction SMS notifications.
+ * Examples:
+ * - "Paid Rs.350 to SWIGGY via UPI on 31-Aug-26 txn 402913"
+ * - "Your A/C XX1234 debited by INR 1,200.00 on 31/08/2026 to DMART"
+ * - "INR 45000.00 credited to A/C 4567 by SALARY on 31-08-2026"
+ */
+export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | null {
+  const lower = text.toLowerCase();
+  
+  const isSMS =
+    /(?:debited|credited|paid|spent|sent|deposited|withdrawn|vpa|upi\s+ref|txn\s+id|a\/c|acct|transfer\s+to|trf\s+to)/i.test(
+      text,
+    );
+  if (!isSMS) return null;
+
+  // 1. Direction
+  const isCredit = /(?:credited|deposited|received|refund|cashback)/i.test(text);
+  const direction: Direction = isCredit ? 'in' : 'out';
+
+  // 2. Amount extraction
+  let amountPaise: Paise | null = null;
+  const amountMatch =
+    /(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i.exec(text) ??
+    /(?:debited(?:\s+by)?|credited(?:\s+by)?|paid|spent|sent)\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i.exec(
+      text,
+    ) ??
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:rs|inr)/i.exec(text);
+
+  if (amountMatch && amountMatch[1]) {
+    amountPaise = parseAmount(amountMatch[1].replace(/,/g, ''));
+  }
+
+  if (!amountPaise || amountPaise <= 0) return null;
+
+  // 3. Date extraction
+  const today = ctx.today ?? todayISO();
+  const dateRes = extractDate(text, today);
+  let date = dateRes.hit?.date ?? today;
+
+  // Additional SMS date patterns (e.g. 31-Aug-26, 31/08/2026)
+  if (!dateRes.hit) {
+    const rawDateMatch = /\b(\d{1,2})[-/](\d{1,2}|[A-Za-z]{3,9})[-/](\d{2,4})\b/i.exec(text);
+    if (rawDateMatch) {
+      const d = Number(rawDateMatch[1]);
+      const mStr = rawDateMatch[2]!.toLowerCase();
+      let m = MONTH_TOKENS[mStr] ?? Number(mStr);
+      let y = Number(rawDateMatch[3]);
+      if (y < 100) y += 2000;
+      if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
+        const candidate = `${y}-${pad(m)}-${pad(d)}`;
+        if (candidate <= today) date = candidate;
+      }
+    }
+  }
+
+  // 4. Payee / Merchant / Description extraction
+  let description = '';
+  const payeeMatch =
+    /(?:to\s+vpa|to|at|towards|trf\s+to|transfer\s+to|payee|info)\s+([A-Za-z0-9\s._&-]{2,35})(?:\s+on|\s+via|\s+ref|\s+txn|\s+using|\s+avl|\s+bal|\.|$|\n)/i.exec(
+      text,
+    );
+
+  if (payeeMatch && payeeMatch[1]) {
+    let rawPayee = payeeMatch[1].trim();
+    // If it is a VPA like "swiggy@icici" or "merchant.paytm@axis"
+    if (rawPayee.includes('@')) {
+      rawPayee = rawPayee.split('@')[0]!.replace(/[^a-zA-Z0-9]/g, ' ');
+    }
+    description = rawPayee.replace(/\b(a\/c|bank|card|ending|xx\d+|ref\w*)\b/gi, '').trim();
+  }
+
+  if (!description) {
+    description = isCredit ? 'Income' : 'Card / UPI Expense';
+  }
+
+  // 5. Account matching
+  let matchedAccount: Account | undefined;
+  for (const acc of ctx.accounts) {
+    if (acc.archived) continue;
+    const nameNeedle = acc.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (nameNeedle.length >= 3 && lower.includes(nameNeedle)) {
+      matchedAccount = acc;
+      break;
+    }
+  }
+
+  // 6. Note extraction (UPI reference number or Card ref)
+  const refMatch = /(?:ref(?:erence)?(?:\s+no)?|txn(?:\s+id)?|utr)\s*(?:is|:)?\s*([A-Za-z0-9]{6,16})/i.exec(
+    text,
+  );
+  const cardMatch = /(?:card\s*(?:ending)?\s*(?:xx|x)?\s*(\d{4}))/i.exec(text);
+  const noteParts: string[] = [];
+  if (refMatch && refMatch[1]) noteParts.push(`Ref ${refMatch[1]}`);
+  if (cardMatch && cardMatch[1]) noteParts.push(`Card **${cardMatch[1]}`);
+
+  const guess = guessCategory(description, amountPaise, direction, ctx);
+
+  return {
+    amount: amountPaise,
+    direction,
+    date,
+    description: description.slice(0, 50),
+    accountId: matchedAccount?.id ?? ctx.defaultAccountId,
+    ...(guess.categoryId ? { categoryId: guess.categoryId } : {}),
+    ...(guess.merchant ? { merchant: guess.merchant } : {}),
+    tags: guess.tags,
+    ...(noteParts.length > 0 ? { note: noteParts.join(' · ') } : {}),
+    categorySource: guess.source,
+    confidence: guess.confidence,
+  };
+}
+
 export function parseCommand(input: string, ctx: ParseContext): ParseResult {
   const today = ctx.today ?? todayISO();
   const raw = input.trim();
@@ -205,6 +336,12 @@ export function parseCommand(input: string, ctx: ParseContext): ParseResult {
 
   if (raw.startsWith('?')) {
     return { kind: 'query', query: parseQuery(raw.slice(1).trim(), today) };
+  }
+
+  // Check if pasted text is a bank / UPI SMS notification
+  const smsParsed = parseBankSMS(raw, ctx);
+  if (smsParsed) {
+    return { kind: 'entry', entry: smsParsed };
   }
 
   let text = raw;

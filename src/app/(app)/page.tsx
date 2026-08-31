@@ -37,21 +37,26 @@ import { upcoming } from '@/domain/recurring';
 import type { Entry } from '@/domain/types';
 import { EntryRow } from '@/components/entry/entry-row';
 import { EntrySheet } from '@/components/entry/entry-sheet';
+import { RecurringSheet } from '@/components/plan/recurring-sheet';
 import { ReviewSheet } from '@/components/review/review-sheet';
 import { GettingStartedCard } from '@/components/shell/getting-started-card';
+import { RunwayChart } from '@/components/shell/runway-chart';
 import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
 import { Card, Divider, Empty, Section } from '@/components/ui/card';
-import { Money } from '@/components/ui/money';
+import { Money, Badge } from '@/components/ui/money';
 import { useLedger } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import type { Recurring } from '@/domain/types';
 
 export default function TodayPage() {
   const { ledger, postRecurring } = useLedger();
   const [editing, setEditing] = useState<Entry | null>(null);
+  const [editingRecurring, setEditingRecurring] = useState<Recurring | null>(null);
   const [creating, setCreating] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [showMath, setShowMath] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [showRunway, setShowRunway] = useState(false);
 
   const day = todayISO();
 
@@ -74,6 +79,8 @@ export default function TodayPage() {
   const pending = useMemo(() => reviewItems(ledger, day), [ledger, day]);
   const needsReview = reviewDue(ledger.reviews, weekKey(day)) && pending.length > 0;
 
+  const projection = useMemo(() => projectBalance(ledger, day, 45), [ledger, day]);
+
   /*
    * The dip.
    *
@@ -83,7 +90,6 @@ export default function TodayPage() {
    * it really does go under. The warning has no false alarms, only silences.
    */
   const dip = useMemo(() => {
-    const projection = projectBalance(ledger, day, 45);
     const worst = lowestPoint(projection);
     if (!worst || worst.balance >= 0) return null;
 
@@ -93,7 +99,7 @@ export default function TodayPage() {
     if (!crossing || crossing.date === day) return null;
 
     return { crossing, worst };
-  }, [ledger, day]);
+  }, [projection, day]);
 
   // Said once, quietly, and never as a number large enough to feel like an
   // accusation. Null when there is nothing logged at all — that is the empty
@@ -150,7 +156,16 @@ export default function TodayPage() {
       {/* The hero. Everything else on this screen exists to explain it. */}
       <Card className={cn('overflow-hidden', sts.negative && 'border-bad/40')}>
         <div className="px-4 pb-3 pt-4">
-          <p className="text-[13px] font-medium text-muted">Safe to spend</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-medium text-muted">Safe to spend</p>
+            {sts.negative ? (
+              <Badge tone="bad">Deficit Risk</Badge>
+            ) : sts.perDay >= 50_000 ? (
+              <Badge tone="good">Healthy Runway</Badge>
+            ) : (
+              <Badge tone="warn">Tight Pace</Badge>
+            )}
+          </div>
           <div className="mt-1 flex items-baseline gap-2">
             <Money
               value={sts.amount}
@@ -173,14 +188,23 @@ export default function TodayPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowMath((v) => !v)}
-          className="flex w-full items-center justify-between border-t border-line px-4 py-2.5 text-[12px] text-faint transition-colors hover:bg-raised"
-        >
-          {showMath ? 'Hide the arithmetic' : 'Where does this number come from?'}
-          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMath && 'rotate-180')} />
-        </button>
+        <div className="flex border-t border-line divide-x divide-line">
+          <button
+            type="button"
+            onClick={() => setShowMath((v) => !v)}
+            className="flex flex-1 items-center justify-between px-4 py-2.5 text-[12px] text-faint transition-colors hover:bg-raised"
+          >
+            {showMath ? 'Hide breakdown' : 'Why this number?'}
+            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMath && 'rotate-180')} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowRunway((v) => !v)}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 text-[12px] text-accent transition-colors hover:bg-raised font-medium"
+          >
+            {showRunway ? 'Hide graph' : 'Runway graph'}
+          </button>
+        </div>
 
         {showMath ? (
           <dl className="space-y-1.5 bg-raised/50 px-4 py-3 text-[13px]">
@@ -197,6 +221,15 @@ export default function TodayPage() {
           </dl>
         ) : null}
       </Card>
+
+      {/* Runway Graph */}
+      {showRunway ? (
+        <RunwayChart
+          projection={projection}
+          today={day}
+          until={sts.until}
+        />
+      ) : null}
 
       {/*
        * Directly under the hero, because it qualifies the hero: Safe to Spend
@@ -271,36 +304,42 @@ export default function TodayPage() {
             {bills.map((bill) => (
               <div
                 key={`${bill.recurring.id}-${bill.dueDate}`}
-                className="flex items-center gap-3 px-4 py-2.5"
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-raised/50 transition-colors"
               >
-                <span
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                    bill.overdue ? 'bg-bad/12 text-bad' : 'bg-raised text-muted',
-                  )}
+                <button
+                  type="button"
+                  onClick={() => setEditingRecurring(bill.recurring)}
+                  className="flex items-center gap-3 min-w-0 flex-1 text-left"
                 >
-                  {bill.overdue ? (
-                    <TriangleAlert className="h-4 w-4" />
-                  ) : (
-                    <Receipt className="h-4 w-4" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-ink">
-                    {bill.recurring.description}
+                  <span
+                    className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                      bill.overdue ? 'bg-bad/12 text-bad' : 'bg-raised text-muted',
+                    )}
+                  >
+                    {bill.overdue ? (
+                      <TriangleAlert className="h-4 w-4" />
+                    ) : (
+                      <Receipt className="h-4 w-4" />
+                    )}
                   </span>
-                  <span className="block text-[12px] text-faint">
-                    {formatDueIn(bill.dueDate, day)}
-                    {bill.recurring.variableAmount ? ' · amount varies' : ''}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-ink font-medium">
+                      {bill.recurring.description}
+                    </span>
+                    <span className="block text-[12px] text-faint">
+                      {formatDueIn(bill.dueDate, day)}
+                      {bill.recurring.variableAmount ? ' · amount varies' : ''}
+                    </span>
                   </span>
-                </span>
+                </button>
                 <span className="flex shrink-0 items-center gap-2">
                   <Money value={bill.amount} className="text-sm" tone="plain" />
                   {!bill.recurring.autoPost ? (
                     <button
                       type="button"
                       onClick={() => void postRecurring(bill.recurring)}
-                      className="rounded-lg bg-raised px-2 py-1 text-[12px] font-medium text-ink hover:bg-line"
+                      className="rounded-lg bg-raised px-2.5 py-1 text-[12px] font-medium text-ink hover:bg-line transition-colors active:scale-95"
                     >
                       Paid
                     </button>
@@ -354,6 +393,11 @@ export default function TodayPage() {
       ) : null}
 
       <EntrySheet entry={editing} onClose={() => setEditing(null)} />
+      <RecurringSheet
+        recurring={editingRecurring}
+        open={editingRecurring !== null}
+        onClose={() => setEditingRecurring(null)}
+      />
       <ReviewSheet open={reviewing} onClose={() => setReviewing(false)} />
       <WalkthroughDialog open={showTour} onClose={() => setShowTour(false)} />
     </div>

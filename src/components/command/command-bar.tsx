@@ -23,6 +23,7 @@ import {
 import { formatMoney } from '@/domain/money';
 import {
   COMMAND_EXAMPLES,
+  QUICK_PRESETS,
   parseCommand,
   type ParsedEntry,
   type ParsedQuery,
@@ -34,7 +35,7 @@ import { cn } from '@/lib/utils';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { Button } from '@/components/ui/button';
 import { Input, Segmented, Select } from '@/components/ui/input';
-import { Money } from '@/components/ui/money';
+import { Money, Badge } from '@/components/ui/money';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 
@@ -192,13 +193,30 @@ export function CommandBar({
               void save();
             }
           }}
-          placeholder="280 chai"
+          placeholder="280 chai or paste bank SMS"
           autoFocus
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
           className="h-12 text-[17px]"
         />
+
+        {/* Quick Presets Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar select-none">
+          {QUICK_PRESETS.map((preset) => (
+            <button
+              key={preset.command}
+              type="button"
+              onClick={() => {
+                setText(preset.command);
+                inputRef.current?.focus();
+              }}
+              className="shrink-0 rounded-full border border-line bg-surface/80 px-2.5 py-1 text-[12px] font-medium text-ink hover:border-accent hover:bg-raised transition-all active:scale-95"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
 
         {result.kind === 'empty' ? <Examples onPick={setText} /> : null}
 
@@ -228,21 +246,36 @@ export function CommandBar({
 
 function Examples({ onPick }: { onPick: (value: string) => void }) {
   return (
-    <div className="space-y-1">
-      <p className="px-1 pb-1 text-[12px] font-medium uppercase tracking-wide text-faint">
-        It understands
-      </p>
-      {COMMAND_EXAMPLES.map((example) => (
-        <button
-          key={example.input}
-          type="button"
-          onClick={() => onPick(example.input)}
-          className="flex w-full items-baseline gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-raised"
-        >
-          <code className="shrink-0 text-[13px] text-ink">{example.input}</code>
-          <span className="min-w-0 flex-1 truncate text-[12px] text-faint">{example.means}</span>
-        </button>
-      ))}
+    <div className="space-y-2 pt-1">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+          Natural Language & SMS
+        </p>
+        <span className="text-[11px] text-accent font-medium">⚡ Instant parse</span>
+      </div>
+
+      <div className="rounded-xl border border-line/60 bg-raised/40 p-2.5 text-[12px] text-muted space-y-1">
+        <p className="font-medium text-ink flex items-center gap-1.5">
+          <Sparkles className="h-3.5 w-3.5 text-accent" /> Smart Paste Supported
+        </p>
+        <p className="text-faint leading-relaxed">
+          Copy any UPI or Bank debit SMS from your phone and paste it directly above. KharchGini extracts the amount, merchant, and bank account automatically.
+        </p>
+      </div>
+
+      <div className="space-y-0.5">
+        {COMMAND_EXAMPLES.map((example) => (
+          <button
+            key={example.input}
+            type="button"
+            onClick={() => onPick(example.input)}
+            className="flex w-full items-baseline gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-raised"
+          >
+            <code className="shrink-0 text-[13px] text-ink">{example.input}</code>
+            <span className="min-w-0 flex-1 truncate text-[12px] text-faint">{example.means}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -264,14 +297,27 @@ function Preview({
   onChange: (changes: Partial<ParsedEntry>) => void;
 }) {
   const isTransfer = entry.direction === 'transfer';
+  const isSMS = entry.note?.includes('Ref') || entry.note?.includes('Card');
 
   return (
     <div className="space-y-3 rounded-card border border-line bg-raised/60 p-3.5">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate text-[15px] font-medium text-ink">{entry.description}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-[15px] font-semibold text-ink">{entry.description}</p>
+            {isSMS ? (
+              <Badge tone="good" className="text-[10px] py-0 px-1.5">
+                Bank SMS
+              </Badge>
+            ) : null}
+          </div>
+          {entry.note ? (
+            <p className="text-[11px] text-faint truncate mt-0.5">{entry.note}</p>
+          ) : null}
+        </div>
         <Money
           value={entry.amount}
-          className="shrink-0 text-lg font-semibold"
+          className="shrink-0 text-lg font-bold"
           tone={entry.direction === 'in' ? 'good' : 'plain'}
         />
       </div>

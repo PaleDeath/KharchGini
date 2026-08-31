@@ -3,13 +3,14 @@
 import { Check, ChevronRight, PartyPopper } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { addMonthsToKey, currentMonth, formatMonthShort } from '@/domain/dates';
-import { byId, reviewItems } from '@/domain/derive';
+import { addMonthsToKey, currentMonth, formatMonthShort, startOfWeek, today as todayISO } from '@/domain/dates';
+import { byId, entriesBetween, reviewItems, safeToSpend, totalOut } from '@/domain/derive';
 import { formatMoney } from '@/domain/money';
 import type { ReviewItem } from '@/domain/types';
 import { Button } from '@/components/ui/button';
-import { Empty } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
+import { Money, Badge } from '@/components/ui/money';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
@@ -28,22 +29,28 @@ const KIND_LABEL: Record<ReviewItem['kind'], string> = {
  *
  * This is the ritual the whole app is built around. Five minutes on a Sunday
  * where every loose end is presented with the one tap that closes it — not a
- * dashboard to admire, a queue to empty. Software that asks for attention every
- * day gets ignored; software that asks for five minutes a week gets used for
- * years.
+ * dashboard to admire, a queue to empty.
  */
 export function ReviewSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { ledger, recategorise, settle, setAllocation, postRecurring, addRule, completeReview } =
     useLedger();
   const toast = useToast();
 
+  const day = todayISO();
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
-  const items = useMemo(() => reviewItems(ledger), [ledger]);
+  const items = useMemo(() => reviewItems(ledger, day), [ledger, day]);
   const remaining = items.filter((item) => !resolved.has(item.id));
   const categories = useMemo(() => byId(ledger.categories), [ledger.categories]);
   const entries = useMemo(() => byId(ledger.entries), [ledger.entries]);
+
+  const weekEntries = useMemo(
+    () => entriesBetween(ledger.entries, startOfWeek(day), day),
+    [ledger.entries, day],
+  );
+  const weekSpent = useMemo(() => totalOut(weekEntries), [weekEntries]);
+  const sts = useMemo(() => safeToSpend(ledger, day), [ledger, day]);
 
   const markDone = (id: string) =>
     setResolved((current) => new Set(current).add(id));
@@ -52,7 +59,7 @@ export function ReviewSheet({ open, onClose }: { open: boolean; onClose: () => v
     setBusy(true);
     try {
       await completeReview(resolved.size);
-      toast('Review done. See you next week.', { tone: 'good' });
+      toast('Review complete! Ledger is clean for the week.', { tone: 'good' });
       setResolved(new Set());
       onClose();
     } catch (caught) {
@@ -113,25 +120,50 @@ export function ReviewSheet({ open, onClose }: { open: boolean; onClose: () => v
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
-      title="This week"
+      title="Weekly 5-Minute Review"
       description={
         remaining.length > 0
-          ? `${remaining.length} ${remaining.length === 1 ? 'thing' : 'things'} to look at`
-          : 'Nothing needs you'
+          ? `${remaining.length} ${remaining.length === 1 ? 'item' : 'items'} need a decision`
+          : 'All clean & up to date'
       }
       wide
       footer={
         <Button variant="primary" onClick={finish} disabled={busy} className="w-full">
-          {remaining.length === 0 ? 'Done' : 'Finish for now'}
+          {remaining.length === 0 ? 'Complete Review & Close' : 'Finish for now'}
         </Button>
       }
     >
       {remaining.length === 0 ? (
-        <Empty
-          icon={<PartyPopper className="h-7 w-7" />}
-          title="All clear"
-          hint="Every entry is filed, nothing is overdue, and no budget is blown. Close this and go do something else."
-        />
+        <div className="space-y-4 py-2">
+          <div className="text-center space-y-2">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-good/15 text-good">
+              <PartyPopper className="h-7 w-7" />
+            </span>
+            <h3 className="text-lg font-bold text-ink">Your Ledger is Pristine</h3>
+            <p className="text-[13px] text-muted max-w-xs mx-auto">
+              Every entry is categorised, no overdue bills remain, and budgets are reconciled.
+            </p>
+          </div>
+
+          <Card className="p-4 bg-gradient-to-br from-surface to-raised space-y-3">
+            <p className="text-[12px] font-semibold uppercase tracking-wider text-faint">
+              This Week’s Summary
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-line bg-surface/70 p-3">
+                <span className="text-[11px] text-faint block">Spent This Week</span>
+                <Money value={weekSpent} className="text-lg font-bold text-ink" tone="plain" />
+              </div>
+              <div className="rounded-xl border border-line bg-surface/70 p-3">
+                <span className="text-[11px] text-faint block">Safe to Spend</span>
+                <Money value={sts.amount} className="text-lg font-bold text-ink" tone="plain" />
+              </div>
+            </div>
+            <p className="text-[12px] text-faint pt-1">
+              You are cleared for <Money value={sts.perDay} tone="plain" className="font-semibold text-ink" /> / day until your next income event.
+            </p>
+          </Card>
+        </div>
       ) : (
         <div className="space-y-2">
           {remaining.map((item) => (

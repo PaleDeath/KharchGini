@@ -7,6 +7,7 @@ import { CommandBar } from '@/components/command/command-bar';
 import { Gate } from '@/components/shell/gate';
 import { BottomNav, SideNav } from '@/components/shell/nav';
 import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
+import { useLedger } from '@/lib/store';
 
 /** True when a keystroke belongs to something the user is typing into. */
 function isTyping(target: EventTarget | null): boolean {
@@ -20,6 +21,7 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+  const { ledger, updatePrefs } = useLedger();
   const [adding, setAdding] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const pathname = usePathname();
@@ -36,8 +38,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     window.history.replaceState({}, '', url.pathname + url.search);
   }, []);
 
-  // "/" to add, the way every text editor and chat client already works, plus
-  // ⌘K for people whose hands expect it.
+  // "/" to add, ⌘K for palette, Shift+P for privacy mode toggle
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)) {
@@ -48,12 +49,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       if (event.key === '/' && !isTyping(event.target) && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
         setAdding(true);
+        return;
+      }
+      if ((event.key === 'P' || event.key === 'p') && event.shiftKey && !isTyping(event.target)) {
+        event.preventDefault();
+        void updatePrefs({ privacyMode: !ledger.prefs.privacyMode });
       }
     };
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [ledger.prefs.privacyMode, updatePrefs]);
 
   return (
     <Gate>

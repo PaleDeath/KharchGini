@@ -31,6 +31,7 @@ import { formatMoney } from '@/domain/money';
 import { describeSchedule, dueInMonth, monthlyEquivalent } from '@/domain/recurring';
 import type { EnvelopeStatus, Goal, GoalProgress, Recurring } from '@/domain/types';
 import { CategoryChip } from '@/components/category/category-icon';
+import { CategoryEntriesSheet } from '@/components/category/category-entries-sheet';
 import { EnvelopeSheet } from '@/components/plan/envelope-sheet';
 import { GoalSheet } from '@/components/plan/goal-sheet';
 import { RecurringSheet } from '@/components/plan/recurring-sheet';
@@ -48,6 +49,7 @@ export default function PlanPage() {
   const day = todayISO();
   const [month, setMonth] = useState<MonthKey>(currentMonth());
 
+  const [drilldownCategory, setDrilldownCategory] = useState<string | null>(null);
   const [envelopeFor, setEnvelopeFor] = useState<{ open: boolean; categoryId: string | null }>({
     open: false,
     categoryId: null,
@@ -183,7 +185,8 @@ export default function PlanPage() {
                 key={status.envelope.id}
                 status={status}
                 current={isCurrent}
-                onOpen={() =>
+                onOpen={() => setDrilldownCategory(status.envelope.categoryId)}
+                onEditBudget={() =>
                   setEnvelopeFor({ open: true, categoryId: status.envelope.categoryId })
                 }
               />
@@ -196,31 +199,39 @@ export default function PlanPage() {
         <Section title="Spending with no budget">
           <Card className="divide-y divide-line overflow-hidden">
             {unbudgeted.slice(0, 6).map((row) => (
-              <button
+              <div
                 key={row.categoryId ?? 'none'}
-                type="button"
-                disabled={!row.categoryId}
-                onClick={() =>
-                  row.categoryId
-                    ? setEnvelopeFor({ open: true, categoryId: row.categoryId })
-                    : undefined
-                }
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors enabled:hover:bg-raised disabled:cursor-default"
+                className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-raised/60 transition-colors"
               >
-                <CategoryChip name={row.category?.icon} color={row.category?.color} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-ink">
-                    {row.category?.name ?? 'Uncategorised'}
+                <button
+                  type="button"
+                  onClick={() => setDrilldownCategory(row.categoryId ?? '')}
+                  className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                >
+                  <CategoryChip name={row.category?.icon} color={row.category?.color} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-ink font-medium">
+                      {row.category?.name ?? 'Uncategorised'}
+                    </span>
+                    <span className="block text-[12px] text-faint">
+                      {row.count} {row.count === 1 ? 'entry' : 'entries'} · tap to view
+                    </span>
                   </span>
-                  <span className="block text-[12px] text-faint">
-                    {row.count} {row.count === 1 ? 'entry' : 'entries'}
-                  </span>
-                </span>
+                </button>
                 <Money value={row.total} className="shrink-0 text-sm" tone="plain" />
                 {row.categoryId ? (
-                  <Plus className="h-4 w-4 shrink-0 text-faint" />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEnvelopeFor({ open: true, categoryId: row.categoryId ?? null })
+                    }
+                    title="Set budget"
+                    className="flex h-7 items-center gap-1 rounded-lg border border-line bg-surface px-2 text-[11px] font-medium text-muted hover:border-accent hover:text-accent transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Budget
+                  </button>
                 ) : null}
-              </button>
+              </div>
             ))}
           </Card>
         </Section>
@@ -368,6 +379,15 @@ export default function PlanPage() {
         )}
       </Section>
 
+      <CategoryEntriesSheet
+        categoryId={drilldownCategory}
+        month={month}
+        open={drilldownCategory !== null}
+        onClose={() => setDrilldownCategory(null)}
+        onAddEntry={() => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: '/' }));
+        }}
+      />
       <EnvelopeSheet
         month={month}
         categoryId={envelopeFor.categoryId}
@@ -384,63 +404,83 @@ function EnvelopeRow({
   status,
   current,
   onOpen,
+  onEditBudget,
 }: {
   status: EnvelopeStatus;
   current: boolean;
   onOpen: () => void;
+  onEditBudget?: () => void;
 }) {
   const over = status.remaining < 0;
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-raised"
-    >
-      <CategoryChip name={status.category?.icon} color={status.category?.color} />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-3">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-sm text-ink">
-              {status.category?.name ?? 'Unknown category'}
-            </span>
-            {status.envelope.rollover && status.carriedIn !== 0 ? (
-              <Badge tone={status.carriedIn > 0 ? 'good' : 'bad'}>
-                {status.carriedIn > 0 ? '+' : ''}
-                {formatMoney(status.carriedIn)} carried
-              </Badge>
-            ) : null}
-          </span>
-          <span className="shrink-0 text-[13px] text-muted">
-            <Money value={status.spent} tone="plain" /> / <Money value={status.available} tone="plain" />
-          </span>
-        </span>
-
-        <Bar
-          value={status.spent}
-          max={status.available}
-          tone={over ? 'bad' : status.paceAhead ? 'warn' : 'good'}
-          className="mt-2"
-        />
-
-        <span className="mt-1.5 block text-[12px] text-faint">
-          {over ? (
-            <span className="text-bad">
-              {formatMoney(Math.abs(status.remaining))} over
-            </span>
-          ) : current && status.dailyAllowance > 0 ? (
-            <>
-              {formatMoney(status.remaining)} left · {formatMoney(status.dailyAllowance)} a day
-              {status.paceAhead ? (
-                <span className="text-warn"> · ahead of pace</span>
+    <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-raised transition-colors group">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex items-start gap-3 min-w-0 flex-1 text-left"
+      >
+        <CategoryChip name={status.category?.icon} color={status.category?.color} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-sm font-medium text-ink">
+                {status.category?.name ?? 'Unknown category'}
+              </span>
+              {status.envelope.rollover && status.carriedIn !== 0 ? (
+                <Badge tone={status.carriedIn > 0 ? 'good' : 'bad'}>
+                  {status.carriedIn > 0 ? '+' : ''}
+                  {formatMoney(status.carriedIn)} carried
+                </Badge>
               ) : null}
-            </>
-          ) : (
-            `${formatMoney(status.remaining)} left`
-          )}
+            </span>
+            <span className="shrink-0 text-[13px] text-muted">
+              <Money value={status.spent} tone="plain" /> / <Money value={status.available} tone="plain" />
+            </span>
+          </span>
+
+          <Bar
+            value={status.spent}
+            max={status.available}
+            tone={over ? 'bad' : status.paceAhead ? 'warn' : 'good'}
+            className="mt-2"
+          />
+
+          <span className="mt-1.5 flex items-center justify-between text-[12px] text-faint">
+            <span>
+              {over ? (
+                <span className="text-bad">
+                  {formatMoney(Math.abs(status.remaining))} over
+                </span>
+              ) : current && status.dailyAllowance > 0 ? (
+                <>
+                  {formatMoney(status.remaining)} left · {formatMoney(status.dailyAllowance)} a day
+                  {status.paceAhead ? (
+                    <span className="text-warn"> · ahead of pace</span>
+                  ) : null}
+                </>
+              ) : (
+                `${formatMoney(status.remaining)} left`
+              )}
+            </span>
+            <span className="text-accent opacity-0 group-hover:opacity-100 transition-opacity text-[11px]">
+              View entries →
+            </span>
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+
+      {onEditBudget ? (
+        <button
+          type="button"
+          onClick={onEditBudget}
+          title="Adjust monthly allocation"
+          className="mt-0.5 rounded-lg border border-line bg-surface px-2 py-1 text-[11px] font-medium text-muted hover:border-accent hover:text-accent transition-colors"
+        >
+          Edit
+        </button>
+      ) : null}
+    </div>
   );
 }
 
