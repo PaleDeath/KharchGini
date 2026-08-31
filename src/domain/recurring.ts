@@ -302,17 +302,28 @@ const WEEKDAY_LONG = [
 /** "Every month on the 5th" — schedules read as sentences, not as config. */
 export function describeSchedule(recurring: Recurring): string {
   const day = Number(recurring.startDate.slice(8, 10));
+  let base = '';
 
   switch (recurring.frequency) {
     case 'daily':
-      return 'Every day';
+      base = 'Every day';
+      break;
     case 'weekly':
-      return `Every ${WEEKDAY_LONG[dayOfWeek(recurring.startDate)] ?? 'week'}`;
+      base = `Every ${WEEKDAY_LONG[dayOfWeek(recurring.startDate)] ?? 'week'}`;
+      break;
     case 'monthly':
-      return `Every month on the ${ordinal(day)}`;
+      base = `Every month on the ${ordinal(day)}`;
+      break;
     case 'yearly':
-      return `Every year on ${recurring.startDate.slice(8, 10)}/${recurring.startDate.slice(5, 7)}`;
+      base = `Every year on ${recurring.startDate.slice(8, 10)}/${recurring.startDate.slice(5, 7)}`;
+      break;
   }
+
+  if (recurring.endDate) {
+    base += ` · until ${recurring.endDate.slice(8, 10)}/${recurring.endDate.slice(5, 7)}/${recurring.endDate.slice(2, 4)}`;
+  }
+
+  return base;
 }
 
 /** "₹28,000 · Every month on the 5th" for a one-line summary. */

@@ -3,7 +3,7 @@
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { today as todayISO } from '@/domain/dates';
+import { addMonths, today as todayISO, type ISODate } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
 import { FREQUENCY_LABEL, type Direction, type Frequency, type Recurring } from '@/domain/types';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,9 @@ export function RecurringSheet({
   const [direction, setDirection] = useState<Direction>('out');
   const [frequency, setFrequency] = useState<Frequency>('monthly');
   const [startDate, setStartDate] = useState(todayISO());
+  const [endMode, setEndMode] = useState<'never' | 'months' | 'date'>('never');
+  const [installments, setInstallments] = useState('12');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [accountId, setAccountId] = useState('');
   const [counterAccountId, setCounterAccountId] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -62,6 +65,13 @@ export function RecurringSheet({
     setDirection(recurring?.direction ?? 'out');
     setFrequency(recurring?.frequency ?? 'monthly');
     setStartDate(recurring?.startDate ?? todayISO());
+    if (recurring?.endDate) {
+      setEndMode('date');
+      setCustomEndDate(recurring.endDate);
+    } else {
+      setEndMode('never');
+      setCustomEndDate('');
+    }
     setAccountId(recurring?.accountId ?? ledger.accounts[0]?.id ?? '');
     setCounterAccountId(recurring?.counterAccountId ?? '');
     setCategoryId(recurring?.categoryId ?? '');
@@ -93,6 +103,16 @@ export function RecurringSheet({
 
     setBusy(true);
     try {
+      let finalEndDate: ISODate | undefined = undefined;
+      if (endMode === 'date' && customEndDate) {
+        finalEndDate = customEndDate;
+      } else if (endMode === 'months') {
+        const count = parseInt(installments, 10);
+        if (!isNaN(count) && count > 0) {
+          finalEndDate = addMonths(startDate, count);
+        }
+      }
+
       const shared = {
         description: trimmed,
         amount: paise,
@@ -102,6 +122,7 @@ export function RecurringSheet({
         categoryId: direction === 'transfer' ? undefined : categoryId || undefined,
         frequency,
         startDate,
+        endDate: finalEndDate,
         isActive: true,
         // A varying amount can never be posted unattended: the number would be a
         // guess, and a guess written into the ledger stops being a guess.
@@ -190,9 +211,40 @@ export function RecurringSheet({
           </Field>
         </div>
 
-        <Field label="Starting" hint="The first date it happens. The rest is worked out from there.">
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Starting" hint="First payment date">
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </Field>
+          <Field label="Duration" hint="When it stops repeating">
+            <Select
+              value={endMode}
+              onChange={(e) => setEndMode(e.target.value as 'never' | 'months' | 'date')}
+            >
+              <option value="never">Runs indefinitely</option>
+              <option value="months">Fixed installments (EMIs)</option>
+              <option value="date">Specific end date</option>
+            </Select>
+          </Field>
+        </div>
+
+        {endMode === 'months' ? (
+          <Field label="Number of installments / months" hint="e.g. 6, 12, 24, 36 months for loans or EMIs">
+            <Input
+              type="number"
+              min="1"
+              max="240"
+              value={installments}
+              onChange={(e) => setInstallments(e.target.value)}
+              placeholder="12"
+            />
+          </Field>
+        ) : null}
+
+        {endMode === 'date' ? (
+          <Field label="End date" hint="Stops repeating after this date">
+            <Input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} />
+          </Field>
+        ) : null}
 
         <Field label={isTransfer ? 'From account' : 'Account'}>
           <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
