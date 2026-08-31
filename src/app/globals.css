@@ -109,6 +109,14 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Premium SVG Icon Refinement: eliminates chunky default wireframes */
+  svg.lucide {
+    stroke-width: 1.75px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+  }
 }
 
 @layer utilities {

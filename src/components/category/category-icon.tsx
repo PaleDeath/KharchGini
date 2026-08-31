@@ -214,7 +214,7 @@ export function CategoryIcon({
   const Icon = (name ? ICONS[name] : undefined) ?? CircleDashed;
   return (
     <Icon
-      className={cn('h-4 w-4', className)}
+      className={cn('h-4 w-4 stroke-[1.8]', className)}
       style={color ? { color } : undefined}
       aria-hidden
     />
@@ -222,8 +222,8 @@ export function CategoryIcon({
 }
 
 /**
- * The icon inside its own tinted disc — the shape used in every list row.
- * Kept here so a category looks identical wherever it appears.
+ * The icon inside its own tinted squircle — crafted with a subtle gradient,
+ * soft ambient glow, and hairline border for an Apple/Linear grade finish.
  */
 export function CategoryChip({
   name,
@@ -234,15 +234,24 @@ export function CategoryChip({
   color?: string;
   className?: string;
 }) {
+  const customColor = color || '#0d9488';
   return (
     <span
       className={cn(
-        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-raised',
+        'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-xs transition-all',
         className,
       )}
-      style={color ? { backgroundColor: `${color}1f` } : undefined}
+      style={{
+        background: `linear-gradient(135deg, ${customColor}26 0%, ${customColor}0d 100%)`,
+        border: `1px solid ${customColor}33`,
+        boxShadow: `0 2px 6px -1px ${customColor}18`,
+      }}
     >
-      <CategoryIcon name={name} color={color} />
+      <CategoryIcon
+        name={name}
+        color={customColor}
+        className="h-4 w-4 drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.08)]"
+      />
     </span>
   );
 }

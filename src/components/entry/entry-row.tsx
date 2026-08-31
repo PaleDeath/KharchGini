@@ -67,10 +67,10 @@ export function EntryRow({
 
       {isTransfer ? (
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-raised text-muted"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-raised/80 text-muted shadow-xs"
           aria-hidden
         >
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4 stroke-[1.8]" />
         </span>
       ) : (
         <CategoryChip name={category?.icon} color={category?.color} />
