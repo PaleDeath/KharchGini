@@ -7,7 +7,7 @@ import { formatMonth, type MonthKey } from '@/domain/dates';
 import { suggestAllocation } from '@/domain/derive';
 import { formatAmount, formatMoney, parseAmount } from '@/domain/money';
 import { Button } from '@/components/ui/button';
-import { CategorySelect } from '@/components/ui/category-select';
+import { CategoryPicker } from '@/components/category/category-picker-modal';
 import { Field, Input, Switch } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
@@ -131,8 +131,8 @@ export function EnvelopeSheet({
       }
     >
       <div className="space-y-3.5">
-        <Field label="Category">
-          <CategorySelect
+        <Field label="Category" hint="Select the envelope to allocate funds">
+          <CategoryPicker
             value={selected}
             onChange={setSelected}
             categories={spendable}

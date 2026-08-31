@@ -30,7 +30,7 @@ import {
 import { formatMoney } from '@/domain/money';
 import { describeSchedule, dueInMonth, monthlyEquivalent } from '@/domain/recurring';
 import type { EnvelopeStatus, Goal, GoalProgress, Recurring } from '@/domain/types';
-import { CategoryChip } from '@/components/category/category-icon';
+import { CategoryChip, CategoryIcon } from '@/components/category/category-icon';
 import { CategoryEntriesSheet } from '@/components/category/category-entries-sheet';
 import { EnvelopeSheet } from '@/components/plan/envelope-sheet';
 import { GoalSheet } from '@/components/plan/goal-sheet';
@@ -262,38 +262,64 @@ export default function PlanPage() {
             />
           </Card>
         ) : (
-          <div className="stagger space-y-2">
-            {goals.map((progress) => (
-              <button
-                key={progress.goal.id}
-                type="button"
-                onClick={() => {
-                  setGoal(progress.goal);
-                  setGoalOpen(true);
-                }}
-                className="flex w-full items-start gap-3 rounded-card border border-line bg-surface px-4 py-3.5 text-left transition-colors hover:bg-raised"
-              >
-                <CategoryChip name={progress.goal.icon} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-3">
-                    <span className="truncate text-sm font-medium text-ink">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {goals.map((progress) => {
+              const pct =
+                Math.min(100, Math.round((progress.saved / progress.goal.targetAmount) * 100)) || 0;
+              return (
+                <button
+                  key={progress.goal.id}
+                  type="button"
+                  onClick={() => {
+                    setGoal(progress.goal);
+                    setGoalOpen(true);
+                  }}
+                  className="group relative flex flex-col justify-between rounded-2xl border border-line bg-surface/90 p-4 text-left transition-all duration-200 hover:border-accent/50 hover:bg-raised/70 hover:shadow-xs active:scale-[0.98]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 shadow-xs">
+                      <CategoryIcon name={progress.goal.icon} color="#f59e0b" className="h-5 w-5" />
+                    </span>
+                    <span className="rounded-full bg-raised px-2.5 py-1 text-[11px] font-bold text-muted group-hover:text-ink transition-colors">
+                      {pct}%
+                    </span>
+                  </div>
+
+                  <div className="mt-3">
+                    <h4 className="truncate text-[15px] font-bold text-ink">
                       {progress.goal.name}
-                    </span>
-                    <span className="shrink-0 text-[13px] text-muted">
-                      <Money value={progress.saved} tone="plain" /> of{' '}
-                      <Money value={progress.goal.targetAmount} tone="plain" />
-                    </span>
-                  </span>
-                  <Bar
-                    value={progress.saved}
-                    max={progress.goal.targetAmount}
-                    tone={progress.onTrack === false ? 'warn' : 'good'}
-                    className="mt-2"
-                  />
-                  <span className="mt-1.5 block text-[12px] text-faint">{goalLine(progress)}</span>
-                </span>
-              </button>
-            ))}
+                    </h4>
+                    {progress.goal.targetDate ? (
+                      <p className="text-[11px] text-faint mt-0.5">
+                        Target: {formatDay(progress.goal.targetDate)}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-faint mt-0.5">Ongoing fund</p>
+                    )}
+                  </div>
+
+                  <div className="mt-3.5 space-y-1.5">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="font-semibold text-ink">
+                        {formatMoney(progress.saved)}
+                      </span>
+                      <span className="text-faint">
+                        of {formatMoney(progress.goal.targetAmount)}
+                      </span>
+                    </div>
+                    <Bar
+                      value={progress.saved}
+                      max={progress.goal.targetAmount}
+                      tone={progress.onTrack === false ? 'warn' : 'good'}
+                      className="h-2 rounded-full"
+                    />
+                    <p className="text-[11px] text-faint truncate pt-0.5">
+                      {goalLine(progress)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </Section>

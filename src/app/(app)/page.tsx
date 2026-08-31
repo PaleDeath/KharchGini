@@ -154,73 +154,91 @@ export default function TodayPage() {
       />
 
       {/* The hero. Everything else on this screen exists to explain it. */}
-      <Card className={cn('overflow-hidden', sts.negative && 'border-bad/40')}>
-        <div className="px-4 pb-3 pt-4">
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-3xl border bg-gradient-to-br from-surface via-surface to-raised/90 p-5 shadow-sm transition-all',
+          sts.negative ? 'border-bad/40 bg-bad/5' : 'border-line hover:border-accent/30',
+        )}
+      >
+        {/* Subtle Ambient Radial Glow */}
+        <div
+          className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full blur-3xl opacity-30"
+          style={{
+            background: sts.negative
+              ? 'radial-gradient(circle, rgba(239,68,68,0.5) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(16,185,129,0.5) 0%, transparent 70%)',
+          }}
+        />
+
+        <div className="relative z-10">
           <div className="flex items-center justify-between">
-            <p className="text-[13px] font-medium text-muted">Safe to spend</p>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Safe to Spend
+            </span>
             {sts.negative ? (
-              <Badge tone="bad">Deficit Risk</Badge>
+              <Badge tone="bad" className="font-semibold shadow-xs">Deficit Risk</Badge>
             ) : sts.perDay >= 50_000 ? (
-              <Badge tone="good">Healthy Runway</Badge>
+              <Badge tone="good" className="font-semibold shadow-xs">Healthy Runway</Badge>
             ) : (
-              <Badge tone="warn">Tight Pace</Badge>
+              <Badge tone="warn" className="font-semibold shadow-xs">Tight Pace</Badge>
             )}
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
+
+          <div className="mt-2.5 flex items-baseline gap-2">
             <Money
               value={sts.amount}
-              className={cn('text-hero font-semibold', sts.negative && 'text-bad')}
+              className={cn(
+                'text-3xl sm:text-4xl font-extrabold tracking-tight',
+                sts.negative ? 'text-bad' : 'text-ink',
+              )}
               tone="plain"
               animate
             />
           </div>
-          <p className="mt-1.5 text-[13px] text-muted">
-            {sts.negative ? (
-              <span className="text-bad">
-                Committed money exceeds what is in your accounts.
-              </span>
-            ) : (
-              <>
-                <Money value={sts.perDay} className="font-medium text-ink" /> a day for{' '}
-                {sts.daysLeft} {sts.daysLeft === 1 ? 'day' : 'days'}, to {formatDayFull(sts.until)}
-              </>
-            )}
-          </p>
-        </div>
 
-        <div className="flex border-t border-line divide-x divide-line">
-          <button
-            type="button"
-            onClick={() => setShowMath((v) => !v)}
-            className="flex flex-1 items-center justify-between px-4 py-2.5 text-[12px] text-faint transition-colors hover:bg-raised"
-          >
-            {showMath ? 'Hide breakdown' : 'Why this number?'}
-            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMath && 'rotate-180')} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowRunway((v) => !v)}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 text-[12px] text-accent transition-colors hover:bg-raised font-medium"
-          >
-            {showRunway ? 'Hide graph' : 'Runway graph'}
-          </button>
-        </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-raised/90 border border-line/60 px-2.5 py-1 text-xs text-ink font-semibold">
+              <Money value={sts.perDay} tone="plain" /> / day
+            </span>
+            <span className="text-xs text-muted">
+              for {sts.daysLeft} {sts.daysLeft === 1 ? 'day' : 'days'} (until {formatDay(sts.until)})
+            </span>
+          </div>
 
-        {showMath ? (
-          <dl className="space-y-1.5 bg-raised/50 px-4 py-3 text-[13px]">
-            <MathRow label="In your spendable accounts" value={sts.liquid} />
-            <MathRow label="Bills due before then" value={-sts.committedBills} />
-            <MathRow label="Reserved for needs you budgeted" value={-sts.reservedNeeds} />
-            <MathRow label="Going to goals" value={-sts.goalFunding} />
-            <Divider className="my-1.5" />
-            <MathRow label="Safe to spend" value={sts.amount} strong />
-            <p className="pt-1 text-[12px] leading-relaxed text-faint">
-              Savings accounts and anything marked as set aside are not counted here, even though
-              they are yours.
-            </p>
-          </dl>
-        ) : null}
-      </Card>
+          {/* Action pills row */}
+          <div className="mt-4 flex items-center gap-2 pt-2 border-t border-line/60">
+            <button
+              type="button"
+              onClick={() => setShowMath((v) => !v)}
+              className="flex items-center gap-1.5 rounded-xl border border-line/80 bg-raised/70 px-3 py-1.5 text-xs font-medium text-muted hover:border-accent/40 hover:bg-surface hover:text-ink transition-all active:scale-95"
+            >
+              {showMath ? 'Hide breakdown' : 'Why this number?'}
+              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', showMath && 'rotate-180')} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRunway((v) => !v)}
+              className="flex items-center gap-1.5 rounded-xl border border-line/80 bg-raised/70 px-3 py-1.5 text-xs font-medium text-accent hover:border-accent/50 hover:bg-accent/10 transition-all active:scale-95 ml-auto"
+            >
+              {showRunway ? 'Hide graph' : 'Runway graph 📈'}
+            </button>
+          </div>
+
+          {showMath ? (
+            <dl className="mt-3 space-y-1.5 rounded-2xl bg-surface/90 border border-line/70 p-3.5 text-[13px] animate-in fade-in zoom-in-95 duration-150">
+              <MathRow label="In spendable accounts" value={sts.liquid} />
+              <MathRow label="Bills due before then" value={-sts.committedBills} />
+              <MathRow label="Reserved for needs you budgeted" value={-sts.reservedNeeds} />
+              <MathRow label="Going to goals" value={-sts.goalFunding} />
+              <Divider className="my-1.5" />
+              <MathRow label="Safe to spend" value={sts.amount} strong />
+              <p className="pt-1 text-[12px] leading-relaxed text-faint">
+                Savings accounts and anything marked as set aside are not counted here, even though they are yours.
+              </p>
+            </dl>
+          ) : null}
+        </div>
+      </div>
 
       {/* Runway Graph */}
       {showRunway ? (
@@ -278,24 +296,34 @@ export default function TodayPage() {
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
-        <Card className="px-4 py-3">
-          <p className="text-[12px] text-faint">Spent today</p>
+        <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface/90 p-4 transition-all duration-200 hover:border-line/80 hover:bg-raised/50 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted">Spent today</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
+              <Flame className="h-3.5 w-3.5" />
+            </span>
+          </div>
           <Money
             value={spentToday}
-            className="mt-0.5 block text-lg font-semibold"
+            className="mt-2 block text-xl font-bold text-ink"
             tone="plain"
             animate
           />
-        </Card>
-        <Card className="px-4 py-3">
-          <p className="text-[12px] text-faint">This week</p>
+        </div>
+        <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface/90 p-4 transition-all duration-200 hover:border-line/80 hover:bg-raised/50 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted">This week</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-teal-500/10 text-teal-500">
+              <TrendingDown className="h-3.5 w-3.5" />
+            </span>
+          </div>
           <Money
             value={spentThisWeek}
-            className="mt-0.5 block text-lg font-semibold"
+            className="mt-2 block text-xl font-bold text-ink"
             tone="plain"
             animate
           />
-        </Card>
+        </div>
       </div>
 
       {bills.length > 0 ? (

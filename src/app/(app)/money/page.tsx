@@ -15,6 +15,7 @@ import {
 import { accountBalances, byId, entriesBetween, totalIn, totalOut } from '@/domain/derive';
 import { formatAmount } from '@/domain/money';
 import { ACCOUNT_TYPE_LABEL, isLiability, type Direction, type Entry } from '@/domain/types';
+import { AccountPicker, getAccountBadgeColor, getAccountIcon } from '@/components/account/account-picker-modal';
 import { AccountSheet } from '@/components/account/account-sheet';
 import { EntryRow } from '@/components/entry/entry-row';
 import { EntrySheet } from '@/components/entry/entry-sheet';
@@ -218,7 +219,7 @@ export default function MoneyPage() {
       </header>
 
       {/* Balances first: this is where the money actually is. */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:-mx-8 md:px-8">
+      <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1.5 no-scrollbar md:-mx-8 md:px-8">
         {ledger.accounts
           .filter((account) => !account.archived)
           .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -233,30 +234,42 @@ export default function MoneyPage() {
                   onClick={() => setAccountId(active ? null : account.id)}
                   onDoubleClick={() => setEditingAccountId(account.id)}
                   className={cn(
-                    'w-36 rounded-card border px-3.5 py-3 text-left transition-colors',
-                    active ? 'border-accent bg-accent/8' : 'border-line bg-surface hover:bg-raised',
+                    'w-40 rounded-2xl border p-3.5 text-left transition-all duration-150 active:scale-[0.98]',
+                    active
+                      ? 'border-accent bg-accent/12 shadow-xs ring-1.5 ring-accent/40'
+                      : 'border-line bg-surface/90 hover:border-accent/40 hover:bg-raised/70',
                   )}
                 >
-                  <p className="truncate text-[12px] text-faint pr-5">{account.name}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border',
+                        getAccountBadgeColor(account.type),
+                      )}
+                    >
+                      {getAccountIcon(account.type)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingAccountId(account.id);
+                      }}
+                      title="Edit account"
+                      className="rounded-lg p-1 text-faint hover:text-ink hover:bg-raised transition-all"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <p className="mt-2.5 truncate text-[13px] font-semibold text-ink">{account.name}</p>
                   <Money
                     value={owed ? Math.abs(balance) : balance}
-                    className="mt-0.5 block text-[15px] font-semibold"
+                    className="mt-0.5 block text-base font-bold text-ink"
                     tone={balance < 0 && !owed ? 'bad' : 'plain'}
                   />
-                  <p className="mt-0.5 truncate text-[11px] text-faint">
-                    {owed ? 'owed' : ACCOUNT_TYPE_LABEL[account.type].toLowerCase()}
+                  <p className="mt-0.5 truncate text-[10px] uppercase tracking-wider text-faint">
+                    {owed ? 'owed balance' : ACCOUNT_TYPE_LABEL[account.type]}
                   </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingAccountId(account.id);
-                  }}
-                  title="Edit account"
-                  className="absolute top-2 right-2 rounded-md p-1 text-faint hover:text-ink hover:bg-raised transition-all md:opacity-0 md:group-hover:opacity-100"
-                >
-                  <Pencil className="h-3 w-3" />
                 </button>
               </div>
             );
@@ -265,9 +278,11 @@ export default function MoneyPage() {
         <button
           type="button"
           onClick={() => setAddingAccount(true)}
-          className="flex w-36 shrink-0 flex-col items-center justify-center gap-1 rounded-card border border-dashed border-line px-3.5 py-3 text-[12px] text-faint transition-colors hover:border-accent hover:text-accent"
+          className="flex w-36 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-raised/30 p-3.5 text-xs text-muted transition-all hover:border-accent hover:text-accent hover:bg-accent/5 active:scale-95"
         >
-          <Plus className="h-4 w-4" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-raised text-faint group-hover:text-accent">
+            <Plus className="h-4 w-4" />
+          </span>
           Add account
         </button>
       </div>

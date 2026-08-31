@@ -7,8 +7,8 @@ import { today as todayISO } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
 import type { Direction, Entry } from '@/domain/types';
 import { Button } from '@/components/ui/button';
-import { CategorySelect } from '@/components/ui/category-select';
-import { CustomSelect } from '@/components/ui/custom-select';
+import { AccountPicker } from '@/components/account/account-picker-modal';
+import { CategoryPicker } from '@/components/category/category-picker-modal';
 import { Field, Input, Segmented, Switch, Textarea } from '@/components/ui/input';
 import { QuickDatePicker } from '@/components/ui/quick-date-picker';
 import { Sheet } from '@/components/ui/sheet';
@@ -238,19 +238,19 @@ export function EntrySheet({
         </Field>
 
         <Field label={isTransfer ? 'From account' : 'Account'}>
-          <CustomSelect
+          <AccountPicker
             value={accountId}
             onChange={setAccountId}
-            options={accountOptions}
+            accounts={accounts}
           />
         </Field>
 
         {isTransfer ? (
           <Field label="To account">
-            <CustomSelect
+            <AccountPicker
               value={counterAccountId}
               onChange={setCounterAccountId}
-              options={counterAccountOptions}
+              accounts={accounts.filter((a) => a.id !== accountId)}
               placeholder="Choose destination account…"
             />
           </Field>
@@ -259,7 +259,7 @@ export function EntrySheet({
             label="Category"
             hint="Changing this teaches the app how to file this merchant next time."
           >
-            <CategorySelect
+            <CategoryPicker
               value={categoryId}
               onChange={setCategoryId}
               categories={categories}

@@ -7,7 +7,8 @@ import { addMonths, today as todayISO, type ISODate } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
 import { FREQUENCY_LABEL, type Direction, type Frequency, type Recurring } from '@/domain/types';
 import { Button } from '@/components/ui/button';
-import { CategorySelect } from '@/components/ui/category-select';
+import { AccountPicker } from '@/components/account/account-picker-modal';
+import { CategoryPicker } from '@/components/category/category-picker-modal';
 import { CustomSelect, type Option } from '@/components/ui/custom-select';
 import { Field, Input, Segmented, Switch } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
@@ -312,25 +313,25 @@ export function RecurringSheet({
         ) : null}
 
         <Field label={isTransfer ? 'From account' : 'Account'}>
-          <CustomSelect
+          <AccountPicker
             value={accountId}
             onChange={setAccountId}
-            options={accountOptions}
+            accounts={accounts}
           />
         </Field>
 
         {isTransfer ? (
           <Field label="To account">
-            <CustomSelect
+            <AccountPicker
               value={counterAccountId}
               onChange={setCounterAccountId}
-              options={counterAccountOptions}
+              accounts={accounts.filter((a) => a.id !== accountId)}
               placeholder="Choose destination account…"
             />
           </Field>
         ) : (
           <Field label="Category">
-            <CategorySelect
+            <CategoryPicker
               value={categoryId}
               onChange={setCategoryId}
               categories={categories}

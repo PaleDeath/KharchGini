@@ -7,7 +7,7 @@ import { formatAmount, parseAmount } from '@/domain/money';
 import type { Goal } from '@/domain/types';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { Button } from '@/components/ui/button';
-import { CustomSelect } from '@/components/ui/custom-select';
+import { AccountPicker } from '@/components/account/account-picker-modal';
 import { Field, Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
@@ -217,10 +217,10 @@ export function GoalSheet({
           label="Money lives in"
           hint="Progress is this account's balance. Move money there and the bar moves; nothing else will."
         >
-          <CustomSelect
+          <AccountPicker
             value={accountId}
             onChange={setAccountId}
-            options={accountOptions}
+            accounts={candidates}
             placeholder="Choose an account…"
           />
         </Field>
