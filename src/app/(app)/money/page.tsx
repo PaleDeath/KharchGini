@@ -544,96 +544,155 @@ export default function MoneyPage() {
         </div>
       ) : null}
 
-      <div className="space-y-2">
-        <div className="flex gap-2">
+      {/* Filter and Search Controls */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search description, tag, amount…"
-              className="pl-9 pr-9 text-sm"
+              className="pl-10 pr-9 text-sm rounded-2xl bg-surface/90"
             />
             {query ? (
               <button
                 type="button"
                 onClick={() => setQuery('')}
                 aria-label="Clear"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-faint hover:text-ink"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-faint hover:text-ink"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : null}
           </div>
-          <Button
-            variant={showFilters ? 'secondary' : 'outline'}
-            size="icon"
-            className="h-11 w-11"
-            onClick={() => setShowFilters((v) => !v)}
-            aria-label="Filters"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </Button>
         </div>
 
-        {showFilters ? (
-          <div className="space-y-2 rounded-card border border-line bg-surface p-3">
+        {/* Visible Range and Type Filter Pills */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1">
             <Segmented
               options={[
-                { value: 'this', label: formatMonthShort(currentMonth()) },
-                { value: 'last', label: formatMonthShort(addMonthsToKey(currentMonth(), -1)) },
+                { value: 'this', label: `${formatMonthShort(currentMonth())} (Current)` },
+                { value: 'last', label: `${formatMonthShort(addMonthsToKey(currentMonth(), -1))} (Last)` },
                 { value: 'all', label: 'All time' },
               ]}
               value={range}
               onChange={setRange}
             />
+          </div>
+          <div className="flex-1">
             <Segmented
               options={[
-                { value: 'all', label: 'Everything' },
-                { value: 'out', label: 'Out' },
-                { value: 'in', label: 'In' },
+                { value: 'all', label: 'All' },
+                { value: 'out', label: 'Spends' },
+                { value: 'in', label: 'Income' },
                 { value: 'transfer', label: 'Moves' },
               ]}
               value={filter}
               onChange={setFilter}
             />
           </div>
+        </div>
+
+        {accountId ? (
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-xs text-muted">Filtering by account:</span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">
+              {accounts.get(accountId)?.name}
+              <button
+                type="button"
+                onClick={() => setAccountId(null)}
+                className="hover:text-ink"
+                title="Clear account filter"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          </div>
         ) : null}
       </div>
 
-      <Card className="flex items-center justify-around px-4 py-3">
+      <Card className="flex items-center justify-around px-4 py-3 rounded-2xl shadow-2xs">
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wide text-faint">In</p>
-          <Money value={moneyIn} className="text-sm font-semibold" tone="good" animate />
+          <p className="text-[11px] uppercase tracking-wider text-faint font-semibold">In</p>
+          <Money value={moneyIn} className="text-base font-bold" tone="good" animate />
         </div>
-        <div className="h-8 w-px bg-line" />
+        <div className="h-8 w-px bg-line/80" />
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wide text-faint">Out</p>
-          <Money value={moneyOut} className="text-sm font-semibold" tone="plain" animate />
+          <p className="text-[11px] uppercase tracking-wider text-faint font-semibold">Out</p>
+          <Money value={moneyOut} className="text-base font-bold text-ink" tone="plain" animate />
         </div>
-        <div className="h-8 w-px bg-line" />
+        <div className="h-8 w-px bg-line/80" />
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wide text-faint">Net</p>
+          <p className="text-[11px] uppercase tracking-wider text-faint font-semibold">Net</p>
           <Money
             value={moneyIn - moneyOut}
             signed
-            className="text-sm font-semibold"
+            className="text-base font-bold"
             animate
           />
         </div>
       </Card>
 
       {days.length === 0 ? (
-        <Card>
-          <Empty
-            icon={<Search className="h-6 w-6" />}
-            title={query ? 'Nothing matches' : 'Nothing in this window'}
-            hint={
-              query
-                ? 'Try fewer words, or widen the range in the filters.'
-                : 'Change the range, or add something with the + button.'
-            }
-          />
+        <Card className="p-6 text-center space-y-3 rounded-2xl">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-raised text-faint">
+            <Search className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-ink">
+              {query
+                ? 'No transactions match your search'
+                : range === 'this'
+                ? `No transactions in ${formatMonthShort(currentMonth())} yet`
+                : 'No transactions in this window'}
+            </h3>
+            <p className="text-xs text-muted max-w-sm mx-auto mt-1">
+              {query
+                ? 'Try a different search term or clear the filter.'
+                : range === 'this'
+                ? `It is currently ${formatMonthShort(currentMonth())} 1st. Your previous transactions are in ${formatMonthShort(addMonthsToKey(currentMonth(), -1))}.`
+                : 'Try changing the time range or adding a new transaction.'}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            {range === 'this' ? (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setRange('last')}
+                  className="text-xs rounded-xl shadow-xs"
+                >
+                  View {formatMonthShort(addMonthsToKey(currentMonth(), -1))} Transactions
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRange('all')}
+                  className="text-xs rounded-xl"
+                >
+                  View All Time
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setRange('all');
+                  setFilter('all');
+                  setAccountId(null);
+                  setQuery('');
+                }}
+                className="text-xs rounded-xl"
+              >
+                Reset All Filters
+              </Button>
+            )}
+          </div>
         </Card>
       ) : (
         <Section>
