@@ -7,6 +7,7 @@ import {
   Sparkles,
   TriangleAlert,
   Wand2,
+  Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -211,9 +212,14 @@ export function CommandBar({
                 setText(preset.command);
                 inputRef.current?.focus();
               }}
-              className="shrink-0 rounded-full border border-line bg-surface/80 px-2.5 py-1 text-[12px] font-medium text-ink hover:border-accent hover:bg-raised transition-all active:scale-95"
+              className="flex items-center gap-1.5 shrink-0 rounded-full border border-line/80 bg-surface/90 px-3 py-1.5 text-[12px] font-medium text-ink hover:border-accent/50 hover:bg-raised shadow-2xs transition-all active:scale-95"
             >
-              {preset.label}
+              <CategoryIcon
+                name={preset.iconName}
+                color={preset.iconColor}
+                className="h-3.5 w-3.5 stroke-[1.8]"
+              />
+              <span>{preset.name}</span>
             </button>
           ))}
         </div>
@@ -251,7 +257,10 @@ function Examples({ onPick }: { onPick: (value: string) => void }) {
         <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
           Natural Language & SMS
         </p>
-        <span className="text-[11px] text-accent font-medium">⚡ Instant parse</span>
+        <span className="text-[11px] text-accent font-medium flex items-center gap-1">
+          <Zap className="h-3 w-3" />
+          Instant parse
+        </span>
       </div>
 
       <div className="rounded-xl border border-line/60 bg-raised/40 p-2.5 text-[12px] text-muted space-y-1">

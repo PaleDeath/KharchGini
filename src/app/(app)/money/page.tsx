@@ -274,7 +274,7 @@ export default function MoneyPage() {
 
       {ledger.accounts.filter((a) => !a.archived).length > 0 ? (
         <p className="-mt-3 px-1 text-[11px] text-faint">
-          Tap to filter, tap ✏️ or double-tap to edit.
+          Tap to filter, tap edit (or double-tap) to configure.
           {accountId ? (
             <button
               type="button"

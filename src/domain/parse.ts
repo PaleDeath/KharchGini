@@ -199,21 +199,23 @@ export function findAccount(accounts: Account[], token: string): Account | undef
 /* -------------------------------------------------------------------------- */
 
 export interface QuickPreset {
-  label: string;
+  id: string;
+  name: string;
   command: string;
   categoryHint?: string;
-  icon?: string;
+  iconName: string;
+  iconColor: string;
 }
 
 export const QUICK_PRESETS: QuickPreset[] = [
-  { label: '☕ Chai', command: '20 chai', categoryHint: 'food' },
-  { label: '🍛 Lunch', command: '250 lunch', categoryHint: 'food' },
-  { label: '🛺 Auto / Cab', command: '120 auto to office', categoryHint: 'transport' },
-  { label: '🛒 Groceries', command: '850 groceries', categoryHint: 'groceries' },
-  { label: '☕ Coffee', command: '160 cold brew', categoryHint: 'food' },
-  { label: '💊 Pharmacy', command: '320 medicines', categoryHint: 'health' },
-  { label: '⛽ Petrol', command: '1500 petrol', categoryHint: 'transport' },
-  { label: '🍽️ Dinner', command: '1200 dinner with friends', categoryHint: 'eating-out' },
+  { id: 'chai', name: 'Chai', command: '20 chai', categoryHint: 'food', iconName: 'coffee', iconColor: '#d97706' },
+  { id: 'lunch', name: 'Lunch', command: '250 lunch', categoryHint: 'food', iconName: 'utensils', iconColor: '#f43f5e' },
+  { id: 'auto', name: 'Auto / Cab', command: '120 auto to office', categoryHint: 'transport', iconName: 'car', iconColor: '#0d9488' },
+  { id: 'groceries', name: 'Groceries', command: '850 groceries', categoryHint: 'groceries', iconName: 'shopping-bag', iconColor: '#16a34a' },
+  { id: 'coffee', name: 'Coffee', command: '160 cold brew', categoryHint: 'food', iconName: 'coffee', iconColor: '#ea580c' },
+  { id: 'pharmacy', name: 'Pharmacy', command: '320 medicines', categoryHint: 'health', iconName: 'pill', iconColor: '#ef4444' },
+  { id: 'petrol', name: 'Petrol', command: '1500 petrol', categoryHint: 'transport', iconName: 'fuel', iconColor: '#f97316' },
+  { id: 'dinner', name: 'Dinner', command: '1200 dinner with friends', categoryHint: 'eating-out', iconName: 'utensils', iconColor: '#6366f1' },
 ];
 
 /**
