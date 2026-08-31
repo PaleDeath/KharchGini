@@ -37,6 +37,7 @@ import { CategoryIcon } from '@/components/category/category-icon';
 import { Button } from '@/components/ui/button';
 import { Input, Segmented, Select } from '@/components/ui/input';
 import { Money, Badge } from '@/components/ui/money';
+import { QuickDatePicker } from '@/components/ui/quick-date-picker';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 
@@ -348,78 +349,77 @@ function Preview({
         }}
       />
 
-      <div className="grid grid-cols-2 gap-2">
-        <label className="col-span-1">
+      <div className="space-y-2.5">
+        <div>
           <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
             Date
           </span>
-          <Input
-            type="date"
+          <QuickDatePicker
             value={entry.date}
-            max={todayISO()}
-            onChange={(e) => onChange({ date: e.target.value })}
-            className="h-10 text-[13px]"
+            onChange={(date) => onChange({ date })}
           />
-        </label>
+        </div>
 
-        <label className="col-span-1">
-          <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
-            {isTransfer ? 'From' : 'Account'}
-          </span>
-          <Select
-            value={entry.accountId}
-            onChange={(e) => onChange({ accountId: e.target.value })}
-            className="h-10 text-[13px]"
-          >
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        <label className="col-span-2">
-          <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
-            {isTransfer ? 'To' : 'Category'}
-          </span>
-          {isTransfer ? (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="col-span-1">
+            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
+              {isTransfer ? 'From' : 'Account'}
+            </span>
             <Select
-              value={entry.counterAccountId ?? ''}
-              onChange={(e) => onChange({ counterAccountId: e.target.value })}
+              value={entry.accountId}
+              onChange={(e) => onChange({ accountId: e.target.value })}
               className="h-10 text-[13px]"
             >
-              <option value="">Choose an account…</option>
-              {accounts
-                .filter((account) => account.id !== entry.accountId)
-                .map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
             </Select>
-          ) : (
-            <Select
-              value={entry.categoryId ?? ''}
-              onChange={(e) => onChange({ categoryId: e.target.value || undefined })}
-              className="h-10 text-[13px]"
-            >
-              <option value="">Uncategorised</option>
-              {categories
-                .filter((category) => {
-                  if (entry.direction === 'in') {
-                    return category.kind === 'income' || category.id === entry.categoryId;
-                  }
-                  return category.kind !== 'income' || category.id === entry.categoryId;
-                })
-                .map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-            </Select>
-          )}
-        </label>
+          </label>
+
+          <label className="col-span-1">
+            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
+              {isTransfer ? 'To' : 'Category'}
+            </span>
+            {isTransfer ? (
+              <Select
+                value={entry.counterAccountId ?? ''}
+                onChange={(e) => onChange({ counterAccountId: e.target.value })}
+                className="h-10 text-[13px]"
+              >
+                <option value="">Choose an account…</option>
+                {accounts
+                  .filter((account) => account.id !== entry.accountId)
+                  .map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+              </Select>
+            ) : (
+              <Select
+                value={entry.categoryId ?? ''}
+                onChange={(e) => onChange({ categoryId: e.target.value || undefined })}
+                className="h-10 text-[13px]"
+              >
+                <option value="">Uncategorised</option>
+                {categories
+                  .filter((category) => {
+                    if (entry.direction === 'in') {
+                      return category.kind === 'income' || category.id === entry.categoryId;
+                    }
+                    return category.kind !== 'income' || category.id === entry.categoryId;
+                  })
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+              </Select>
+            )}
+          </label>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-faint">

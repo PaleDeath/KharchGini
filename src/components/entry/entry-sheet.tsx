@@ -8,6 +8,7 @@ import { formatAmount, parseAmount } from '@/domain/money';
 import type { Direction, Entry } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Segmented, Select, Switch, Textarea } from '@/components/ui/input';
+import { QuickDatePicker } from '@/components/ui/quick-date-picker';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
@@ -179,7 +180,7 @@ export function EntrySheet({
       <div className="space-y-3.5">
         <Segmented options={DIRECTIONS} value={direction} onChange={handleDirectionChange} />
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Amount">
             <Input
               inputMode="decimal"
@@ -188,13 +189,13 @@ export function EntrySheet({
               className="tnum"
             />
           </Field>
-          <Field label="Date">
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Field label="Description">
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
         </div>
 
-        <Field label="Description">
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Field label="Date" hint="Tap a quick preset or pick from calendar">
+          <QuickDatePicker value={date} onChange={setDate} />
         </Field>
 
         <Field label={isTransfer ? 'From account' : 'Account'}>

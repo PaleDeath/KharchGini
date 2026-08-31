@@ -111,6 +111,7 @@ interface DateHit {
 function extractDate(text: string, today: ISODate): { text: string; hit?: DateHit } {
   const patterns: { re: RegExp; resolve: (m: RegExpExecArray) => ISODate | null }[] = [
     { re: /\b(today|tdy)\b/i, resolve: () => today },
+    { re: /\bday before(?: yesterday)?\b/i, resolve: () => addDays(today, -2) },
     { re: /\b(yesterday|yest|ydy)\b/i, resolve: () => addDays(today, -1) },
     { re: /\b(tomorrow|tmrw|tmw)\b/i, resolve: () => addDays(today, 1) },
     {
@@ -118,7 +119,11 @@ function extractDate(text: string, today: ISODate): { text: string; hit?: DateHi
       resolve: (m) => addDays(today, -Number(m[1])),
     },
     {
-      re: /\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/,
+      re: /\blast\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|weds|wed|thurs|thur|thu|fri|sat)\b/i,
+      resolve: (m) => lastWeekday(WEEKDAY_TOKENS[m[1]!.toLowerCase()]!, today, true),
+    },
+    {
+      re: /\b(\d{1,2})(?:st|nd|rd|th)?[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/,
       resolve: (m) => {
         const day = Number(m[1]);
         const month = Number(m[2]);
@@ -129,16 +134,20 @@ function extractDate(text: string, today: ISODate): { text: string; hit?: DateHi
       },
     },
     {
-      re: /\b(\d{1,2})\s+(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\b/i,
+      re: /\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\b/i,
       resolve: (m) => resolveDayMonth(Number(m[1]), MONTH_TOKENS[m[2]!.toLowerCase()]!, today),
     },
     {
-      re: /\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\s+(\d{1,2})\b/i,
+      re: /\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\s+(\d{1,2})(?:st|nd|rd|th)?\b/i,
       resolve: (m) => resolveDayMonth(Number(m[2]), MONTH_TOKENS[m[1]!.toLowerCase()]!, today),
     },
     {
       re: /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|weds|wed|thurs|thur|thu|fri|sat)\b/i,
-      resolve: (m) => lastWeekday(WEEKDAY_TOKENS[m[1]!.toLowerCase()]!, today),
+      resolve: (m) => lastWeekday(WEEKDAY_TOKENS[m[1]!.toLowerCase()]!, today, false),
+    },
+    {
+      re: /\b(?:on\s+)?(\d{1,2})(?:st|nd|rd|th)\b/i,
+      resolve: (m) => resolveBareDay(Number(m[1]), today),
     },
   ];
 
@@ -166,10 +175,28 @@ function resolveDayMonth(day: number, month: number, today: ISODate): ISODate | 
   return candidate > today ? `${year - 1}-${pad(month)}-${pad(day)}` : candidate;
 }
 
+function resolveBareDay(day: number, today: ISODate): ISODate | null {
+  if (day < 1 || day > 31) return null;
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  const todayDay = Number(today.slice(8, 10));
+
+  if (day <= todayDay) {
+    return `${year}-${pad(month)}-${pad(day)}`;
+  } else {
+    // e.g. Today is Aug 5th and user enters 28th -> July 28th
+    const prevMonth = addMonthsToKey(today.slice(0, 7), -1);
+    return `${prevMonth}-${pad(day)}`;
+  }
+}
+
 /** "tue" means the Tuesday just gone, or today if today is Tuesday. */
-function lastWeekday(target: number, today: ISODate): ISODate {
+function lastWeekday(target: number, today: ISODate, forcePreviousWeek = false): ISODate {
   const current = new Date(`${today}T12:00:00Z`).getUTCDay();
-  const back = (current - target + 7) % 7;
+  let back = (current - target + 7) % 7;
+  if (forcePreviousWeek || (back === 0 && forcePreviousWeek)) {
+    back = back === 0 ? 7 : back + 7;
+  }
   return addDays(today, -back);
 }
 
