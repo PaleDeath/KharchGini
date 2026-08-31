@@ -66,6 +66,9 @@ export function AccountSheet({
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('bank');
   const [balanceInput, setBalanceInput] = useState('0');
+  const [creditLimitInput, setCreditLimitInput] = useState('');
+  const [dueDayInput, setDueDayInput] = useState('');
+  const [last4Input, setLast4Input] = useState('');
   const [excluded, setExcluded] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -86,6 +89,9 @@ export function AccountSheet({
     setName(account?.name ?? '');
     setType(account?.type ?? 'bank');
     setBalanceInput(account ? formatAmount(Math.abs(liveBalance)) : '0');
+    setCreditLimitInput(account?.creditLimit ? formatAmount(account.creditLimit) : '');
+    setDueDayInput(account?.billingDueDay ? String(account.billingDueDay) : '');
+    setLast4Input(account?.last4 ?? '');
     setExcluded(account?.excludeFromSafeToSpend === true);
   }, [open, account, liveBalance]);
 
@@ -102,6 +108,10 @@ export function AccountSheet({
       return;
     }
 
+    const parsedLimit = creditLimitInput.trim() ? (parseAmount(creditLimitInput) ?? undefined) : undefined;
+    const parsedDueDay = dueDayInput.trim() ? parseInt(dueDayInput, 10) : undefined;
+    const cleanedLast4 = last4Input.trim().slice(-4);
+
     setBusy(true);
     try {
       if (account) {
@@ -114,6 +124,9 @@ export function AccountSheet({
           name: trimmed,
           type,
           openingBalance,
+          creditLimit: type === 'card' ? parsedLimit : undefined,
+          billingDueDay: type === 'card' && parsedDueDay && parsedDueDay >= 1 && parsedDueDay <= 31 ? parsedDueDay : undefined,
+          last4: type === 'card' && cleanedLast4 ? cleanedLast4 : undefined,
           excludeFromSafeToSpend: excluded || undefined,
         });
       } else {
@@ -122,6 +135,9 @@ export function AccountSheet({
           name: trimmed,
           type,
           openingBalance,
+          creditLimit: type === 'card' ? parsedLimit : undefined,
+          billingDueDay: type === 'card' && parsedDueDay && parsedDueDay >= 1 && parsedDueDay <= 31 ? parsedDueDay : undefined,
+          last4: type === 'card' && cleanedLast4 ? cleanedLast4 : undefined,
           sortOrder: ledger.accounts.length,
           ...(excluded ? { excludeFromSafeToSpend: true } : {}),
         });
@@ -222,7 +238,54 @@ export function AccountSheet({
           />
         </Field>
 
-        {type !== 'card' ? (
+        {type === 'card' ? (
+          <div className="space-y-3.5 rounded-2xl border border-line bg-raised/40 p-3.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-faint">
+              Credit Card Details
+            </p>
+
+            <Field
+              label="Credit Limit"
+              hint="Total approved credit limit. Used to calculate credit utilization ratio."
+            >
+              <Input
+                inputMode="decimal"
+                value={creditLimitInput}
+                onChange={(e) => setCreditLimitInput(e.target.value)}
+                placeholder="e.g. 150000"
+                className="tnum"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field
+                label="Bill Due Day"
+                hint="Day of month (1-31)"
+              >
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={dueDayInput}
+                  onChange={(e) => setDueDayInput(e.target.value)}
+                  placeholder="e.g. 5"
+                />
+              </Field>
+
+              <Field
+                label="Last 4 Digits"
+                hint="For SMS matching"
+              >
+                <Input
+                  maxLength={4}
+                  value={last4Input}
+                  onChange={(e) => setLast4Input(e.target.value)}
+                  placeholder="e.g. 4567"
+                />
+              </Field>
+            </div>
+          </div>
+        ) : (
           <div className="rounded-xl bg-raised px-3.5 py-3">
             <Switch
               checked={excluded}
@@ -231,7 +294,7 @@ export function AccountSheet({
               hint="Counts towards net worth, never towards Safe to Spend."
             />
           </div>
-        ) : null}
+        )}
       </div>
     </Sheet>
   );

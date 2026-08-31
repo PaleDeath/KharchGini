@@ -47,6 +47,12 @@ export interface Account {
    * deposit. Counts toward net worth, never toward Safe to Spend.
    */
   excludeFromSafeToSpend?: boolean;
+  /** Optional credit limit in Paise for credit card accounts. */
+  creditLimit?: Paise;
+  /** Optional day of month (1-31) when credit card bill is due. */
+  billingDueDay?: number;
+  /** Optional last 4 digits of the card. */
+  last4?: string;
   archived?: boolean;
   sortOrder: number;
   createdAt: string;

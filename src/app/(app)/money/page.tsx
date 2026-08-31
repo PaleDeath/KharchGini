@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckSquare, Download, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Check, CheckSquare, CreditCard, Download, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import {
@@ -9,11 +9,12 @@ import {
   endOfMonth,
   formatDay,
   formatMonthShort,
+  monthOf,
   startOfMonth,
   today as todayISO,
 } from '@/domain/dates';
 import { accountBalances, byId, entriesBetween, totalIn, totalOut } from '@/domain/derive';
-import { formatAmount } from '@/domain/money';
+import { formatAmount, formatMoney } from '@/domain/money';
 import { ACCOUNT_TYPE_LABEL, isLiability, type Direction, type Entry } from '@/domain/types';
 import { AccountPicker, getAccountBadgeColor, getAccountIcon } from '@/components/account/account-picker-modal';
 import { AccountSheet } from '@/components/account/account-sheet';
@@ -54,6 +55,46 @@ export default function MoneyPage() {
     () => accountBalances(ledger.accounts, ledger.entries),
     [ledger.accounts, ledger.entries],
   );
+
+  const creditCards = useMemo(
+    () => ledger.accounts.filter((a) => a.type === 'card' && !a.archived),
+    [ledger.accounts],
+  );
+
+  const liquidAccounts = useMemo(
+    () => ledger.accounts.filter((a) => a.type !== 'card' && !a.archived),
+    [ledger.accounts],
+  );
+
+  // Credit Card Metrics
+  const totalCardDebt = useMemo(() => {
+    return creditCards.reduce((acc, card) => {
+      const bal = balances.get(card.id) ?? 0;
+      return acc + (bal < 0 ? Math.abs(bal) : 0);
+    }, 0);
+  }, [creditCards, balances]);
+
+  const totalCreditLimit = useMemo(() => {
+    return creditCards.reduce((acc, card) => acc + (card.creditLimit ?? 0), 0);
+  }, [creditCards]);
+
+  const creditUtilization = useMemo(() => {
+    if (totalCreditLimit <= 0) return 0;
+    return Math.min(100, Math.round((totalCardDebt / totalCreditLimit) * 100));
+  }, [totalCardDebt, totalCreditLimit]);
+
+  const cardSpendsThisMonth = useMemo(() => {
+    const cardIds = new Set(creditCards.map((c) => c.id));
+    const thisMonth = currentMonth();
+    return ledger.entries
+      .filter(
+        (e) =>
+          monthOf(e.date) === thisMonth &&
+          cardIds.has(e.accountId) &&
+          e.direction === 'out',
+      )
+      .reduce((sum, e) => sum + e.amount, 0);
+  }, [creditCards, ledger.entries]);
 
   const window = useMemo(() => {
     if (range === 'all') return ledger.entries;
@@ -300,6 +341,207 @@ export default function MoneyPage() {
             </button>
           ) : null}
         </p>
+      ) : null}
+
+      {/* Dedicated Credit Cards & Spends Section */}
+      {creditCards.length > 0 ? (
+        <div className="rounded-3xl border border-line bg-gradient-to-br from-surface via-surface to-raised/80 p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
+                <CreditCard className="h-4 w-4" />
+              </span>
+              <h2 className="text-sm font-bold tracking-tight text-ink">
+                Credit Cards & Spends
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-faint">Monthly Card Spends:</span>
+              <Money value={cardSpendsThisMonth} tone="plain" className="font-bold text-ink" />
+            </div>
+          </div>
+
+          {/* Utilization Header Banner */}
+          {totalCreditLimit > 0 ? (
+            <div className="rounded-2xl border border-line/70 bg-surface/70 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-ink">Total Credit Utilization</span>
+                  <span
+                    className={cn(
+                      'rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+                      creditUtilization <= 30
+                        ? 'bg-good/12 text-good'
+                        : creditUtilization <= 50
+                        ? 'bg-warn/12 text-warn'
+                        : 'bg-bad/12 text-bad',
+                    )}
+                  >
+                    {creditUtilization}% · {creditUtilization <= 30 ? 'Healthy (<30%)' : creditUtilization <= 50 ? 'Moderate' : 'High'}
+                  </span>
+                </div>
+                <span className="text-faint">
+                  <Money value={totalCardDebt} tone="plain" className="font-semibold text-ink" /> / <Money value={totalCreditLimit} tone="plain" />
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-raised">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-300',
+                    creditUtilization <= 30
+                      ? 'bg-good'
+                      : creditUtilization <= 50
+                      ? 'bg-warn'
+                      : 'bg-bad',
+                  )}
+                  style={{ width: `${Math.min(100, creditUtilization)}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {/* Luxury Credit Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {creditCards.map((card) => {
+              const bal = balances.get(card.id) ?? 0;
+              const owed = bal < 0 ? Math.abs(bal) : 0;
+              const limit = card.creditLimit ?? 0;
+              const available = limit > 0 ? Math.max(0, limit - owed) : 0;
+              const cardUtil = limit > 0 ? Math.min(100, Math.round((owed / limit) * 100)) : 0;
+              const active = accountId === card.id;
+
+              return (
+                <div
+                  key={card.id}
+                  className={cn(
+                    'relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-200 shadow-2xs',
+                    active
+                      ? 'border-accent bg-accent/10 ring-1.5 ring-accent/30'
+                      : 'border-line/80 bg-surface/90 hover:border-accent/40 hover:bg-raised/60',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-sm text-ink">{card.name}</span>
+                        {card.last4 ? (
+                          <span className="rounded bg-raised px-1.5 py-0.5 text-[10px] font-mono text-faint">
+                            •••• {card.last4}
+                          </span>
+                        ) : null}
+                      </div>
+                      {card.billingDueDay ? (
+                        <p className="text-[11px] text-faint mt-0.5">
+                          Bill Due: {card.billingDueDay}th of month
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setEditingAccountId(card.id)}
+                      className="rounded-lg p-1 text-faint hover:text-ink hover:bg-raised transition-colors"
+                      title="Edit Card"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="mt-3.5 space-y-2">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-faint">Current Owed</span>
+                      <Money
+                        value={owed}
+                        className={cn('text-lg font-extrabold', owed > 0 ? 'text-bad' : 'text-good')}
+                        tone="plain"
+                      />
+                    </div>
+
+                    {limit > 0 ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-faint">
+                          <span>Available: {formatMoney(available)}</span>
+                          <span>Limit: {formatMoney(limit)}</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-raised">
+                          <div
+                            className={cn(
+                              'h-full rounded-full transition-all',
+                              cardUtil <= 30 ? 'bg-good' : cardUtil <= 50 ? 'bg-warn' : 'bg-bad',
+                            )}
+                            style={{ width: `${cardUtil}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2 pt-2.5 border-t border-line/60">
+                    <button
+                      type="button"
+                      onClick={() => setAccountId(active ? null : card.id)}
+                      className={cn(
+                        'flex-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-all text-center',
+                        active
+                          ? 'border-accent bg-accent text-white shadow-xs'
+                          : 'border-line bg-raised/70 text-muted hover:text-ink hover:bg-raised',
+                      )}
+                    >
+                      {active ? 'Viewing Spends' : 'Filter Card Spends'}
+                    </button>
+
+                    {owed > 0 ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const primaryBank =
+                            liquidAccounts.find((a) => a.type === 'bank') ??
+                            liquidAccounts[0];
+                          if (!primaryBank) {
+                            toast(
+                              'Add a bank account first to record bill payment transfer.',
+                              { tone: 'bad' },
+                            );
+                            return;
+                          }
+                          try {
+                            await addEntries([
+                              {
+                                date: day,
+                                amount: owed,
+                                direction: 'transfer',
+                                accountId: primaryBank.id,
+                                counterAccountId: card.id,
+                                description: `Pay ${card.name} Bill`,
+                                tags: ['bill-payment', 'credit-card'],
+                                source: 'manual',
+                              },
+                            ]);
+                            toast(
+                              `Recorded bill payment of ${formatMoney(owed)} for ${card.name}.`,
+                              { tone: 'good' },
+                            );
+                          } catch (err) {
+                            toast(
+                              err instanceof Error
+                                ? err.message
+                                : 'Could not record payment',
+                              { tone: 'bad' },
+                            );
+                          }
+                        }}
+                        className="rounded-xl border border-good/30 bg-good/10 hover:bg-good/20 text-good px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 flex items-center gap-1"
+                      >
+                        <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                        Pay Bill
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       ) : null}
 
       <div className="space-y-2">
