@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Download, Pencil, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import {
@@ -144,26 +144,38 @@ export default function MoneyPage() {
             const owed = isLiability(account);
             const active = accountId === account.id;
             return (
-              <button
-                key={account.id}
-                type="button"
-                onClick={() => setAccountId(active ? null : account.id)}
-                onDoubleClick={() => setEditingAccountId(account.id)}
-                className={cn(
-                  'w-36 shrink-0 rounded-card border px-3.5 py-3 text-left transition-colors',
-                  active ? 'border-accent bg-accent/8' : 'border-line bg-surface hover:bg-raised',
-                )}
-              >
-                <p className="truncate text-[12px] text-faint">{account.name}</p>
-                <Money
-                  value={owed ? Math.abs(balance) : balance}
-                  className="mt-0.5 block text-[15px] font-semibold"
-                  tone={balance < 0 && !owed ? 'bad' : 'plain'}
-                />
-                <p className="mt-0.5 truncate text-[11px] text-faint">
-                  {owed ? 'owed' : ACCOUNT_TYPE_LABEL[account.type].toLowerCase()}
-                </p>
-              </button>
+              <div key={account.id} className="relative group shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setAccountId(active ? null : account.id)}
+                  onDoubleClick={() => setEditingAccountId(account.id)}
+                  className={cn(
+                    'w-36 rounded-card border px-3.5 py-3 text-left transition-colors',
+                    active ? 'border-accent bg-accent/8' : 'border-line bg-surface hover:bg-raised',
+                  )}
+                >
+                  <p className="truncate text-[12px] text-faint pr-5">{account.name}</p>
+                  <Money
+                    value={owed ? Math.abs(balance) : balance}
+                    className="mt-0.5 block text-[15px] font-semibold"
+                    tone={balance < 0 && !owed ? 'bad' : 'plain'}
+                  />
+                  <p className="mt-0.5 truncate text-[11px] text-faint">
+                    {owed ? 'owed' : ACCOUNT_TYPE_LABEL[account.type].toLowerCase()}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingAccountId(account.id);
+                  }}
+                  title="Edit account"
+                  className="absolute top-2 right-2 rounded-md p-1 text-faint hover:text-ink hover:bg-raised transition-all md:opacity-0 md:group-hover:opacity-100"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </div>
             );
           })}
 
@@ -179,7 +191,7 @@ export default function MoneyPage() {
 
       {ledger.accounts.filter((a) => !a.archived).length > 0 ? (
         <p className="-mt-3 px-1 text-[11px] text-faint">
-          Tap to filter, double-tap to edit.
+          Tap to filter, tap ✏️ or double-tap to edit.
           {accountId ? (
             <button
               type="button"

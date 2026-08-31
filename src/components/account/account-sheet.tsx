@@ -1,9 +1,10 @@
 'use client';
 
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { formatAmount, parseAmount } from '@/domain/money';
+import { formatAmount, formatMoney, parseAmount } from '@/domain/money';
+import { accountBalance } from '@/domain/derive';
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountType } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Switch } from '@/components/ui/input';
@@ -16,9 +17,9 @@ const TYPES = Object.keys(ACCOUNT_TYPE_LABEL) as AccountType[];
 /**
  * Accounts are the reason this app can answer "what can I spend".
  *
- * The opening balance is asked for once, plainly, because a balance that starts
- * at zero when the bank says ₹42,000 makes every derived number wrong and there
- * is no way for the app to discover that on its own.
+ * For new accounts, the user enters the starting balance.
+ * For existing accounts, it shows the live current balance (including transactions),
+ * and adjusting it reconciles the starting balance cleanly without double-counting.
  */
 export function AccountSheet({
   account,
@@ -35,17 +36,29 @@ export function AccountSheet({
 
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('bank');
-  const [opening, setOpening] = useState('0');
+  const [balanceInput, setBalanceInput] = useState('0');
   const [excluded, setExcluded] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Live balance from opening + all recorded transactions
+  const liveBalance = useMemo(() => {
+    if (!account) return 0;
+    return accountBalance(account.id, ledger.accounts, ledger.entries);
+  }, [account, ledger.accounts, ledger.entries]);
+
+  // Net delta contributed purely by transactions (entries)
+  const entriesDelta = useMemo(() => {
+    if (!account) return 0;
+    return liveBalance - account.openingBalance;
+  }, [account, liveBalance]);
 
   useEffect(() => {
     if (!open) return;
     setName(account?.name ?? '');
     setType(account?.type ?? 'bank');
-    setOpening(account ? formatAmount(Math.abs(account.openingBalance)) : '0');
+    setBalanceInput(account ? formatAmount(Math.abs(liveBalance)) : '0');
     setExcluded(account?.excludeFromSafeToSpend === true);
-  }, [open, account]);
+  }, [open, account, liveBalance]);
 
   const save = async () => {
     const trimmed = name.trim();
@@ -54,18 +67,20 @@ export function AccountSheet({
       return;
     }
 
-    const parsed = parseAmount(opening || '0');
+    const parsed = parseAmount(balanceInput || '0');
     if (parsed === null) {
-      toast('That opening balance does not look right.', { tone: 'bad' });
+      toast('That balance does not look right.', { tone: 'bad' });
       return;
     }
-
-    // A card's balance is money owed, so it is stored negative and typed positive.
-    const openingBalance = type === 'card' ? -Math.abs(parsed) : parsed;
 
     setBusy(true);
     try {
       if (account) {
+        // Target current balance after reconciliation
+        const targetBalance = type === 'card' ? -Math.abs(parsed) : parsed;
+        // Adjusted opening balance: targetBalance = openingBalance + entriesDelta => openingBalance = targetBalance - entriesDelta
+        const openingBalance = targetBalance - entriesDelta;
+
         await updateAccount(account.id, {
           name: trimmed,
           type,
@@ -73,6 +88,7 @@ export function AccountSheet({
           excludeFromSafeToSpend: excluded || undefined,
         });
       } else {
+        const openingBalance = type === 'card' ? -Math.abs(parsed) : parsed;
         await addAccount({
           name: trimmed,
           type,
@@ -150,17 +166,31 @@ export function AccountSheet({
         </Field>
 
         <Field
-          label={type === 'card' ? 'Amount currently owed' : 'Balance right now'}
+          label={
+            account
+              ? type === 'card'
+                ? 'Current amount owed'
+                : 'Current balance'
+              : type === 'card'
+                ? 'Amount currently owed'
+                : 'Starting balance'
+          }
           hint={
-            type === 'card'
-              ? 'What the statement says you owe. Entered as a positive number.'
-              : 'Open your banking app and copy the figure. Everything downstream depends on this being real.'
+            account
+              ? entriesDelta !== 0
+                ? `Includes ${entriesDelta > 0 ? '+' : ''}${formatMoney(entriesDelta)} from transactions. Adjusting this reconciles your starting balance to match your bank.`
+                : type === 'card'
+                  ? 'What the statement currently says you owe.'
+                  : 'Open your banking app and verify the figure.'
+              : type === 'card'
+                ? 'What the statement says you owe. Entered as a positive number.'
+                : 'What is currently in this account before any entries you record.'
           }
         >
           <Input
             inputMode="decimal"
-            value={opening}
-            onChange={(e) => setOpening(e.target.value)}
+            value={balanceInput}
+            onChange={(e) => setBalanceInput(e.target.value)}
             className="tnum"
           />
         </Field>
