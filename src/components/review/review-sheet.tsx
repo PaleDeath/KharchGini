@@ -9,7 +9,7 @@ import { formatMoney } from '@/domain/money';
 import type { ReviewItem } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { CategorySelect } from '@/components/ui/category-select';
+import { CategoryPicker } from '@/components/category/category-picker-modal';
 import { Money, Badge } from '@/components/ui/money';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
@@ -204,8 +204,8 @@ export function ReviewSheet({ open, onClose }: { open: boolean; onClose: () => v
                         <span className="tnum shrink-0 text-[13px] text-muted">
                           {formatMoney(entry.amount)}
                         </span>
-                        <div className="w-44 shrink-0">
-                          <CategorySelect
+                        <div className="w-48 shrink-0">
+                          <CategoryPicker
                             value=""
                             onChange={(categoryId) => {
                               if (categoryId) void recategorise(entry, categoryId);

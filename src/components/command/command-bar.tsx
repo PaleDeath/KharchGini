@@ -30,13 +30,13 @@ import {
   type ParsedQuery,
   type ParseResult,
 } from '@/domain/parse';
-import type { Category, Direction, EntryDraft } from '@/domain/types';
+import type { Account, Category, Direction, EntryDraft } from '@/domain/types';
 import { useLedger } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { AccountPicker } from '@/components/account/account-picker-modal';
 import { CategoryIcon } from '@/components/category/category-icon';
+import { CategoryPicker } from '@/components/category/category-picker-modal';
 import { Button } from '@/components/ui/button';
-import { CategorySelect } from '@/components/ui/category-select';
-import { CustomSelect } from '@/components/ui/custom-select';
 import { Input, Segmented } from '@/components/ui/input';
 import { Money, Badge } from '@/components/ui/money';
 import { QuickDatePicker } from '@/components/ui/quick-date-picker';
@@ -304,52 +304,32 @@ function Preview({
   onChange,
 }: {
   entry: ParsedEntry;
-  accounts: { id: string; name: string }[];
+  accounts: Account[];
   categories: Category[];
   onChange: (changes: Partial<ParsedEntry>) => void;
 }) {
   const isTransfer = entry.direction === 'transfer';
   const isSMS = entry.note?.includes('Ref') || entry.note?.includes('Card');
 
-  const accountOptions = useMemo(
-    () =>
-      accounts.map((acc) => ({
-        value: acc.id,
-        label: acc.name,
-      })),
-    [accounts],
-  );
-
-  const counterAccountOptions = useMemo(
-    () =>
-      accounts
-        .filter((a) => a.id !== entry.accountId)
-        .map((acc) => ({
-          value: acc.id,
-          label: acc.name,
-        })),
-    [accounts, entry.accountId],
-  );
-
   return (
-    <div className="space-y-3 rounded-card border border-line bg-raised/60 p-3.5">
+    <div className="space-y-3.5 rounded-2xl border border-line bg-surface/90 p-4 shadow-sm">
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="truncate text-[15px] font-semibold text-ink">{entry.description}</p>
+            <p className="truncate text-base font-bold text-ink">{entry.description}</p>
             {isSMS ? (
-              <Badge tone="good" className="text-[10px] py-0 px-1.5">
+              <Badge tone="good" className="text-[10px] py-0.5 px-2 font-semibold">
                 Bank SMS
               </Badge>
             ) : null}
           </div>
           {entry.note ? (
-            <p className="text-[11px] text-faint truncate mt-0.5">{entry.note}</p>
+            <p className="text-xs text-faint truncate mt-0.5">{entry.note}</p>
           ) : null}
         </div>
         <Money
           value={entry.amount}
-          className="shrink-0 text-lg font-bold"
+          className="shrink-0 text-xl font-extrabold"
           tone={entry.direction === 'in' ? 'good' : 'plain'}
         />
       </div>
@@ -371,9 +351,9 @@ function Preview({
         }}
       />
 
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         <div>
-          <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-faint">
             Date
           </span>
           <QuickDatePicker
@@ -382,31 +362,31 @@ function Preview({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <label className="col-span-1">
-            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-faint">
               {isTransfer ? 'From' : 'Account'}
             </span>
-            <CustomSelect
+            <AccountPicker
               value={entry.accountId}
               onChange={(accountId) => onChange({ accountId })}
-              options={accountOptions}
+              accounts={accounts}
             />
-          </label>
+          </div>
 
-          <label className="col-span-1">
-            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-faint">
+          <div>
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-faint">
               {isTransfer ? 'To' : 'Category'}
             </span>
             {isTransfer ? (
-              <CustomSelect
+              <AccountPicker
                 value={entry.counterAccountId ?? ''}
                 onChange={(counterAccountId) => onChange({ counterAccountId })}
-                options={counterAccountOptions}
+                accounts={accounts.filter((a) => a.id !== entry.accountId)}
                 placeholder="Choose account…"
               />
             ) : (
-              <CategorySelect
+              <CategoryPicker
                 value={entry.categoryId ?? ''}
                 onChange={(categoryId) => onChange({ categoryId: categoryId || undefined })}
                 categories={categories.filter((category) => {
@@ -418,23 +398,23 @@ function Preview({
                 allowClear
               />
             )}
-          </label>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-faint pt-1 border-t border-line/60">
         <span className="inline-flex items-center gap-1">
-          <Sparkles className="h-3 w-3" />
+          <Sparkles className="h-3 w-3 text-accent" />
           {formatRelativeDay(entry.date)} · {formatDayFull(entry.date)}
         </span>
         {!isTransfer && entry.categorySource !== 'none' ? (
           <span className="inline-flex items-center gap-1">
-            <Wand2 className="h-3 w-3" />
+            <Wand2 className="h-3 w-3 text-accent" />
             {CATEGORY_SOURCE_LABEL[entry.categorySource]}
           </span>
         ) : null}
         {entry.tags.map((tag) => (
-          <span key={tag} className="rounded bg-surface px-1.5 py-0.5 text-ink">
+          <span key={tag} className="rounded-md bg-raised px-1.5 py-0.5 text-ink font-medium">
             #{tag}
           </span>
         ))}

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { CATEGORY_KIND_LABEL, type Category, type CategoryKind } from '@/domain/types';
 import { CategoryIcon, ICON_NAMES } from '@/components/category/category-icon';
 import { Button } from '@/components/ui/button';
-import { CategorySelect } from '@/components/ui/category-select';
+import { CategoryPicker } from '@/components/category/category-picker-modal';
 import { Field, Input, Segmented } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
@@ -163,7 +163,7 @@ export function CategorySheet({
 
         {!hasChildren && parents.length > 0 ? (
           <Field label="Sits under" hint="Optional. One level deep — Food → Delivery.">
-            <CategorySelect
+            <CategoryPicker
               value={parentId}
               onChange={setParentId}
               categories={parents}
