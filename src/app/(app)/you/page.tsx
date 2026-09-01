@@ -507,8 +507,8 @@ export default function YouPage() {
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-              <FileUp className="h-3.5 w-3.5" />
-              Import CSV
+              <FileUp className="h-3.5 w-3.5 text-accent" />
+              Import Statement (Excel / CSV)
             </Button>
             <Button
               variant="outline"

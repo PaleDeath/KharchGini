@@ -1,99 +1,120 @@
 'use client';
 
-import { Banknote, CreditCard, FileUp, Landmark, TriangleAlert } from 'lucide-react';
-import Papa from 'papaparse';
+import {
+  Banknote,
+  CheckCircle2,
+  CreditCard,
+  FileSpreadsheet,
+  FileText,
+  FileUp,
+  Landmark,
+  Layers,
+  Sparkles,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
-import { isValidISODate, type ISODate } from '@/domain/dates';
-import { guessCategory } from '@/domain/categorize';
-import { formatMoney, parseAmount } from '@/domain/money';
-import type { Direction, EntryDraft, Ledger } from '@/domain/types';
+import {
+  buildStatementDrafts,
+  parseStatementFile,
+  EMPTY_MAPPING,
+  type StatementMapping,
+} from '@/domain/statement';
+import { formatMoney } from '@/domain/money';
 import { Button } from '@/components/ui/button';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { Field } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
+import { CategoryChip } from '@/components/category/category-icon';
 import { useLedger } from '@/lib/store';
-
-type Row = Record<string, string>;
-
-interface Mapping {
-  date: string;
-  description: string;
-  amount: string;
-  debit: string;
-  credit: string;
-}
+import { cn } from '@/lib/utils';
 
 const NONE = '';
 
-/**
- * Getting a spreadsheet in.
- *
- * The point of this screen is that leaving Excel should cost one afternoon, not
- * a decision to abandon four years of history. Bank exports are messy in a small
- * number of predictable ways — separate debit and credit columns, dates written
- * the Indian way — and handling exactly those covers almost everything a person
- * will actually paste in here.
- */
 export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { ledger, addEntries } = useLedger();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState('');
+  const [fileType, setFileType] = useState<'csv' | 'excel' | null>(null);
   const [fields, setFields] = useState<string[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [map, setMap] = useState<Mapping>({
-    date: NONE,
-    description: NONE,
-    amount: NONE,
-    debit: NONE,
-    credit: NONE,
-  });
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const [map, setMap] = useState<StatementMapping>(EMPTY_MAPPING);
+  const [confidence, setConfidence] = useState(0);
   const [accountId, setAccountId] = useState(ledger.accounts[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const accounts = ledger.accounts.filter((a) => !a.archived);
+  const accounts = useMemo(
+    () => ledger.accounts.filter((a) => !a.archived),
+    [ledger.accounts],
+  );
 
-  const pick = async (file: File) => {
-    const text = await file.text();
-    const parsed = Papa.parse<Row>(text, { header: true, skipEmptyLines: 'greedy' });
-    const detected = parsed.meta.fields ?? [];
+  const handleFile = async (file: File) => {
+    setBusy(true);
+    try {
+      const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+      setFileType(isExcel ? 'excel' : 'csv');
 
-    setFileName(file.name);
-    setFields(detected);
-    setRows(parsed.data);
-    setMap({
-      date: guessField(detected, ['date']),
-      description: guessField(detected, [
-        'narration',
-        'particular',
-        'description',
-        'details',
-        'remark',
-        'merchant',
-        'name',
-      ]),
-      amount: guessField(detected, ['amount', 'value']),
-      debit: guessField(detected, ['debit', 'withdrawal']),
-      credit: guessField(detected, ['credit', 'deposit']),
-    });
+      const parsed = await parseStatementFile(file);
+      setFileName(parsed.fileName);
+      setFields(parsed.fields);
+      setRows(parsed.rows);
+      setMap(parsed.detectedMapping);
+      setConfidence(parsed.confidence);
+
+      // Try to auto-match account if bank name matches account name
+      const lowerName = file.name.toLowerCase();
+      const matchedAccount = accounts.find((acc) =>
+        lowerName.includes(acc.name.toLowerCase().replace(/[^a-z0-9]/g, '')),
+      );
+      if (matchedAccount) {
+        setAccountId(matchedAccount.id);
+      }
+
+      toast(
+        `Parsed ${parsed.rows.length} rows with ${parsed.confidence >= 0.7 ? 'high' : 'partial'} auto-detection confidence.`,
+        { tone: 'good' },
+      );
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not read statement file.', {
+        tone: 'bad',
+      });
+      reset();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const drafts = useMemo(
-    () => (accountId ? buildDrafts(rows, map, accountId, ledger) : []),
+    () => (accountId ? buildStatementDrafts(rows, map, accountId, ledger) : []),
     [rows, map, accountId, ledger],
   );
 
-  const skipped = rows.length - drafts.length;
+  const stats = useMemo(() => {
+    let totalIn = 0;
+    let totalOut = 0;
+    for (const d of drafts) {
+      if (d.direction === 'in') totalIn += d.amount;
+      else totalOut += d.amount;
+    }
+    return {
+      count: drafts.length,
+      skipped: rows.length - drafts.length,
+      totalIn,
+      totalOut,
+    };
+  }, [drafts, rows.length]);
 
   const run = async () => {
     if (drafts.length === 0) return;
     setBusy(true);
     try {
       await addEntries(drafts);
-      toast(`${drafts.length} entries imported.`, { tone: 'good' });
+      toast(`${drafts.length} entries successfully imported!`, { tone: 'good' });
       reset();
       onClose();
     } catch (caught) {
@@ -122,20 +143,23 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
 
   const reset = () => {
     setFileName('');
+    setFileType(null);
     setFields([]);
     setRows([]);
+    setMap(EMPTY_MAPPING);
+    setConfidence(0);
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const column = (label: string, key: keyof Mapping, hint?: string) => {
+  const column = (label: string, key: keyof StatementMapping, hint?: string) => {
     const options = [
-      { value: NONE, label: 'Not in this file' },
+      { value: NONE, label: 'Not in this file / None' },
       ...fields.map((field) => ({ value: field, label: field })),
     ];
     return (
       <Field label={label} hint={hint}>
         <CustomSelect
-          value={map[key]}
+          value={map[key] || NONE}
           onChange={(val) => setMap((current) => ({ ...current, [key]: val }))}
           options={options}
         />
@@ -152,8 +176,8 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
           onClose();
         }
       }}
-      title="Import a spreadsheet"
-      description="CSV. Your bank's export, or whatever you were keeping in Excel."
+      title="Import Statement"
+      description="Supports Excel (.xlsx, .xls) and CSV exports from all banks and credit cards."
       wide
       footer={
         <Button
@@ -162,85 +186,221 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
           disabled={busy || drafts.length === 0}
           className="w-full"
         >
-          {drafts.length > 0 ? `Import ${drafts.length} entries` : 'Nothing to import yet'}
+          {busy
+            ? 'Importing…'
+            : drafts.length > 0
+            ? `Import ${drafts.length} entries into ${
+                accounts.find((a) => a.id === accountId)?.name || 'Account'
+              }`
+            : 'Select or map columns to import'}
         </Button>
       }
     >
       <div className="space-y-4">
-        <label className="flex cursor-pointer items-center gap-3 rounded-card border border-dashed border-line px-4 py-4 transition-colors hover:border-accent">
-          <FileUp className="h-5 w-5 shrink-0 text-faint" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm text-ink">
-              {fileName || 'Choose a CSV file'}
-            </span>
-            <span className="block text-[12px] text-faint">
+        {/* Upload Dropzone */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) void handleFile(file);
+          }}
+          className={cn(
+            'group relative flex cursor-pointer items-center gap-3.5 rounded-2xl border-2 border-dashed p-4 transition-all duration-200',
+            isDragging
+              ? 'border-accent bg-accent/10 shadow-sm'
+              : 'border-line/90 bg-surface/70 hover:border-accent/60 hover:bg-raised/50',
+          )}
+          onClick={() => fileRef.current?.click()}
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-raised border border-line/60 text-ink shadow-2xs group-hover:border-accent/40 group-hover:text-accent transition-colors">
+            {fileType === 'excel' ? (
+              <FileSpreadsheet className="h-6 w-6 text-emerald-500" />
+            ) : fileType === 'csv' ? (
+              <FileText className="h-6 w-6 text-blue-500" />
+            ) : (
+              <FileUp className="h-6 w-6 text-faint group-hover:text-accent" />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="block truncate text-sm font-semibold text-ink">
+                {fileName || 'Drop your Bank Statement or click to browse'}
+              </span>
+              {fileType && (
+                <span className="rounded-md bg-raised px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted shrink-0">
+                  {fileType === 'excel' ? 'Excel' : 'CSV'}
+                </span>
+              )}
+            </div>
+            <span className="block text-[12px] text-faint mt-0.5">
               {rows.length > 0
-                ? `${rows.length} rows, ${fields.length} columns`
-                : 'Nothing leaves your device until you press import.'}
+                ? `${rows.length} rows detected · ${fields.length} columns`
+                : 'Supports .xlsx, .xls, .csv files. Metadata headers are skipped automatically.'}
             </span>
-          </span>
+          </div>
+
+          {fileName && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                reset();
+              }}
+              className="rounded-lg p-1.5 text-faint hover:bg-raised hover:text-ink transition-colors"
+              title="Clear file"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.xlsx,.xls"
             className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) void pick(file);
+              if (file) void handleFile(file);
             }}
           />
-        </label>
+        </div>
 
         {fields.length > 0 ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {column('Date column', 'date', 'Day first: 05/03 is the 5th of March.')}
-              {column('Description column', 'description')}
-              {column('Amount column', 'amount', 'A single column with a sign.')}
-              {column('Debit column', 'debit', 'If money out has its own column.')}
-              {column('Credit column', 'credit', 'If money in has its own column.')}
-              <Field label="Goes into account">
-                <CustomSelect
-                  value={accountId}
-                  onChange={setAccountId}
-                  options={accountOptions}
-                  placeholder="Choose an account…"
-                />
-              </Field>
+            {/* Auto-Detection Banner */}
+            <div className="flex items-center justify-between rounded-xl border border-line/70 bg-raised/50 px-3.5 py-2.5 text-xs text-muted">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-accent shrink-0" />
+                <span>
+                  {confidence >= 0.7
+                    ? 'Columns auto-detected from statement header.'
+                    : 'Partial match. Verify column mapping below.'}
+                </span>
+              </div>
+              <span className="font-semibold text-ink">
+                {stats.count} valid entries found
+              </span>
             </div>
 
-            {skipped > 0 ? (
+            {/* Target Account & Column Mapping Grid */}
+            <div className="rounded-2xl border border-line bg-surface/80 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+                  Destination & Column Mapping
+                </p>
+                <span className="text-[11px] text-faint">
+                  Adjust if columns differ
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Target Account" hint="Where these transactions belong">
+                  <CustomSelect
+                    value={accountId}
+                    onChange={setAccountId}
+                    options={accountOptions}
+                    placeholder="Choose an account…"
+                  />
+                </Field>
+
+                {column('Date Column', 'date', 'DD/MM/YYYY, DD-MMM-YYYY or ISO')}
+                {column('Description / Narration', 'description', 'Merchant, particulars or payee')}
+                {column('Debit (Withdrawal) Column', 'debit', 'Money out / spent')}
+                {column('Credit (Deposit) Column', 'credit', 'Money in / received')}
+                {column('Single Amount Column', 'amount', 'If single column with sign or Dr/Cr')}
+              </div>
+            </div>
+
+            {/* Skipped Notice */}
+            {stats.skipped > 0 ? (
               <p className="flex items-start gap-2 rounded-xl bg-warn/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-warn">
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                {skipped} {skipped === 1 ? 'row has' : 'rows have'} no usable date or amount and
-                will be left out. Check the column mapping above if that seems wrong.
+                <span>
+                  {stats.skipped} header/summary rows with no transaction amount were excluded.
+                </span>
               </p>
             ) : null}
 
+            {/* Live Preview of Parsed Entries */}
             {drafts.length > 0 ? (
-              <div className="space-y-1.5">
-                <span className="block text-[13px] font-medium text-muted">
-                  First few, as they will be saved
-                </span>
-                <div className="divide-y divide-line overflow-hidden rounded-card border border-line">
-                  {drafts.slice(0, 5).map((draft, index) => (
-                    <div
-                      key={`${draft.date}-${index}`}
-                      className="flex items-center gap-3 px-3.5 py-2 text-[13px]"
-                    >
-                      <span className="tnum shrink-0 text-faint">{draft.date}</span>
-                      <span className="min-w-0 flex-1 truncate text-ink">
-                        {draft.description}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
+                    Preview ({drafts.length} entries)
+                  </span>
+                  <div className="flex items-center gap-3 text-xs">
+                    {stats.totalOut > 0 && (
+                      <span className="text-muted">
+                        Out: <span className="font-semibold text-ink">{formatMoney(stats.totalOut)}</span>
                       </span>
-                      <span
-                        className={`tnum shrink-0 ${draft.direction === 'in' ? 'text-good' : 'text-muted'}`}
-                      >
-                        {draft.direction === 'in' ? '+' : '−'}
-                        {formatMoney(draft.amount)}
+                    )}
+                    {stats.totalIn > 0 && (
+                      <span className="text-good">
+                        In: <span className="font-semibold">{formatMoney(stats.totalIn)}</span>
                       </span>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
+
+                <div className="max-h-60 overflow-y-auto no-scrollbar divide-y divide-line rounded-2xl border border-line bg-surface/90">
+                  {drafts.slice(0, 15).map((draft, index) => {
+                    const category = ledger.categories.find((c) => c.id === draft.categoryId);
+                    return (
+                      <div
+                        key={`${draft.date}-${draft.externalId || index}`}
+                        className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs transition-colors hover:bg-raised/40"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {category ? (
+                            <CategoryChip
+                              name={category.icon}
+                              color={category.color}
+                              className="h-7 w-7 rounded-lg text-xs shrink-0"
+                            />
+                          ) : (
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-raised text-faint text-[10px] shrink-0 font-medium">
+                              {draft.direction === 'in' ? '+' : '−'}
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate font-medium text-ink">
+                              {draft.description}
+                            </span>
+                            <div className="flex items-center gap-2 text-[11px] text-faint">
+                              <span className="tnum">{draft.date}</span>
+                              {category && (
+                                <span className="truncate">· {category.name}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={cn(
+                            'tnum shrink-0 font-semibold',
+                            draft.direction === 'in' ? 'text-good' : 'text-ink',
+                          )}
+                        >
+                          {draft.direction === 'in' ? '+' : '−'}
+                          {formatMoney(draft.amount)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {drafts.length > 15 && (
+                  <p className="text-center text-[11px] text-faint">
+                    Showing first 15 of {drafts.length} transactions
+                  </p>
+                )}
               </div>
             ) : null}
           </>
@@ -248,112 +408,4 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
       </div>
     </Sheet>
   );
-}
-
-/* -------------------------------------------------------------------------- */
-
-function guessField(fields: string[], candidates: string[]): string {
-  for (const candidate of candidates) {
-    const hit = fields.find((field) =>
-      field.toLowerCase().replace(/[^a-z]/g, '').includes(candidate),
-    );
-    if (hit) return hit;
-  }
-  return NONE;
-}
-
-/**
- * Dates the way Indian banks write them, plus ISO.
- *
- * Day-first is assumed for slash and dash formats, because that is what every
- * statement in this country uses. Guessing month-first would silently mangle the
- * first twelve days of every month, which is the worst kind of bug: invisible.
- */
-function parseDate(value: string): ISODate | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  const head = trimmed.slice(0, 10);
-  if (isValidISODate(head)) return head;
-
-  const match = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/.exec(trimmed);
-  if (!match) return null;
-
-  const day = match[1].padStart(2, '0');
-  const month = match[2].padStart(2, '0');
-  const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-
-  const iso = `${year}-${month}-${day}`;
-  return isValidISODate(iso) ? iso : null;
-}
-
-/**
- * Rows become drafts, or they are dropped.
- *
- * Every row gets a stable `externalId` built from what it says, and rows whose
- * key is already in the ledger are skipped. Importing the same statement twice
- * is the single most common way to wreck a set of books, and it is entirely
- * preventable here rather than confusing later.
- */
-function buildDrafts(
-  rows: Row[],
-  map: Mapping,
-  accountId: string,
-  ledger: Ledger,
-): EntryDraft[] {
-  const seen = new Set(
-    ledger.entries.map((entry) => entry.externalId).filter((key): key is string => Boolean(key)),
-  );
-  const out: EntryDraft[] = [];
-
-  for (const row of rows) {
-    const date = map.date ? parseDate(row[map.date] ?? '') : null;
-    if (!date) continue;
-
-    const description = (map.description ? (row[map.description] ?? '') : '').trim();
-
-    // Separate debit and credit columns win, because when a bank supplies both
-    // the sign in an "amount" column is often missing entirely.
-    const debit = map.debit ? parseAmount(row[map.debit] ?? '') : null;
-    const credit = map.credit ? parseAmount(row[map.credit] ?? '') : null;
-    const single = map.amount ? parseAmount(row[map.amount] ?? '') : null;
-
-    let amount: number | null = null;
-    let direction: Direction = 'out';
-
-    if (debit !== null && debit !== 0) {
-      amount = Math.abs(debit);
-      direction = 'out';
-    } else if (credit !== null && credit !== 0) {
-      amount = Math.abs(credit);
-      direction = 'in';
-    } else if (single !== null && single !== 0) {
-      amount = Math.abs(single);
-      direction = single < 0 ? 'out' : 'in';
-    }
-
-    if (amount === null || amount === 0) continue;
-
-    const label = description || 'Imported entry';
-    const externalId = `${accountId}:${date}:${direction}:${amount}:${label.toLowerCase().slice(0, 40)}`;
-    if (seen.has(externalId)) continue;
-    seen.add(externalId);
-
-    const guess = guessCategory(label, amount, direction, ledger);
-
-    out.push({
-      amount,
-      description: label,
-      date,
-      direction,
-      accountId,
-      categoryId: guess.categoryId,
-      merchant: guess.merchant,
-      tags: guess.tags,
-      source: 'import',
-      externalId,
-    });
-  }
-
-  return out;
 }
