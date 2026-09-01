@@ -19,7 +19,7 @@ const STORAGE_KEY = 'kg-theme';
  * Without it the app renders light, then snaps to dark — a flash that reads as a
  * bug every single time the app is opened.
  */
-export const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('${STORAGE_KEY}')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+export const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('${STORAGE_KEY}')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';var c=d?'#141210':'#fbfaf7';var m=document.querySelector('meta[name="theme-color"]:not([media])');if(!m){m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);}m.content=c;}catch(e){}})();`;
 
 interface ThemeValue {
   theme: Theme;
@@ -39,6 +39,18 @@ function apply(theme: Theme): 'light' | 'dark' {
   const next = resolve(theme);
   document.documentElement.classList.toggle('dark', next === 'dark');
   document.documentElement.style.colorScheme = next;
+
+  if (typeof document !== 'undefined') {
+    const color = next === 'dark' ? '#141210' : '#fbfaf7';
+    let meta = document.querySelector('meta[name="theme-color"]:not([media])') as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+    }
+    meta.content = color;
+  }
+
   return next;
 }
 

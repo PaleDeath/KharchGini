@@ -69,7 +69,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <main className="md:pl-56">
         <div
           key={pathname}
-          className="mx-auto max-w-2xl animate-fade-in px-4 pb-32 pt-5 md:px-8 md:pb-16 md:pt-8"
+          className="mx-auto max-w-2xl animate-fade-in px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-16 md:pt-8"
         >
           {children}
         </div>

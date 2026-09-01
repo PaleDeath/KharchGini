@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: 'Know what you can spend today.',
   applicationName: 'KharchGini',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, title: 'KharchGini', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'KharchGini', statusBarStyle: 'black-translucent' },
   formatDetection: { telephone: false },
   icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#fbfaf7' },
-    { media: '(prefers-color-scheme: dark)', color: '#161513' },
+    { media: '(prefers-color-scheme: dark)', color: '#141210' },
   ],
 };
 
