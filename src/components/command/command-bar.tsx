@@ -50,15 +50,7 @@ const DIRECTIONS: { value: Direction; label: string }[] = [
 ];
 
 /**
- * One input for everything.
- *
- * The rest of this application is a place to look at money. This is the place to
- * record it, and recording has to be faster than not recording — otherwise the
- * ledger goes stale and every number downstream becomes a lie about a life
- * somebody stopped describing.
- *
- * What was understood is always shown before anything is written, and every part
- * of it can be corrected in one tap without retyping the line.
+ * One input for everything: natural language, quick presets & bank SMS parse.
  */
 export function CommandBar({
   open,
@@ -169,23 +161,23 @@ export function CommandBar({
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title="Add"
-      description="Type it the way you would say it."
+      title="Quick Add & Smart Paste"
+      description="Type naturally or paste any UPI/bank debit SMS."
       wide
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="flex-1">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 font-bold">
             Cancel
           </Button>
           <Button
             variant="primary"
             onClick={save}
             disabled={!entry || busy}
-            className="flex-[2]"
+            className="flex-[2] font-extrabold gap-2"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {entry ? `Save ${formatMoney(entry.amount)}` : 'Save'}
-            <CornerDownLeft className="h-3.5 w-3.5 opacity-60" />
+            <CornerDownLeft className="h-3.5 w-3.5 opacity-70" />
           </Button>
         </>
       }
@@ -201,12 +193,12 @@ export function CommandBar({
               void save();
             }
           }}
-          placeholder="280 chai or paste bank SMS"
+          placeholder="e.g. 280 chai or paste bank SMS"
           autoFocus
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="h-12 text-[17px]"
+          className="h-12 text-base font-medium rounded-2xl"
         />
 
         {/* Quick Presets Bar */}
@@ -220,12 +212,12 @@ export function CommandBar({
                 setOverrides({});
                 inputRef.current?.focus();
               }}
-              className="flex items-center gap-1.5 shrink-0 rounded-full border border-line/80 bg-surface/90 px-3 py-1.5 text-[12px] font-medium text-ink hover:border-accent/50 hover:bg-raised shadow-2xs transition-all active:scale-95"
+              className="flex items-center gap-1.5 shrink-0 rounded-2xl border border-line bg-surface px-3 py-1.5 text-xs font-bold text-ink hover:border-accent/50 hover:bg-raised shadow-2xs transition-all active:scale-95"
             >
               <CategoryIcon
                 name={preset.iconName}
                 color={preset.iconColor}
-                className="h-3.5 w-3.5 stroke-[1.8]"
+                className="h-3.5 w-3.5"
               />
               <span>{preset.name}</span>
             </button>
@@ -242,8 +234,8 @@ export function CommandBar({
         ) : null}
 
         {result.kind === 'error' ? (
-          <p className="flex items-start gap-2 rounded-xl bg-raised px-3 py-2.5 text-[13px] text-muted">
-            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn" />
+          <p className="flex items-start gap-2 rounded-2xl border border-warn/30 bg-warn/10 p-3 text-xs font-medium text-ink">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
             {result.message}
           </p>
         ) : null}
@@ -263,40 +255,38 @@ export function CommandBar({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-
 function Examples({ onPick }: { onPick: (value: string) => void }) {
   return (
-    <div className="space-y-2 pt-1">
+    <div className="space-y-2.5 pt-1">
       <div className="flex items-center justify-between px-1">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
           Natural Language & SMS
         </p>
-        <span className="text-[11px] text-accent font-medium flex items-center gap-1">
+        <span className="text-xs text-accent font-bold flex items-center gap-1">
           <Zap className="h-3 w-3" />
-          Instant parse
+          Instant Parser
         </span>
       </div>
 
-      <div className="rounded-xl border border-line/60 bg-raised/40 p-2.5 text-[12px] text-muted space-y-1">
-        <p className="font-medium text-ink flex items-center gap-1.5">
+      <div className="rounded-2xl border border-line/70 bg-raised/50 p-3 text-xs text-muted space-y-1">
+        <p className="font-bold text-ink flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5 text-accent" /> Smart Paste Supported
         </p>
-        <p className="text-faint leading-relaxed">
+        <p className="text-faint leading-relaxed text-[11px]">
           Copy any UPI or Bank debit SMS from your phone and paste it directly above. KharchGini extracts the amount, merchant, and bank account automatically.
         </p>
       </div>
 
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         {COMMAND_EXAMPLES.map((example) => (
           <button
             key={example.input}
             type="button"
             onClick={() => onPick(example.input)}
-            className="flex w-full items-baseline gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-raised"
+            className="flex w-full items-baseline gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-raised/70 active:scale-[0.99]"
           >
-            <code className="shrink-0 text-[13px] text-ink">{example.input}</code>
-            <span className="min-w-0 flex-1 truncate text-[12px] text-faint">{example.means}</span>
+            <code className="shrink-0 text-xs font-bold text-ink font-mono">{example.input}</code>
+            <span className="min-w-0 flex-1 truncate text-xs text-faint">{example.means}</span>
           </button>
         ))}
       </div>
@@ -304,11 +294,6 @@ function Examples({ onPick }: { onPick: (value: string) => void }) {
   );
 }
 
-/**
- * The preview is not a confirmation step; it is the entry. Every field the
- * parser guessed is a control, so a wrong guess is a tap to fix rather than a
- * line to retype.
- */
 function Preview({
   entry,
   accounts,
@@ -324,13 +309,13 @@ function Preview({
   const isSMS = entry.note?.includes('Ref') || entry.note?.includes('Card');
 
   return (
-    <div className="space-y-3.5 rounded-2xl border border-line bg-surface/90 p-4 shadow-sm">
+    <div className="space-y-4 rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 shadow-card">
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-base font-bold text-ink">{entry.description}</p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-base font-extrabold text-ink">{entry.description}</p>
             {isSMS ? (
-              <Badge tone="good" className="text-[10px] py-0.5 px-2 font-semibold">
+              <Badge tone="good" className="text-[10px] py-0.5 px-2 font-bold">
                 Bank SMS
               </Badge>
             ) : null}
@@ -341,7 +326,7 @@ function Preview({
         </div>
         <Money
           value={entry.amount}
-          className="shrink-0 text-xl font-extrabold"
+          className="shrink-0 text-2xl font-black"
           tone={entry.direction === 'in' ? 'good' : 'plain'}
         />
       </div>
@@ -365,7 +350,7 @@ function Preview({
 
       <div className="space-y-3">
         <div>
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-faint">
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-faint">
             Date
           </span>
           <QuickDatePicker
@@ -374,9 +359,9 @@ function Preview({
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-faint">
+            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-faint">
               {isTransfer ? 'From' : 'Account'}
             </span>
             <AccountPicker
@@ -387,7 +372,7 @@ function Preview({
           </div>
 
           <div>
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-faint">
+            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-faint">
               {isTransfer ? 'To' : 'Category'}
             </span>
             {isTransfer ? (
@@ -414,7 +399,7 @@ function Preview({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-faint pt-1 border-t border-line/60">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs text-faint pt-2 border-t border-line/60 font-medium">
         <span className="inline-flex items-center gap-1">
           <Sparkles className="h-3 w-3 text-accent" />
           {formatRelativeDay(entry.date)} · {formatDayFull(entry.date)}
@@ -426,7 +411,7 @@ function Preview({
           </span>
         ) : null}
         {entry.tags.map((tag) => (
-          <span key={tag} className="rounded-md bg-raised px-1.5 py-0.5 text-ink font-medium">
+          <span key={tag} className="rounded-md bg-raised px-1.5 py-0.5 text-ink font-bold">
             #{tag}
           </span>
         ))}
@@ -436,19 +421,13 @@ function Preview({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-
-/**
- * Questions are answered from the same functions that draw the screens, so the
- * command bar can never disagree with the rest of the app.
- */
 function Answer({ query }: { query: ParsedQuery }) {
   const { ledger } = useLedger();
 
   if (query.kind === 'afford') {
     if (query.affordAmount === undefined) {
       return (
-        <p className="rounded-xl bg-raised px-3 py-2.5 text-[13px] text-muted">
+        <p className="rounded-2xl bg-raised p-3 text-xs text-muted">
           How much? Try “?can i afford 15000”.
         </p>
       );
@@ -456,15 +435,15 @@ function Answer({ query }: { query: ParsedQuery }) {
 
     const { yes, after, sts } = canAfford(ledger, query.affordAmount);
     return (
-      <div className="space-y-2 rounded-card border border-line bg-raised/60 p-3.5">
-        <p className={cn('text-lg font-semibold', yes ? 'text-good' : 'text-bad')}>
+      <div className="space-y-2 rounded-2xl border border-line bg-raised/70 p-4 shadow-card">
+        <p className={cn('text-lg font-extrabold', yes ? 'text-good' : 'text-bad')}>
           {yes ? 'Yes.' : 'Not comfortably.'}
         </p>
-        <p className="text-[13px] leading-relaxed text-muted">
-          You have <Money value={sts.amount} className="font-medium text-ink" /> safe to spend
+        <p className="text-xs leading-relaxed text-muted">
+          You have <Money value={sts.amount} className="font-bold text-ink" /> safe to spend
           until {formatDayFull(sts.until)}. Spending{' '}
-          <Money value={query.affordAmount} className="font-medium text-ink" /> leaves{' '}
-          <Money value={after} className="font-medium" tone={after < 0 ? 'bad' : 'good'} /> for{' '}
+          <Money value={query.affordAmount} className="font-bold text-ink" /> leaves{' '}
+          <Money value={after} className="font-bold" tone={after < 0 ? 'bad' : 'good'} /> for{' '}
           {sts.daysLeft} {sts.daysLeft === 1 ? 'day' : 'days'}.
         </p>
       </div>
@@ -498,38 +477,38 @@ function Answer({ query }: { query: ParsedQuery }) {
   const lookup = byId(ledger.categories);
 
   return (
-    <div className="space-y-2.5 rounded-card border border-line bg-raised/60 p-3.5">
+    <div className="space-y-3 rounded-2xl border border-line bg-raised/70 p-4 shadow-card">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[13px] text-muted">
+        <p className="text-xs font-bold text-muted uppercase tracking-wider">
           {matched ? matched.name : subject || 'Everything'} · {query.rangeLabel}
         </p>
-        <Money value={total} className="text-lg font-semibold" />
+        <Money value={total} className="text-lg font-black text-ink" />
       </div>
-      <p className="text-[12px] text-faint">
+      <p className="text-xs text-faint">
         {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
       </p>
 
       {top.length > 0 ? (
-        <div className="space-y-1 border-t border-line pt-2">
+        <div className="space-y-2 border-t border-line/70 pt-2.5">
           {top.map((row) => (
             <div key={row.categoryId ?? 'none'} className="flex items-center justify-between gap-3">
-              <span className="flex min-w-0 items-center gap-1.5">
+              <span className="flex min-w-0 items-center gap-2">
                 {row.categoryId ? (
                   <CategoryIcon
                     name={lookup.get(row.categoryId)?.icon}
                     color={lookup.get(row.categoryId)?.color}
-                    className="h-3.5 w-3.5 shrink-0"
+                    className="h-4 w-4 shrink-0"
                   />
                 ) : null}
-                <span className="min-w-0 truncate text-[13px] text-ink">
+                <span className="min-w-0 truncate text-xs font-bold text-ink">
                   {row.categoryId
                     ? (lookup.get(row.categoryId)?.name ?? 'Unknown')
                     : 'Uncategorised'}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
-                <span className="text-[11px] text-faint">{Math.round(row.pctOfTotal)}%</span>
-                <Money value={row.total} className="text-[13px]" />
+                <span className="text-xs text-faint font-semibold">{Math.round(row.pctOfTotal)}%</span>
+                <Money value={row.total} className="text-xs font-bold text-ink" />
               </span>
             </div>
           ))}
@@ -537,7 +516,7 @@ function Answer({ query }: { query: ParsedQuery }) {
       ) : null}
 
       {filtered.length === 0 ? (
-        <p className="flex items-center gap-1.5 text-[12px] text-faint">
+        <p className="flex items-center gap-1.5 text-xs text-faint">
           <ArrowRight className="h-3 w-3" />
           Nothing recorded in that window.
         </p>

@@ -11,12 +11,12 @@ import {
 import { cn } from '@/lib/utils';
 
 const BASE =
-  'w-full rounded-xl border border-line bg-surface px-3 text-ink placeholder:text-faint ' +
-  'transition-colors focus:border-accent focus:outline-none disabled:opacity-50';
+  'w-full rounded-2xl border border-line bg-surface/95 px-3.5 text-ink placeholder:text-faint ' +
+  'transition-all duration-150 focus:border-accent focus:ring-1 focus:ring-accent/40 focus:outline-none disabled:opacity-50 shadow-2xs';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
-    return <input ref={ref} className={cn(BASE, 'h-11', className)} {...props} />;
+    return <input ref={ref} className={cn(BASE, 'h-11 text-sm', className)} {...props} />;
   },
 );
 
@@ -24,14 +24,12 @@ export const Textarea = forwardRef<
   HTMLTextAreaElement,
   TextareaHTMLAttributes<HTMLTextAreaElement>
 >(function Textarea({ className, ...props }, ref) {
-  return <textarea ref={ref} className={cn(BASE, 'min-h-20 py-2.5', className)} {...props} />;
+  return <textarea ref={ref} className={cn(BASE, 'min-h-20 py-2.5 text-sm', className)} {...props} />;
 });
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
   function Select({ className, ...props }, ref) {
-    // A native select on a phone gives the OS picker, which is faster and more
-    // accessible than anything reimplemented in a div.
-    return <select ref={ref} className={cn(BASE, 'h-11 pr-8', className)} {...props} />;
+    return <select ref={ref} className={cn(BASE, 'h-11 pr-8 text-sm', className)} {...props} />;
   },
 );
 
@@ -48,14 +46,12 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
-  // Wrapping the control implicitly associates it with the label, which is more
-  // robust than an id that has to stay unique across a dynamically built form.
   return (
     <label className={cn('block space-y-1.5', className)}>
-      <span className="block text-[13px] font-medium text-muted">{label}</span>
+      <span className="block text-xs font-semibold text-muted uppercase tracking-wider">{label}</span>
       {children}
       {error ? (
-        <span className="block text-[12px] text-bad">{error}</span>
+        <span className="block text-[12px] text-bad font-medium">{error}</span>
       ) : hint ? (
         <span className="block text-[12px] text-faint">{hint}</span>
       ) : null}
@@ -63,7 +59,7 @@ export function Field({
   );
 }
 
-/** A row of mutually exclusive options. Used for direction, ranges, filters. */
+/** A row of mutually exclusive options with tactile active tab styling. */
 export function Segmented<T extends string>({
   options,
   value,
@@ -78,25 +74,28 @@ export function Segmented<T extends string>({
   return (
     <div
       role="tablist"
-      className={cn('flex gap-1 rounded-xl bg-raised p-1', className)}
+      className={cn('flex gap-1 rounded-2xl bg-raised/90 p-1 border border-line/60', className)}
     >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={value === option.value}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'flex-1 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors',
-            value === option.value
-              ? 'bg-surface text-ink shadow-sm'
-              : 'text-muted hover:text-ink',
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+      {options.map((option) => {
+        const isSelected = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={isSelected}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              'flex-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-150 active:scale-95 text-center',
+              isSelected
+                ? 'bg-surface text-ink shadow-xs border border-line/70 font-bold'
+                : 'text-muted hover:text-ink hover:bg-surface/50',
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -118,22 +117,22 @@ export function Switch({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 text-left"
+      className="flex w-full items-center justify-between gap-4 text-left transition-opacity hover:opacity-90 active:scale-[0.99]"
     >
       <span className="min-w-0">
-        <span className="block text-sm text-ink">{label}</span>
-        {hint ? <span className="block text-[12px] text-faint">{hint}</span> : null}
+        <span className="block text-sm font-semibold text-ink">{label}</span>
+        {hint ? <span className="block text-xs text-faint mt-0.5">{hint}</span> : null}
       </span>
       <span
         className={cn(
-          'relative h-6 w-10 shrink-0 rounded-full transition-colors',
-          checked ? 'bg-accent' : 'bg-line',
+          'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 border',
+          checked ? 'bg-accent border-accent/40 shadow-xs' : 'bg-raised border-line',
         )}
       >
         <span
           className={cn(
-            'absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all',
-            checked ? 'left-[18px]' : 'left-0.5',
+            'absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white shadow-sm transition-all duration-200',
+            checked ? 'left-[22px]' : 'left-0.5',
           )}
         />
       </span>

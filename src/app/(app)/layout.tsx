@@ -26,10 +26,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [tourOpen, setTourOpen] = useState(false);
   const pathname = usePathname();
 
-  // The home-screen shortcut lands on `/?add=1`. Read straight from the URL
-  // rather than useSearchParams(): that hook forces the whole page into a
-  // Suspense boundary at build time, which is a lot of machinery for one flag.
-  // The param is stripped afterwards so a refresh does not reopen the sheet.
+  // The home-screen shortcut lands on `/?add=1`.
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get('add') === null) return;
@@ -66,10 +63,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <SideNav onAdd={() => setAdding(true)} onOpenTour={() => setTourOpen(true)} />
       <BottomNav onAdd={() => setAdding(true)} />
 
-      <main className="md:pl-56">
+      <main className="md:pl-60 transition-[padding] duration-200">
         <div
           key={pathname}
-          className="mx-auto max-w-2xl animate-fade-in px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-16 md:pt-8"
+          className="mx-auto max-w-2xl animate-fade-in px-4 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-16 md:pt-8"
         >
           {children}
         </div>

@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils';
 
 /**
- * The official KharchGini logo insignia matching public/icon.svg and favicon.
+ * The official KharchGini logo insignia with an elevated gradient and specular shine.
  */
 export function BrandLogo({
   className,
@@ -20,16 +20,32 @@ export function BrandLogo({
       viewBox="0 0 64 64"
       width={size}
       height={size}
-      className={cn('shrink-0 shadow-sm shadow-accent/20', rounded, className)}
+      className={cn('shrink-0 shadow-md shadow-accent/20 transition-transform duration-200 hover:scale-105', rounded, className)}
       role="img"
       aria-label="KharchGini"
     >
-      <rect width="64" height="64" rx="14" fill="#1d8660" />
+      <defs>
+        <linearGradient id="kgBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#10b981" />
+          <stop offset="100%" stopColor="#047857" />
+        </linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="16" fill="url(#kgBrandGrad)" />
+      <rect
+        width="62"
+        height="62"
+        x="1"
+        y="1"
+        rx="15"
+        fill="none"
+        stroke="rgba(255,255,255,0.25)"
+        strokeWidth="1.5"
+      />
       <g
         transform="translate(14 14) scale(1.5)"
         fill="none"
         stroke="#ffffff"
-        strokeWidth="2.2"
+        strokeWidth="2.3"
         strokeLinecap="round"
         strokeLinejoin="round"
       >

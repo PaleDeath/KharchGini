@@ -7,8 +7,8 @@ import { THEME_SCRIPT } from '@/components/shell/theme';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'KharchGini',
-  description: 'Know what you can spend today.',
+  title: 'KharchGini — Personal Financial State Machine',
+  description: 'Know what you can spend today. A quiet, fast, and tactile financial state machine.',
   applicationName: 'KharchGini',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, title: 'KharchGini', statusBarStyle: 'black-translucent' },
@@ -19,13 +19,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  // Zoom stays enabled. Disabling it is an accessibility failure, and this app
-  // shows a lot of small numbers.
   maximumScale: 5,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fbfaf7' },
-    { media: '(prefers-color-scheme: dark)', color: '#141210' },
+    { media: '(prefers-color-scheme: light)', color: '#f5f7fa' },
+    { media: '(prefers-color-scheme: dark)', color: '#090d14' },
   ],
 };
 

@@ -158,134 +158,134 @@ export default function YouPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <header className="px-1">
-        <h1 className="text-xl font-semibold tracking-tight">You</h1>
-        <p className="text-[13px] text-faint">{user?.email}</p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-ink">You & Insights</h1>
+        <p className="text-xs text-faint">{user?.email}</p>
       </header>
 
-      {/*
-       * The one number in the app that counts everything: savings, cards, the
-       * lot. It is deliberately not on the home screen — "what am I worth" is a
-       * question for a quiet moment, not for the second before buying lunch.
-       */}
+      {/* Net Worth Summary Card */}
       {liveAccounts > 0 ? (
-        <Card className="px-4 py-3.5">
-          <p className="text-[13px] text-muted">Net worth</p>
+        <Card className="relative overflow-hidden rounded-3xl p-5 shadow-card bg-gradient-to-br from-surface via-surface to-raised/90 border border-line">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted">Total Net Worth</p>
           <Money
             value={worth}
-            className="mt-0.5 block text-2xl font-semibold"
+            className="mt-1 block text-3xl sm:text-4xl font-black tracking-tight"
             tone={worth < 0 ? 'bad' : 'plain'}
             animate
           />
-          <p className="mt-1 text-[12px] leading-relaxed text-faint">
-            Everything you hold minus everything you owe, across {liveAccounts}{' '}
-            {liveAccounts === 1 ? 'account' : 'accounts'}. Savings and credit cards are both in
-            here, which is what makes this different from Safe to Spend.
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            Assets minus liabilities across all {liveAccounts}{' '}
+            {liveAccounts === 1 ? 'account' : 'accounts'}. Includes savings, credit cards & investments.
           </p>
         </Card>
       ) : null}
 
-      {/* Six months, side by side. Trend beats any single month's number. */}
-      <Section title="Six months">
-        <Card className="px-4 py-4">
-          <div className="flex items-end justify-between gap-2">
+      {/* Six months trend */}
+      <Section title="Six months trend">
+        <Card className="p-5 shadow-card space-y-4">
+          <div className="flex items-end justify-between gap-3 pt-2">
             {trend.map((row) => (
-              <div key={row.month} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <div className="flex h-24 w-full items-end justify-center gap-[3px]">
+              <div key={row.month} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                <div className="flex h-28 w-full items-end justify-center gap-1">
                   <div
-                    className="w-2.5 rounded-t bg-good/70"
-                    style={{ height: `${(row.income / peak) * 100}%` }}
-                    title={`In ${formatMoney(row.income)}`}
+                    className="w-3 rounded-t-lg bg-gradient-to-t from-good to-emerald-400 transition-all duration-300 shadow-2xs"
+                    style={{ height: `${Math.max(4, (row.income / peak) * 100)}%` }}
+                    title={`In: ${formatMoney(row.income)}`}
                   />
                   <div
-                    className="w-2.5 rounded-t bg-accent/70"
-                    style={{ height: `${(row.spending / peak) * 100}%` }}
-                    title={`Out ${formatMoney(row.spending)}`}
+                    className="w-3 rounded-t-lg bg-gradient-to-t from-accent to-teal-400 transition-all duration-300 shadow-2xs"
+                    style={{ height: `${Math.max(4, (row.spending / peak) * 100)}%` }}
+                    title={`Out: ${formatMoney(row.spending)}`}
                   />
                 </div>
-                <span className="truncate text-[10px] text-faint">
+                <span className="truncate text-xs font-semibold text-muted">
                   {formatMonthShort(row.month).slice(0, 3)}
                 </span>
               </div>
             ))}
           </div>
-          <div className="mt-3 flex items-center justify-center gap-4 border-t border-line pt-2.5 text-[11px] text-faint">
+
+          <div className="flex items-center justify-center gap-6 border-t border-line/70 pt-3 text-xs font-semibold text-muted">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-good/70" /> money in
+              <span className="h-2.5 w-2.5 rounded-full bg-good shadow-2xs" /> Money In
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-accent/70" /> money out
+              <span className="h-2.5 w-2.5 rounded-full bg-accent shadow-2xs" /> Money Out
             </span>
           </div>
         </Card>
       </Section>
 
+      {/* Monthly Summary Cards */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="px-4 py-3">
-          <p className="text-[12px] text-faint">Kept this month</p>
+        <Card className="p-4 shadow-card">
+          <p className="text-xs font-bold uppercase tracking-wider text-faint">Kept this month</p>
           <Money
             value={summary.saved}
             signed
-            className="mt-0.5 block text-lg font-semibold"
+            className="mt-1 block text-xl font-black text-ink"
           />
-          <p className="mt-0.5 text-[11px] text-faint">
+          <p className="mt-1 text-xs text-muted">
             {summary.income > 0
-              ? `${Math.round(summary.savingsRate)}% of what came in`
-              : 'No income recorded yet'}
+              ? `${Math.round(summary.savingsRate)}% savings rate`
+              : 'No income recorded'}
           </p>
         </Card>
-        <Card className="px-4 py-3">
-          <p className="text-[12px] text-faint">Needs vs wants</p>
-          <p className="mt-0.5 text-lg font-semibold tnum">
+
+        <Card className="p-4 shadow-card">
+          <p className="text-xs font-bold uppercase tracking-wider text-faint">Needs vs wants</p>
+          <p className="mt-1 text-xl font-black text-ink tnum">
             {splitTotal > 0 ? `${Math.round((summary.needs / splitTotal) * 100)}%` : '—'}
           </p>
-          <p className="mt-0.5 text-[11px] text-faint">
+          <p className="mt-1 text-xs text-muted truncate">
             {splitTotal > 0
-              ? `needs · ${formatMoney(summary.wants)} on wants`
+              ? `Needs · ${formatMoney(summary.wants)} wants`
               : 'Nothing spent yet'}
           </p>
         </Card>
       </div>
 
+      {/* Spending Distribution */}
       {spend.length > 0 ? (
         <Section title={`Where it went in ${formatMonthShort(month)}`}>
-          <Card className="divide-y divide-line overflow-hidden">
+          <Card className="divide-y divide-line overflow-hidden shadow-card">
             {spend.map((row) => (
               <button
                 key={row.categoryId ?? 'none'}
                 type="button"
                 onClick={() => setDrilldownCategory(row.categoryId ?? '')}
-                className="flex w-full flex-col px-4 py-3 text-left hover:bg-raised transition-colors group"
+                className="flex w-full flex-col px-4 py-3.5 text-left hover:bg-raised/60 transition-colors group"
               >
-                <div className="flex items-center gap-2 w-full">
+                <div className="flex items-center gap-2.5 w-full">
                   <CategoryIcon
                     name={row.category?.icon}
                     color={row.category?.color}
-                    className="h-3.5 w-3.5 shrink-0"
+                    className="h-4 w-4 shrink-0"
                   />
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">
+                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
                     {row.category?.name ?? 'Uncategorised'}
                   </span>
-                  <span className="shrink-0 text-[11px] text-faint">
+                  <span className="shrink-0 text-xs font-semibold text-muted">
                     {Math.round(row.pctOfTotal)}%
                   </span>
-                  <Money value={row.total} className="shrink-0 text-[13px] font-semibold" tone="plain" />
+                  <Money value={row.total} className="shrink-0 text-sm font-black text-ink" tone="plain" />
                 </div>
-                <Bar value={row.total} max={spend[0]?.total ?? row.total} className="mt-2 w-full" />
+                <Bar value={row.total} max={spend[0]?.total ?? row.total} className="mt-2.5 w-full h-2" />
               </button>
             ))}
           </Card>
         </Section>
       ) : null}
 
+      {/* Merchant Inflation Index */}
       {prices.length > 0 ? (
         <Section title="What quietly got more expensive">
-          <Card className="divide-y divide-line overflow-hidden">
+          <Card className="divide-y divide-line overflow-hidden shadow-card">
             {prices.slice(0, 5).map((observation) => (
               <div
                 key={observation.merchant}
-                className="flex items-center gap-3 px-4 py-2.5"
+                className="flex items-center gap-3 px-4 py-3"
               >
                 <TrendingUp
                   className={cn(
@@ -294,10 +294,10 @@ export default function YouPage() {
                   )}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm capitalize text-ink">
+                  <span className="block truncate text-sm font-bold capitalize text-ink">
                     {observation.merchant}
                   </span>
-                  <span className="block text-[12px] text-faint">
+                  <span className="block text-xs text-faint">
                     {formatMoney(observation.first.amount)} → {formatMoney(observation.latest.amount)}{' '}
                     since {formatDay(observation.first.date)}
                   </span>
@@ -312,51 +312,54 @@ export default function YouPage() {
         </Section>
       ) : null}
 
+      {/* Owed to you */}
       {owed.length > 0 ? (
         <Section
           title="Owed to you"
           action={
             <Button
               size="sm"
-              variant="ghost"
+              variant="outline"
               onClick={() => void settle(owed.map((entry) => entry.id))}
+              className="text-xs font-bold"
             >
               Settle all
             </Button>
           }
         >
-          <Card className="px-4 py-3">
-            <p className="text-[13px] text-muted">
-              <Money value={owedTotal} className="font-semibold text-ink" tone="plain" /> across{' '}
-              {owed.length} {owed.length === 1 ? 'entry' : 'entries'}. It is real money and it is
-              not in Safe to Spend.
+          <Card className="p-4 shadow-card">
+            <p className="text-xs text-muted">
+              <Money value={owedTotal} className="font-bold text-ink" tone="plain" /> across{' '}
+              {owed.length} {owed.length === 1 ? 'entry' : 'entries'}.
             </p>
           </Card>
         </Section>
       ) : null}
 
+      {/* Categories */}
       <Section
         title="Categories"
         action={
           <Button
             size="sm"
-            variant="ghost"
+            variant="outline"
             onClick={() => {
               setCategory(null);
               setCategoryOpen(true);
             }}
+            className="text-xs font-bold gap-1"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add
+            Add category
           </Button>
         }
       >
-        <Card className="divide-y divide-line overflow-hidden">
+        <Card className="divide-y divide-line overflow-hidden shadow-card">
           {visibleCategories.length === 0 ? (
             <Empty
               icon={<Shapes className="h-6 w-6" />}
               title="No categories"
-              hint="Odd — the app seeds a starter set. Add one and carry on."
+              hint="Add categories to organize your expenses."
             />
           ) : (
             visibleCategories.map((row) => (
@@ -367,15 +370,15 @@ export default function YouPage() {
                   setCategory(row);
                   setCategoryOpen(true);
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-raised"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-raised/60"
               >
                 <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${row.color}1f` }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-2xs"
+                  style={{ backgroundColor: `${row.color}20`, border: `1px solid ${row.color}35` }}
                 >
-                  <CategoryIcon name={row.icon} color={row.color} className="h-[15px] w-[15px]" />
+                  <CategoryIcon name={row.icon} color={row.color} className="h-4 w-4" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
                   {row.parentId ? `${categories.get(row.parentId)?.name ?? '?'} → ` : ''}
                   {row.name}
                 </span>
@@ -388,26 +391,27 @@ export default function YouPage() {
           <button
             type="button"
             onClick={() => setShowAllCategories((v) => !v)}
-            className="px-1 text-[12px] text-accent hover:underline"
+            className="px-1 text-xs font-bold text-accent hover:underline"
           >
             {showAllCategories
               ? 'Show fewer'
-              : `Show all ${ledger.categories.filter((c) => !c.archived).length}`}
+              : `Show all ${ledger.categories.filter((c) => !c.archived).length} categories`}
           </button>
         ) : null}
       </Section>
 
+      {/* Learned Rules */}
       {ledger.rules.length > 0 ? (
         <Section title="Rules you taught it">
-          <Card className="divide-y divide-line overflow-hidden">
+          <Card className="divide-y divide-line overflow-hidden shadow-card">
             {ledger.rules.map((rule) => (
-              <div key={rule.id} className="flex items-center gap-3 px-4 py-2.5">
-                <Wand2 className="h-4 w-4 shrink-0 text-faint" />
+              <div key={rule.id} className="flex items-center gap-3 px-4 py-3">
+                <Wand2 className="h-4 w-4 shrink-0 text-accent" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] text-ink">
+                  <span className="block truncate text-sm font-bold text-ink">
                     {rule.field} {rule.op} “{rule.value}”
                   </span>
-                  <span className="block truncate text-[12px] text-faint">
+                  <span className="block truncate text-xs text-faint">
                     files as{' '}
                     {rule.setCategoryId
                       ? (categories.get(rule.setCategoryId)?.name ?? 'unknown')
@@ -419,23 +423,19 @@ export default function YouPage() {
                   type="button"
                   onClick={() => void deleteRule(rule.id)}
                   aria-label="Delete rule"
-                  className="shrink-0 rounded-lg p-1.5 text-faint hover:bg-raised hover:text-bad"
+                  className="shrink-0 rounded-xl p-1.5 text-faint hover:bg-raised hover:text-bad transition-colors"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             ))}
           </Card>
-          <p className="flex items-center gap-1.5 px-1 text-[12px] text-faint">
-            <Sparkles className="h-3.5 w-3.5" />
-            It has also learned {ledger.merchants.length}{' '}
-            {ledger.merchants.length === 1 ? 'merchant' : 'merchants'} from your corrections.
-          </p>
         </Section>
       ) : null}
 
-      <Section title="Settings">
-        <Card className="space-y-4 px-4 py-4">
+      {/* Settings Section */}
+      <Section title="Settings & Appearance">
+        <Card className="space-y-4 p-5 shadow-card">
           <Field label="What should it call you">
             <Input
               value={name}
@@ -447,7 +447,7 @@ export default function YouPage() {
 
           <Field
             label="Payday"
-            hint="The day your salary usually lands. Safe to Spend measures the runway to it."
+            hint="The day your salary lands. Safe to Spend calculates your daily runway until this date."
           >
             <Input
               type="number"
@@ -468,29 +468,29 @@ export default function YouPage() {
           </Field>
 
           <div className="space-y-1.5">
-            <span className="block text-[13px] font-medium text-muted">Appearance</span>
+            <span className="block text-xs font-semibold uppercase tracking-wider text-muted">Appearance</span>
             <Segmented options={THEMES} value={theme} onChange={setTheme} />
           </div>
 
-          <div className="border-t border-line pt-3.5">
+          <div className="border-t border-line/70 pt-4">
             <Switch
               checked={ledger.prefs.privacyMode === true}
               onChange={(next) => void savePrefs({ privacyMode: next })}
-              label="Blur every amount"
-              hint="For the metro. Hover or tap a figure to read it."
+              label="Privacy Blur Mode"
+              hint="Blurs numbers for public commute. Hover or tap to view."
             />
           </div>
 
-          <div className="border-t border-line pt-3.5 flex items-center justify-between gap-3">
+          <div className="border-t border-line/70 pt-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[13px] font-medium text-ink">How KharchGini works</p>
-              <p className="text-[12px] text-muted">Review the core philosophy and guide</p>
+              <p className="text-sm font-bold text-ink">How KharchGini works</p>
+              <p className="text-xs text-muted">Review philosophy and runway mechanics</p>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setTourOpen(true)}
-              className="gap-1.5 text-[12px] shrink-0"
+              className="gap-1.5 text-xs font-bold shrink-0"
             >
               <HelpCircle className="h-3.5 w-3.5 text-accent" />
               View guide
@@ -499,14 +499,14 @@ export default function YouPage() {
         </Card>
       </Section>
 
-      <Section title="Your data">
-        <Card className="space-y-2 px-4 py-4">
-          <p className="text-[13px] leading-relaxed text-muted">
-            {ledger.entries.length} entries, {ledger.accounts.length} accounts. It is yours: take it
-            out whenever you like, or restore a previous JSON backup.
+      {/* Data Backup & Restore */}
+      <Section title="Your Data">
+        <Card className="space-y-3 p-5 shadow-card">
+          <p className="text-xs leading-relaxed text-muted">
+            {ledger.entries.length} entries, {ledger.accounts.length} accounts. Fully stored in your personal Firebase database.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="font-bold">
               <FileUp className="h-3.5 w-3.5 text-accent" />
               Import Statement (Excel / CSV)
             </Button>
@@ -515,13 +515,14 @@ export default function YouPage() {
               size="sm"
               onClick={exportEntries}
               disabled={ledger.entries.length === 0}
+              className="font-bold"
             >
               <Download className="h-3.5 w-3.5" />
-              Entries as CSV
+              Entries CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={exportEverything}>
+            <Button variant="outline" size="sm" onClick={exportEverything} className="font-bold">
               <Download className="h-3.5 w-3.5" />
-              Full backup
+              Full backup JSON
             </Button>
             <label className="cursor-pointer">
               <input
@@ -546,7 +547,7 @@ export default function YouPage() {
                   }
                 }}
               />
-              <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-[13px] font-medium text-ink hover:bg-raised transition-colors active:scale-95">
+              <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-2xl border border-line bg-surface px-3.5 text-xs font-bold text-ink hover:bg-raised transition-all active:scale-95 shadow-2xs">
                 <FileUp className="h-3.5 w-3.5 text-accent" />
                 {restoring ? 'Restoring...' : 'Restore JSON'}
               </span>
@@ -555,18 +556,18 @@ export default function YouPage() {
         </Card>
       </Section>
 
+      {/* Account actions */}
       <Section title="Account">
-        <Card className="space-y-3 px-4 py-4">
-          <Button variant="secondary" onClick={() => void leave()} className="w-full">
+        <Card className="space-y-4 p-5 shadow-card">
+          <Button variant="secondary" onClick={() => void leave()} className="w-full font-bold">
             <LogOut className="h-4 w-4" />
             Sign out
           </Button>
 
-          <div className="space-y-2 border-t border-line pt-3">
-            <p className="text-[13px] font-medium text-ink">Delete everything</p>
-            <p className="text-[12px] leading-relaxed text-faint">
-              Every entry, account, budget and goal, permanently. Take a backup first — this cannot
-              be undone and there is no copy anywhere else. Type <strong>DELETE</strong> to confirm.
+          <div className="space-y-2 border-t border-line/70 pt-4">
+            <p className="text-sm font-bold text-ink">Delete everything</p>
+            <p className="text-xs leading-relaxed text-muted">
+              Permanently delete all entries, accounts, budgets, and rules. Type <strong>DELETE</strong> to confirm.
             </p>
             <div className="flex gap-2">
               <Input
@@ -574,13 +575,13 @@ export default function YouPage() {
                 onChange={(e) => setConfirmWipe(e.target.value)}
                 placeholder="DELETE"
                 autoCapitalize="characters"
-                className="h-10 text-sm"
+                className="h-10 text-sm font-mono"
               />
               <Button
                 variant="danger"
                 onClick={wipe}
                 disabled={confirmWipe !== 'DELETE'}
-                className="shrink-0"
+                className="shrink-0 font-bold"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

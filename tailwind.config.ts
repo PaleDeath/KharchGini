@@ -21,30 +21,29 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'monospace'],
       },
       borderRadius: {
-        card: '14px',
+        card: '18px',
+        '2xl': '20px',
+        '3xl': '26px',
+      },
+      boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        card: '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
+        'glow-accent': '0 0 20px -3px rgba(16, 185, 129, 0.3)',
+        'glow-bad': '0 0 20px -3px rgba(239, 68, 68, 0.3)',
       },
       fontSize: {
-        hero: ['2.75rem', { lineHeight: '1', letterSpacing: '-0.03em' }],
+        hero: ['2.75rem', { lineHeight: '1', letterSpacing: '-0.035em' }],
       },
-      /*
-       * Two curves and nothing else.
-       *
-       * `soft` overshoots nothing but settles late, which is what makes an
-       * arrival feel unhurried instead of merely fast. `exit` is the opposite
-       * and is always given less time: leaving should never cost the user a
-       * wait, only enough frames to see where the thing went.
-       */
       transitionTimingFunction: {
-        soft: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        soft: 'cubic-bezier(0.23, 1, 0.32, 1)',
         exit: 'cubic-bezier(0.4, 0, 0.6, 1)',
       },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
         'fade-out': { from: { opacity: '1' }, to: { opacity: '0' } },
-
-        /* Phone: the panel is pinned to the bottom edge and rises off it. */
         'sheet-in': {
           from: { opacity: '0', transform: 'translateY(100%)' },
           to: { opacity: '1', transform: 'translateY(0)' },
@@ -53,12 +52,6 @@ const config: Config = {
           from: { opacity: '1', transform: 'translateY(0)' },
           to: { opacity: '0', transform: 'translateY(100%)' },
         },
-
-        /*
-         * Desktop: the panel is centred with translate(-50%, -50%), so these
-         * keyframes MUST carry that offset through every frame or the dialog
-         * jumps a quarter-screen the moment the animation starts.
-         */
         'pop-in': {
           from: { opacity: '0', transform: 'translate(-50%, -48%) scale(0.96)' },
           to: { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
@@ -67,9 +60,8 @@ const config: Config = {
           from: { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
           to: { opacity: '0', transform: 'translate(-50%, -48%) scale(0.96)' },
         },
-
         'toast-in': {
-          from: { opacity: '0', transform: 'translateY(14px) scale(0.97)' },
+          from: { opacity: '0', transform: 'translateY(12px) scale(0.97)' },
           to: { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         'toast-out': {
@@ -78,14 +70,14 @@ const config: Config = {
         },
       },
       animation: {
-        'fade-in': 'fade-in 300ms cubic-bezier(0.22, 1, 0.36, 1)',
-        'fade-out': 'fade-out 220ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
-        'sheet-in': 'sheet-in 380ms cubic-bezier(0.22, 1, 0.36, 1)',
-        'sheet-out': 'sheet-out 260ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
-        'pop-in': 'pop-in 240ms cubic-bezier(0.22, 1, 0.36, 1)',
-        'pop-out': 'pop-out 180ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
-        'toast-in': 'toast-in 300ms cubic-bezier(0.22, 1, 0.36, 1)',
-        'toast-out': 'toast-out 200ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
+        'fade-in': 'fade-in 240ms cubic-bezier(0.23, 1, 0.32, 1)',
+        'fade-out': 'fade-out 180ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
+        'sheet-in': 'sheet-in 320ms cubic-bezier(0.23, 1, 0.32, 1)',
+        'sheet-out': 'sheet-out 220ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
+        'pop-in': 'pop-in 200ms cubic-bezier(0.23, 1, 0.32, 1)',
+        'pop-out': 'pop-out 160ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
+        'toast-in': 'toast-in 240ms cubic-bezier(0.23, 1, 0.32, 1)',
+        'toast-out': 'toast-out 180ms cubic-bezier(0.4, 0, 0.6, 1) forwards',
       },
     },
   },

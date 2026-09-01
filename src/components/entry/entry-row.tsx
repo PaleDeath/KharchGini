@@ -10,11 +10,7 @@ import { Money } from '@/components/ui/money';
 import { cn } from '@/lib/utils';
 
 /**
- * One line of the ledger.
- *
- * The description is the loudest thing, not the category — people remember
- * "auto to office", not "Transport". The amount is the only other thing at full
- * contrast. Everything else is context, and context is grey.
+ * One line of the ledger with high-contrast description and tabular money alignment.
  */
 export function EntryRow({
   entry,
@@ -55,9 +51,9 @@ export function EntryRow({
       {selectable ? (
         <span
           className={cn(
-            'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all',
+            'flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-all',
             selected
-              ? 'border-accent bg-accent text-white shadow-xs'
+              ? 'border-accent bg-accent text-accent-ink shadow-xs'
               : 'border-line bg-surface hover:border-muted',
           )}
         >
@@ -67,10 +63,10 @@ export function EntryRow({
 
       {isTransfer ? (
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-raised/80 text-muted shadow-xs"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-raised/80 text-muted shadow-2xs"
           aria-hidden
         >
-          <ArrowRight className="h-4 w-4 stroke-[1.8]" />
+          <ArrowRight className="h-4 w-4 stroke-[2]" />
         </span>
       ) : (
         <CategoryChip name={category?.icon} color={category?.color} />
@@ -78,42 +74,39 @@ export function EntryRow({
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className="min-w-0 truncate text-sm text-ink">{entry.description}</span>
+          <span className="min-w-0 truncate text-sm font-semibold text-ink">{entry.description}</span>
           {entry.source === 'recurring' ? (
             <Repeat className="h-3 w-3 shrink-0 text-faint" aria-label="Recurring" />
           ) : null}
           {entry.reimbursable && !entry.settledAt ? (
-            <span className="shrink-0 rounded bg-warn/12 px-1 text-[10px] font-medium text-warn">
+            <span className="shrink-0 rounded-md bg-warn/15 border border-warn/30 px-1.5 text-[10px] font-bold text-warn shadow-2xs">
               owed
             </span>
           ) : null}
         </span>
-        <span className="mt-0.5 block truncate text-[12px] text-faint">{context}</span>
+        <span className="mt-0.5 block truncate text-xs text-faint font-medium">{context}</span>
       </span>
 
       <Money
         value={entry.amount}
         tone={entry.direction === 'in' ? 'good' : isTransfer ? 'muted' : 'plain'}
-        className={cn('shrink-0 text-sm', entry.direction === 'in' && 'font-medium')}
+        className={cn('shrink-0 text-sm font-bold', entry.direction === 'in' && 'font-black')}
       />
     </>
   );
 
   const shared = cn(
-    'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
+    'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150',
     selected && 'bg-accent/10',
   );
 
   if (!onOpen) return <div className={shared}>{inner}</div>;
 
-  // A row gets a press *tint* rather than a press *scale*: these sit inside a
-  // divide-y card, and scaling one would open a hairline gap against its
-  // neighbours on the way down.
   return (
     <button
       type="button"
       onClick={() => onOpen(entry)}
-      className={cn(shared, 'hover:bg-raised active:bg-line')}
+      className={cn(shared, 'hover:bg-raised/70 active:bg-raised')}
     >
       {inner}
     </button>

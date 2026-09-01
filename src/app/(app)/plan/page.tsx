@@ -1,11 +1,13 @@
 'use client';
 
 import {
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   CopyPlus,
   Plus,
   Repeat,
+  Sparkles,
   Target,
   TrendingDown,
   Wallet,
@@ -89,15 +91,18 @@ export default function PlanPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <header className="flex items-center justify-between gap-2 px-1">
-        <h1 className="text-xl font-semibold tracking-tight">Plan</h1>
-        <div className="flex items-center gap-1">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Plan & Budgets</h1>
+          <p className="text-xs text-muted">Envelopes, recurring commitments & saving goals</p>
+        </div>
+        <div className="flex items-center gap-1 rounded-2xl border border-line bg-surface/90 p-1 shadow-2xs">
           <button
             type="button"
             onClick={() => setMonth(addMonthsToKey(month, -1))}
             aria-label="Previous month"
-            className="rounded-lg p-1.5 text-muted hover:bg-raised hover:text-ink"
+            className="rounded-xl p-1.5 text-muted hover:bg-raised hover:text-ink transition-colors active:scale-95"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -105,10 +110,10 @@ export default function PlanPage() {
             type="button"
             onClick={() => setMonth(currentMonth())}
             className={cn(
-              'min-w-[7.5rem] rounded-lg px-2 py-1 text-center text-[13px] font-medium',
-              isCurrent ? 'text-ink' : 'text-accent hover:bg-raised',
+              'min-w-[7.5rem] rounded-xl px-2.5 py-1 text-center text-xs font-bold transition-all active:scale-95',
+              isCurrent ? 'bg-raised text-ink' : 'text-accent hover:bg-raised',
             )}
-            title={isCurrent ? undefined : 'Back to this month'}
+            title={isCurrent ? undefined : 'Back to current month'}
           >
             {formatMonth(month)}
           </button>
@@ -116,70 +121,82 @@ export default function PlanPage() {
             type="button"
             onClick={() => setMonth(addMonthsToKey(month, 1))}
             aria-label="Next month"
-            className="rounded-lg p-1.5 text-muted hover:bg-raised hover:text-ink"
+            className="rounded-xl p-1.5 text-muted hover:bg-raised hover:text-ink transition-colors active:scale-95"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </header>
 
-      {/* Budgeted versus earned, stated plainly. */}
-      <Card className="px-4 py-3.5">
+      {/* Budgeted vs Spent Overview */}
+      <Card className="p-5 shadow-card space-y-3">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-[13px] text-muted">Budgeted this month</span>
-          <Money value={allocated} className="text-lg font-semibold" tone="plain" />
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/15 text-accent">
+              <CalendarDays className="h-3.5 w-3.5" />
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted">
+              Monthly Budgeted
+            </span>
+          </div>
+          <Money value={allocated} className="text-xl font-black text-ink" tone="plain" />
         </div>
-        <Bar value={spentInEnvelopes} max={allocated} className="mt-2" />
-        <p className="mt-2 text-[12px] leading-relaxed text-faint">
-          <Money value={spentInEnvelopes} className="text-muted" tone="plain" /> spent so far.
+
+        <Bar value={spentInEnvelopes} max={allocated} className="h-2.5" />
+
+        <div className="flex flex-wrap items-center justify-between text-xs text-muted pt-1">
+          <span className="font-semibold text-ink">
+            <Money value={spentInEnvelopes} tone="plain" /> spent in envelopes
+          </span>
           {summary.income > 0 ? (
-            <>
-              {' '}You took in <Money value={summary.income} className="text-muted" tone="plain" />
+            <span>
               {allocated > summary.income ? (
-                <span className="text-bad"> — you have budgeted more than that.</span>
+                <span className="text-bad font-semibold">Over-allocated vs income</span>
               ) : (
-                <>
-                  , leaving{' '}
-                  <Money value={summary.income - allocated} className="text-muted" tone="plain" />{' '}
-                  unplanned.
-                </>
+                <span>
+                  <Money value={summary.income - allocated} tone="plain" className="font-bold text-ink" /> unallocated
+                </span>
               )}
-            </>
-          ) : null}
-        </p>
+            </span>
+          ) : (
+            <span className="text-faint">Income not recorded yet</span>
+          )}
+        </div>
       </Card>
 
+      {/* Envelopes Section */}
       <Section
         title="Envelopes"
         action={
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {envelopes.length === 0 ? (
-              <Button size="sm" variant="ghost" onClick={copyForward}>
+              <Button size="sm" variant="ghost" onClick={copyForward} className="text-xs">
                 <CopyPlus className="h-3.5 w-3.5" />
                 Copy last month
               </Button>
             ) : null}
             <Button
               size="sm"
-              variant="ghost"
+              variant="outline"
               onClick={() => setEnvelopeFor({ open: true, categoryId: null })}
+              className="text-xs font-bold gap-1"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add
+              Add budget
             </Button>
           </div>
         }
       >
         {envelopes.length === 0 ? (
-          <Card>
+          <Card className="shadow-card">
             <Empty
               icon={<Wallet className="h-6 w-6" />}
               title="No budgets for this month"
-              hint="Budget two or three categories that actually vary — food, transport, whatever you keep wondering about. Budgeting everything is how people quit."
+              hint="Budget 2 or 3 flexible categories that matter — dining, groceries, shopping. Keep it simple and maintainable."
             />
           </Card>
         ) : (
-          <Card className="stagger divide-y divide-line overflow-hidden">
+          <Card className="stagger divide-y divide-line overflow-hidden shadow-card">
             {envelopes.map((status) => (
               <EnvelopeRow
                 key={status.envelope.id}
@@ -195,13 +212,14 @@ export default function PlanPage() {
         )}
       </Section>
 
+      {/* Unbudgeted Spending Callout */}
       {unbudgeted.length > 0 ? (
         <Section title="Spending with no budget">
-          <Card className="divide-y divide-line overflow-hidden">
+          <Card className="divide-y divide-line overflow-hidden shadow-card">
             {unbudgeted.slice(0, 6).map((row) => (
               <div
                 key={row.categoryId ?? 'none'}
-                className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-raised/60 transition-colors"
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-raised/60 transition-colors"
               >
                 <button
                   type="button"
@@ -210,15 +228,15 @@ export default function PlanPage() {
                 >
                   <CategoryChip name={row.category?.icon} color={row.category?.color} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-ink font-medium">
+                    <span className="block truncate text-sm font-semibold text-ink">
                       {row.category?.name ?? 'Uncategorised'}
                     </span>
-                    <span className="block text-[12px] text-faint">
+                    <span className="block text-xs text-faint">
                       {row.count} {row.count === 1 ? 'entry' : 'entries'} · tap to view
                     </span>
                   </span>
                 </button>
-                <Money value={row.total} className="shrink-0 text-sm" tone="plain" />
+                <Money value={row.total} className="shrink-0 text-sm font-bold text-ink" tone="plain" />
                 {row.categoryId ? (
                   <button
                     type="button"
@@ -226,7 +244,7 @@ export default function PlanPage() {
                       setEnvelopeFor({ open: true, categoryId: row.categoryId ?? null })
                     }
                     title="Set budget"
-                    className="flex h-7 items-center gap-1 rounded-lg border border-line bg-surface px-2 text-[11px] font-medium text-muted hover:border-accent hover:text-accent transition-colors"
+                    className="flex h-8 items-center gap-1 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-muted hover:border-accent hover:text-accent transition-all active:scale-95 shadow-2xs"
                   >
                     <Plus className="h-3 w-3" /> Budget
                   </button>
@@ -237,32 +255,34 @@ export default function PlanPage() {
         </Section>
       ) : null}
 
+      {/* Goals Section */}
       <Section
-        title="Goals"
+        title="Goals & Funds"
         action={
           <Button
             size="sm"
-            variant="ghost"
+            variant="outline"
             onClick={() => {
               setGoal(null);
               setGoalOpen(true);
             }}
+            className="text-xs font-bold gap-1"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add
+            Add goal
           </Button>
         }
       >
         {goals.length === 0 ? (
-          <Card>
+          <Card className="shadow-card">
             <Empty
               icon={<Target className="h-6 w-6" />}
               title="Nothing being saved for"
-              hint="A goal here points at a real account, so the bar only moves when the money does."
+              hint="A goal here connects to a dedicated savings or liquid account so your progress updates in real time."
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {goals.map((progress) => {
               const pct =
                 Math.min(100, Math.round((progress.saved / progress.goal.targetAmount) * 100)) || 0;
@@ -274,36 +294,36 @@ export default function PlanPage() {
                     setGoal(progress.goal);
                     setGoalOpen(true);
                   }}
-                  className="group relative flex flex-col justify-between rounded-2xl border border-line bg-surface/90 p-4 text-left transition-all duration-200 hover:border-accent/50 hover:bg-raised/70 hover:shadow-xs active:scale-[0.98]"
+                  className="group relative flex flex-col justify-between rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 text-left transition-all duration-200 hover:border-accent/50 hover:bg-raised/60 hover:shadow-card active:scale-[0.98] shadow-card"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 shadow-xs">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/25 text-amber-500 shadow-2xs">
                       <CategoryIcon name={progress.goal.icon} color="#f59e0b" className="h-5 w-5" />
                     </span>
-                    <span className="rounded-full bg-raised px-2.5 py-1 text-[11px] font-bold text-muted group-hover:text-ink transition-colors">
+                    <span className="rounded-full bg-raised border border-line/70 px-2.5 py-1 text-xs font-black text-ink group-hover:text-accent transition-colors shadow-2xs">
                       {pct}%
                     </span>
                   </div>
 
-                  <div className="mt-3">
-                    <h4 className="truncate text-[15px] font-bold text-ink">
+                  <div className="mt-3.5">
+                    <h4 className="truncate text-base font-extrabold text-ink">
                       {progress.goal.name}
                     </h4>
                     {progress.goal.targetDate ? (
-                      <p className="text-[11px] text-faint mt-0.5">
+                      <p className="text-xs text-faint mt-0.5">
                         Target: {formatDay(progress.goal.targetDate)}
                       </p>
                     ) : (
-                      <p className="text-[11px] text-faint mt-0.5">Ongoing fund</p>
+                      <p className="text-xs text-faint mt-0.5">Ongoing fund</p>
                     )}
                   </div>
 
-                  <div className="mt-3.5 space-y-1.5">
+                  <div className="mt-4 space-y-2">
                     <div className="flex items-baseline justify-between text-xs">
-                      <span className="font-semibold text-ink">
+                      <span className="font-extrabold text-ink">
                         {formatMoney(progress.saved)}
                       </span>
-                      <span className="text-faint">
+                      <span className="text-faint font-medium">
                         of {formatMoney(progress.goal.targetAmount)}
                       </span>
                     </div>
@@ -313,7 +333,7 @@ export default function PlanPage() {
                       tone={progress.onTrack === false ? 'warn' : 'good'}
                       className="h-2 rounded-full"
                     />
-                    <p className="text-[11px] text-faint truncate pt-0.5">
+                    <p className="text-[11px] text-faint truncate pt-0.5 font-medium">
                       {goalLine(progress)}
                     </p>
                   </div>
@@ -324,33 +344,35 @@ export default function PlanPage() {
         )}
       </Section>
 
+      {/* Repeats & Scheduled Rules */}
       <Section
-        title="Repeats"
+        title="Repeats & Recurring"
         action={
           <Button
             size="sm"
-            variant="ghost"
+            variant="outline"
             onClick={() => {
               setRule(null);
               setRuleOpen(true);
             }}
+            className="text-xs font-bold gap-1"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add
+            Add rule
           </Button>
         }
       >
         {ledger.recurring.length === 0 ? (
-          <Card>
+          <Card className="shadow-card">
             <Empty
               icon={<Repeat className="h-6 w-6" />}
               title="Nothing on a schedule"
-              hint="Rent, subscriptions, salary. Once these are in, the app knows what is coming and Safe to Spend stops lying to you."
+              hint="Rent, EMIs, SIPs, salary, OTT subscriptions. Adding them models your runway forecast accurately."
             />
           </Card>
         ) : (
           <>
-            <Card className="divide-y divide-line overflow-hidden">
+            <Card className="divide-y divide-line overflow-hidden shadow-card">
               {[...ledger.recurring]
                 .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
                 .map((item) => {
@@ -363,32 +385,32 @@ export default function PlanPage() {
                         setRule(item);
                         setRuleOpen(true);
                       }}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-raised"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-raised/60"
                     >
                       <span
                         className={cn(
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-2xs',
                           item.direction === 'in'
-                            ? 'bg-good/12 text-good'
-                            : 'bg-raised text-muted',
+                            ? 'border-good/30 bg-good/15 text-good'
+                            : 'border-line bg-raised/80 text-muted',
                         )}
                       >
                         <Repeat className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5">
-                          <span className="truncate text-sm text-ink">{item.description}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="truncate text-sm font-bold text-ink">{item.description}</span>
                           {!item.isActive ? <Badge>paused</Badge> : null}
                           {item.variableAmount ? <Badge tone="warn">varies</Badge> : null}
                         </span>
-                        <span className="block truncate text-[12px] text-faint">
+                        <span className="block truncate text-xs text-faint mt-0.5">
                           {describeSchedule(item)} · next {formatDay(item.nextDueDate)}
                           {inMonth > 1 ? ` · ${inMonth}× this month` : ''}
                         </span>
                       </span>
                       <Money
                         value={item.amount}
-                        className="shrink-0 text-sm"
+                        className="shrink-0 text-sm font-bold"
                         tone={item.direction === 'in' ? 'good' : 'plain'}
                       />
                     </button>
@@ -396,9 +418,9 @@ export default function PlanPage() {
                 })}
             </Card>
             {committedMonthly > 0 ? (
-              <p className="flex items-center gap-1.5 px-1 text-[12px] text-faint">
+              <p className="flex items-center gap-1.5 px-1 text-xs text-faint">
                 <TrendingDown className="h-3.5 w-3.5" />
-                {formatMoney(committedMonthly)} a month is committed before you decide anything.
+                {formatMoney(committedMonthly)} a month is committed before discretionary decisions.
               </p>
             ) : null}
           </>
@@ -440,17 +462,17 @@ function EnvelopeRow({
   const over = status.remaining < 0;
 
   return (
-    <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-raised transition-colors group">
+    <div className="flex w-full items-start gap-3.5 px-4 py-3.5 hover:bg-raised/60 transition-colors group">
       <button
         type="button"
         onClick={onOpen}
-        className="flex items-start gap-3 min-w-0 flex-1 text-left"
+        className="flex items-start gap-3.5 min-w-0 flex-1 text-left"
       >
         <CategoryChip name={status.category?.icon} color={status.category?.color} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
-            <span className="flex min-w-0 items-center gap-1.5">
-              <span className="truncate text-sm font-medium text-ink">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-sm font-bold text-ink">
                 {status.category?.name ?? 'Unknown category'}
               </span>
               {status.envelope.rollover && status.carriedIn !== 0 ? (
@@ -460,7 +482,7 @@ function EnvelopeRow({
                 </Badge>
               ) : null}
             </span>
-            <span className="shrink-0 text-[13px] text-muted">
+            <span className="shrink-0 text-xs font-semibold text-muted">
               <Money value={status.spent} tone="plain" /> / <Money value={status.available} tone="plain" />
             </span>
           </span>
@@ -469,27 +491,27 @@ function EnvelopeRow({
             value={status.spent}
             max={status.available}
             tone={over ? 'bad' : status.paceAhead ? 'warn' : 'good'}
-            className="mt-2"
+            className="mt-2.5"
           />
 
-          <span className="mt-1.5 flex items-center justify-between text-[12px] text-faint">
+          <span className="mt-2 flex items-center justify-between text-xs text-faint">
             <span>
               {over ? (
-                <span className="text-bad">
-                  {formatMoney(Math.abs(status.remaining))} over
+                <span className="text-bad font-bold">
+                  {formatMoney(Math.abs(status.remaining))} over budget
                 </span>
               ) : current && status.dailyAllowance > 0 ? (
                 <>
-                  {formatMoney(status.remaining)} left · {formatMoney(status.dailyAllowance)} a day
+                  <span className="font-semibold text-ink">{formatMoney(status.remaining)}</span> left · {formatMoney(status.dailyAllowance)} a day
                   {status.paceAhead ? (
-                    <span className="text-warn"> · ahead of pace</span>
+                    <span className="text-warn font-bold"> · ahead of pace</span>
                   ) : null}
                 </>
               ) : (
                 `${formatMoney(status.remaining)} left`
               )}
             </span>
-            <span className="text-accent opacity-0 group-hover:opacity-100 transition-opacity text-[11px]">
+            <span className="text-accent opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-bold">
               View entries →
             </span>
           </span>
@@ -501,7 +523,7 @@ function EnvelopeRow({
           type="button"
           onClick={onEditBudget}
           title="Adjust monthly allocation"
-          className="mt-0.5 rounded-lg border border-line bg-surface px-2 py-1 text-[11px] font-medium text-muted hover:border-accent hover:text-accent transition-colors"
+          className="mt-0.5 rounded-xl border border-line bg-surface px-2.5 py-1 text-xs font-bold text-muted hover:border-accent hover:text-accent transition-all shadow-2xs active:scale-95"
         >
           Edit
         </button>
@@ -511,7 +533,7 @@ function EnvelopeRow({
 }
 
 function goalLine(progress: GoalProgress): string {
-  if (progress.remaining === 0) return 'Done. Go and spend it on the thing.';
+  if (progress.remaining === 0) return 'Done! Target reached.';
 
   const need =
     progress.requiredPerWeek !== null
@@ -521,14 +543,14 @@ function goalLine(progress: GoalProgress): string {
   if (progress.goal.targetDate && need) {
     if (progress.onTrack === true) return `On track — ${need}.`;
     if (progress.projectedDate === null) return `Nothing has gone in yet. ${capitalise(need)}.`;
-    return `At this rate you arrive ${formatDay(progress.projectedDate)}. ${capitalise(need)}.`;
+    return `Arrives ${formatDay(progress.projectedDate)} at this rate. ${capitalise(need)}.`;
   }
 
   if (progress.projectedDate) {
-    return `${formatMoney(progress.remaining)} to go — around ${formatDay(progress.projectedDate)} at this rate.`;
+    return `${formatMoney(progress.remaining)} to go — around ${formatDay(progress.projectedDate)} at this pace.`;
   }
 
-  return `${formatMoney(progress.remaining)} to go. Move money into the account to make this real.`;
+  return `${formatMoney(progress.remaining)} to go.`;
 }
 
 function capitalise(value: string): string {

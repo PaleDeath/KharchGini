@@ -9,12 +9,8 @@ import { cn } from '@/lib/utils';
 /**
  * Every amount on screen goes through here.
  *
- * Two things this buys, neither of which is cosmetic:
- *
- *  1. The `money` class, which privacy mode blurs. One switch hides every figure
- *     in the app without a single screen knowing privacy mode exists.
- *  2. Tabular figures, so a column of amounts lines up on the decimal instead of
- *     shimmering as the digits change.
+ *  1. The `money` class, which privacy mode blurs.
+ *  2. Tabular figures with JetBrains Mono, lining up on decimals with high contrast.
  */
 export function Money({
   value,
@@ -33,15 +29,8 @@ export function Money({
   tone?: 'auto' | 'plain' | 'good' | 'bad' | 'muted';
   className?: string;
   title?: string;
-  /**
-   * Count to the new figure rather than swapping to it. Reserve this for the
-   * few numbers a user actually watches — the hero, a balance — because a
-   * screen where everything is in motion is a screen where nothing is.
-   */
   animate?: boolean;
 }) {
-  // The hook is called unconditionally, as hooks must be, and does nothing at
-  // all when `animate` is absent.
   const counted = useCountUp(value, animate === true);
   const display = animate ? counted : value;
 
@@ -51,8 +40,6 @@ export function Money({
       ? formatSigned(display)
       : formatMoney(display);
 
-  // Colour follows the real value, never the one mid-flight: a figure crossing
-  // zero on its way down should not flicker red and back again.
   const colour =
     tone === 'auto'
       ? value > 0 && signed
@@ -70,8 +57,7 @@ export function Money({
 
   return (
     <span
-      className={cn('money tnum', colour, className)}
-      // The exact figure is always one hover away from a compact one.
+      className={cn('money tnum inline-block', colour, className)}
       title={title ?? (compact ? formatMoney(value) : undefined)}
     >
       {text}
@@ -80,8 +66,7 @@ export function Money({
 }
 
 /**
- * A progress bar that can exceed 100%. Overspending is a fact; a bar that
- * silently stops at full hides the one thing worth seeing.
+ * A progress bar that can exceed 100% with smooth gradient fills.
  */
 export function Bar({
   value,
@@ -100,23 +85,23 @@ export function Bar({
 
   const colour =
     tone === 'bad' || over
-      ? 'bg-bad'
+      ? 'bg-gradient-to-r from-bad to-red-600'
       : tone === 'warn'
-        ? 'bg-warn'
+        ? 'bg-gradient-to-r from-warn to-amber-500'
         : tone === 'good'
-          ? 'bg-good'
-          : 'bg-accent';
+          ? 'bg-gradient-to-r from-good to-emerald-500'
+          : 'bg-gradient-to-r from-accent to-emerald-500';
 
   return (
     <div
-      className={cn('h-1.5 w-full overflow-hidden rounded-full bg-line', className)}
+      className={cn('h-2 w-full overflow-hidden rounded-full bg-raised border border-line/60', className)}
       role="progressbar"
       aria-valuenow={Math.round(filled)}
       aria-valuemin={0}
       aria-valuemax={100}
     >
       <div
-        className={cn('h-full rounded-full transition-[width] duration-300', colour)}
+        className={cn('h-full rounded-full transition-all duration-300 ease-out', colour)}
         style={{ width: `${filled}%` }}
       />
     </div>
@@ -133,16 +118,16 @@ export function Badge({
   className?: string;
 }) {
   const tones: Record<string, string> = {
-    neutral: 'bg-raised text-muted',
-    good: 'bg-good/12 text-good',
-    warn: 'bg-warn/12 text-warn',
-    bad: 'bg-bad/12 text-bad',
-    accent: 'bg-accent/12 text-accent',
+    neutral: 'bg-raised/90 text-muted border-line/80',
+    good: 'bg-good/15 text-good border-good/30',
+    warn: 'bg-warn/15 text-warn border-warn/30',
+    bad: 'bg-bad/15 text-bad border-bad/30',
+    accent: 'bg-accent/15 text-accent border-accent/30',
   };
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+        'inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-bold tracking-tight shadow-2xs',
         tones[tone],
         className,
       )}
