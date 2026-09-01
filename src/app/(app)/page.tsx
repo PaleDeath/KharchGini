@@ -47,6 +47,7 @@ import { ReviewSheet } from '@/components/review/review-sheet';
 import { GettingStartedCard } from '@/components/shell/getting-started-card';
 import { RunwayChart } from '@/components/shell/runway-chart';
 import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
+import { SimulatorSheet } from '@/components/simulator/simulator-sheet';
 import { Card, Divider, Empty, Section } from '@/components/ui/card';
 import { Money, Badge } from '@/components/ui/money';
 import { useLedger } from '@/lib/store';
@@ -60,6 +61,7 @@ export default function TodayPage() {
   const [showMath, setShowMath] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showRunway, setShowRunway] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
 
   const day = todayISO();
 
@@ -229,6 +231,14 @@ export default function TodayPage() {
               className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/70 px-3 py-1.5 text-xs font-semibold text-accent hover:border-accent/50 hover:bg-accent/10 transition-all active:scale-95"
             >
               {showRunway ? 'Hide graph' : 'Runway graph 📈'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSimulator(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/70 px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent/50 hover:bg-accent/10 transition-all active:scale-95"
+            >
+              What-If 🔮
             </button>
 
             <button
@@ -473,6 +483,7 @@ export default function TodayPage() {
       />
       <ReviewSheet open={reviewing} onClose={() => setReviewing(false)} />
       <WalkthroughDialog open={showTour} onClose={() => setShowTour(false)} />
+      <SimulatorSheet open={showSimulator} onClose={() => setShowSimulator(false)} />
     </div>
   );
 }

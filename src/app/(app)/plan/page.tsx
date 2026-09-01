@@ -37,6 +37,7 @@ import { CategoryEntriesSheet } from '@/components/category/category-entries-she
 import { EnvelopeSheet } from '@/components/plan/envelope-sheet';
 import { GoalSheet } from '@/components/plan/goal-sheet';
 import { RecurringSheet } from '@/components/plan/recurring-sheet';
+import { SimulatorSheet } from '@/components/simulator/simulator-sheet';
 import { Button } from '@/components/ui/button';
 import { Card, Empty, Section } from '@/components/ui/card';
 import { Bar, Badge, Money } from '@/components/ui/money';
@@ -60,6 +61,7 @@ export default function PlanPage() {
   const [goalOpen, setGoalOpen] = useState(false);
   const [rule, setRule] = useState<Recurring | null>(null);
   const [ruleOpen, setRuleOpen] = useState(false);
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
 
   const envelopes = useMemo(() => envelopeStatuses(ledger, month, day), [ledger, month, day]);
   const unbudgeted = useMemo(() => unbudgetedSpend(ledger, month), [ledger, month]);
@@ -163,6 +165,38 @@ export default function PlanPage() {
           )}
         </div>
       </Card>
+
+      {/* ‘What-If’ Sandbox Simulator Banner */}
+      <div className="rounded-3xl border border-accent/40 bg-gradient-to-br from-accent/10 via-surface to-raised/90 p-5 shadow-card space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent/20 text-accent shadow-2xs">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold tracking-tight text-ink">
+                  ‘What-If’ Sandbox Simulator
+                </h3>
+                <Badge tone="good">In-Memory</Badge>
+              </div>
+              <p className="text-xs text-muted mt-0.5 max-w-md leading-relaxed">
+                Test major life decisions (gadgets, EMI plans, salary hikes, rent increases) and instantly see how your Safe to Spend runway & goal timelines adapt.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => setSimulatorOpen(true)}
+            className="font-extrabold gap-1.5 shadow-sm active:scale-95"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Launch Simulator
+          </Button>
+        </div>
+      </div>
 
       {/* Envelopes Section */}
       <Section
@@ -444,6 +478,7 @@ export default function PlanPage() {
       />
       <GoalSheet goal={goal} open={goalOpen} onClose={() => setGoalOpen(false)} />
       <RecurringSheet recurring={rule} open={ruleOpen} onClose={() => setRuleOpen(false)} />
+      <SimulatorSheet open={simulatorOpen} onClose={() => setSimulatorOpen(false)} />
     </div>
   );
 }

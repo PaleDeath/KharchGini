@@ -38,6 +38,7 @@ import { CategoryIcon } from '@/components/category/category-icon';
 import { CategoryEntriesSheet } from '@/components/category/category-entries-sheet';
 import { CategorySheet } from '@/components/category/category-sheet';
 import { ImportSheet } from '@/components/settings/import-sheet';
+import { SankeyChart } from '@/components/shell/sankey-chart';
 import { WalkthroughDialog } from '@/components/shell/walkthrough-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, Empty, Section } from '@/components/ui/card';
@@ -245,6 +246,9 @@ export default function YouPage() {
           </p>
         </Card>
       </div>
+
+      {/* Interactive Cash Flow Sankey Visualizer */}
+      <SankeyChart initialMonth={month} />
 
       {/* Spending Distribution */}
       {spend.length > 0 ? (
