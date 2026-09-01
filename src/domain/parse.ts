@@ -208,17 +208,91 @@ function normalise(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-/** "hdfc" finds "HDFC Bank"; "sav" finds "Savings". Exact beats prefix beats substring. */
+/** Common words that must never be mistaken for a bare account token. */
+const BARE_ACCOUNT_STOP_WORDS = new Set([
+  'a', 'an', 'the', 'in', 'on', 'at', 'to', 'as', 'is', 'it', 'by', 'of', 'for', 'from',
+  'with', 'and', 'or', 'if', 'so', 'do', 'no', 'not', 'go', 'up', 'my', 'me', 'we', 'us',
+  'he', 'she', 'him', 'her', 'they', 'them', 'this', 'that', 'these', 'those', 'all',
+  'day', 'today', 'yest', 'tmrw', 'pm', 'am', 'out', 'off', 'pay', 'paid', 'bill', 'fee',
+  'food', 'chai', 'tea', 'cab', 'auto', 'app', 'car', 'pet', 'gas', 'oil', 'can', 'see',
+  'now', 'new', 'old', 'top', 'bar', 'pub', 'spa', 'gym', 'box', 'bag', 'lot', 'set',
+  'per', 'via', 'dr', 'cr', 'dr.', 'cr.', 'rs', 'inr', 'txn', 'ref', 'buy', 'get', 'got',
+]);
+
+/**
+ * Finds an account from explicit syntax like `@hdfc` or `to savings`.
+ * Exact name beats word match beats prefix beats substring.
+ */
 export function findAccount(accounts: Account[], token: string): Account | undefined {
   const needle = normalise(token);
   if (needle.length < 2) return undefined;
 
   const live = accounts.filter((a) => !a.archived);
-  return (
-    live.find((a) => normalise(a.name) === needle) ??
-    live.find((a) => normalise(a.name).startsWith(needle)) ??
-    live.find((a) => normalise(a.name).includes(needle))
+
+  // 1. Exact full-name match
+  const exact = live.find((a) => normalise(a.name) === needle);
+  if (exact) return exact;
+
+  // 2. Exact word match in account name (e.g. "hdfc" in "HDFC Bank")
+  const wordMatch = live.find((a) =>
+    a.name
+      .toLowerCase()
+      .split(/\s+/)
+      .some((w) => normalise(w) === needle),
   );
+  if (wordMatch) return wordMatch;
+
+  // 3. Prefix match (require >= 3 characters)
+  if (needle.length >= 3) {
+    const prefix = live.find((a) => normalise(a.name).startsWith(needle));
+    if (prefix) return prefix;
+  }
+
+  // 4. Substring match (require >= 4 characters to prevent loose collisions)
+  if (needle.length >= 4) {
+    const substring = live.find((a) => normalise(a.name).includes(needle));
+    if (substring) return substring;
+  }
+
+  return undefined;
+}
+
+/**
+ * Finds an account from a bare token at the end of a command (e.g. `280 chai hdfc`).
+ * Strict: Never matches stop-words and never uses arbitrary substring matching.
+ */
+export function findBareAccount(accounts: Account[], token: string): Account | undefined {
+  const needle = normalise(token);
+  if (needle.length < 2) return undefined;
+  if (BARE_ACCOUNT_STOP_WORDS.has(needle)) return undefined;
+
+  const live = accounts.filter((a) => !a.archived);
+
+  // 1. Exact full-name match (e.g. "Cash", "Savings", "HDFC")
+  const exact = live.find((a) => normalise(a.name) === needle);
+  if (exact) return exact;
+
+  // 2. Distinct word match in account name (e.g. "hdfc" in "HDFC Bank")
+  const wordMatch = live.find((a) =>
+    a.name
+      .toLowerCase()
+      .split(/\s+/)
+      .some((w) => {
+        const nw = normalise(w);
+        // Generic words like 'bank', 'card', 'account' shouldn't loosely steal tokens
+        if (['bank', 'card', 'account', 'pay', 'my'].includes(nw)) return false;
+        return nw === needle;
+      }),
+  );
+  if (wordMatch) return wordMatch;
+
+  // 3. Prefix match only if token is at least 4 characters long (e.g. "savi" -> "Savings")
+  if (needle.length >= 4) {
+    const prefix = live.find((a) => normalise(a.name).startsWith(needle));
+    if (prefix) return prefix;
+  }
+
+  return undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -235,14 +309,14 @@ export interface QuickPreset {
 }
 
 export const QUICK_PRESETS: QuickPreset[] = [
-  { id: 'chai', name: 'Chai', command: '20 chai', categoryHint: 'food', iconName: 'coffee', iconColor: '#d97706' },
-  { id: 'lunch', name: 'Lunch', command: '250 lunch', categoryHint: 'food', iconName: 'utensils', iconColor: '#f43f5e' },
-  { id: 'auto', name: 'Auto / Cab', command: '120 auto to office', categoryHint: 'transport', iconName: 'car', iconColor: '#0d9488' },
+  { id: 'chai', name: 'Chai', command: '20 chai', categoryHint: 'dining', iconName: 'coffee', iconColor: '#d97706' },
+  { id: 'lunch', name: 'Lunch', command: '250 lunch', categoryHint: 'dining', iconName: 'utensils', iconColor: '#f43f5e' },
+  { id: 'auto', name: 'Auto / Cab', command: '120 auto', categoryHint: 'transport', iconName: 'car', iconColor: '#0d9488' },
   { id: 'groceries', name: 'Groceries', command: '850 groceries', categoryHint: 'groceries', iconName: 'shopping-bag', iconColor: '#16a34a' },
-  { id: 'coffee', name: 'Coffee', command: '160 cold brew', categoryHint: 'food', iconName: 'coffee', iconColor: '#ea580c' },
+  { id: 'coffee', name: 'Coffee', command: '160 cold brew', categoryHint: 'dining', iconName: 'coffee', iconColor: '#ea580c' },
   { id: 'pharmacy', name: 'Pharmacy', command: '320 medicines', categoryHint: 'health', iconName: 'pill', iconColor: '#ef4444' },
   { id: 'petrol', name: 'Petrol', command: '1500 petrol', categoryHint: 'transport', iconName: 'fuel', iconColor: '#f97316' },
-  { id: 'dinner', name: 'Dinner', command: '1200 dinner with friends', categoryHint: 'eating-out', iconName: 'utensils', iconColor: '#6366f1' },
+  { id: 'dinner', name: 'Dinner', command: '1200 dinner with friends', categoryHint: 'dining', iconName: 'utensils', iconColor: '#6366f1' },
 ];
 
 /**
@@ -254,7 +328,7 @@ export const QUICK_PRESETS: QuickPreset[] = [
  */
 export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | null {
   const lower = text.toLowerCase();
-  
+
   const isSMS =
     /(?:debited|credited|paid|spent|sent|deposited|withdrawn|vpa|upi\s+ref|txn\s+id|a\/c|acct|transfer\s+to|trf\s+to)/i.test(
       text,
@@ -310,7 +384,6 @@ export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | nul
 
   if (payeeMatch && payeeMatch[1]) {
     let rawPayee = payeeMatch[1].trim();
-    // If it is a VPA like "swiggy@icici" or "merchant.paytm@axis"
     if (rawPayee.includes('@')) {
       rawPayee = rawPayee.split('@')[0]!.replace(/[^a-zA-Z0-9]/g, ' ');
     }
@@ -323,12 +396,52 @@ export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | nul
 
   // 5. Account matching
   let matchedAccount: Account | undefined;
-  for (const acc of ctx.accounts) {
-    if (acc.archived) continue;
-    const nameNeedle = acc.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (nameNeedle.length >= 3 && lower.includes(nameNeedle)) {
-      matchedAccount = acc;
-      break;
+
+  // 5a. Match by 4 digits (card or A/C number in SMS against account.last4 or name)
+  const last4Match = /(?:card\s*(?:ending)?\s*(?:xx|x)?\s*(\d{4})|a\/c\s*(?:no\.?)?\s*(?:xx|x)?\s*(\d{4})|account\s*(?:ending)?\s*(?:xx|x)?\s*(\d{4}))/i.exec(text);
+  const detectedDigits = last4Match ? (last4Match[1] || last4Match[2] || last4Match[3]) : undefined;
+  if (detectedDigits) {
+    matchedAccount = ctx.accounts.find(
+      (a) => !a.archived && (a.last4 === detectedDigits || a.name.includes(detectedDigits)),
+    );
+  }
+
+  // 5b. Match by bank brand keywords
+  if (!matchedAccount) {
+    const BANK_NAMES = [
+      'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'idfc', 'indusind', 'pnb', 'bob',
+      'canara', 'union', 'rbl', 'federal', 'amex', 'citi', 'hsbc', 'scb', 'dbs',
+      'yesbank', 'jupiter', 'slice', 'onecard', 'amazon pay', 'paytm',
+    ];
+    for (const bank of BANK_NAMES) {
+      if (lower.includes(bank)) {
+        const found = ctx.accounts.find(
+          (a) => !a.archived && normalise(a.name).includes(normalise(bank)),
+        );
+        if (found) {
+          matchedAccount = found;
+          break;
+        }
+      }
+    }
+  }
+
+  // 5c. If credit card mentioned and no account matched yet, prefer card account
+  if (!matchedAccount && /(?:credit\s+card|card\s*(?:ending|xx))/i.test(text)) {
+    matchedAccount = ctx.accounts.find((a) => !a.archived && a.type === 'card');
+  }
+
+  // 5d. Match non-generic account names
+  if (!matchedAccount) {
+    for (const acc of ctx.accounts) {
+      if (acc.archived) continue;
+      const clean = normalise(acc.name);
+      if (clean.length >= 4 && !['cash', 'bank', 'card', 'wallet', 'savings', 'account'].includes(clean)) {
+        if (lower.includes(clean)) {
+          matchedAccount = acc;
+          break;
+        }
+      }
     }
   }
 
@@ -444,7 +557,7 @@ export function parseCommand(input: string, ctx: ParseContext): ParseResult {
       const remainingTokens = text.split(' ').filter(Boolean);
       const lastToken = remainingTokens[remainingTokens.length - 1];
       if (!sourceAccount && lastToken) {
-        const found = findAccount(ctx.accounts, lastToken);
+        const found = findBareAccount(ctx.accounts, lastToken);
         if (found && found.id !== destination.id) {
           sourceAccount = found;
           remainingTokens.pop();
@@ -454,17 +567,27 @@ export function parseCommand(input: string, ctx: ParseContext): ParseResult {
     }
   }
 
-  // A bare account name, but only when the description survives it.
+  // A bare account name, but only when the description survives it and is not a stop-word.
   if (!sourceAccount) {
     const tokens = text.split(' ').filter(Boolean);
     if (tokens.length >= 2) {
       const last = tokens[tokens.length - 1]!;
-      const found = findAccount(ctx.accounts, last);
+      const found = findBareAccount(ctx.accounts, last);
       if (found) {
         sourceAccount = found;
         tokens.pop();
         text = tokens.join(' ');
       }
+    }
+  }
+
+  let finalAccountId = sourceAccount?.id ?? ctx.defaultAccountId;
+
+  // Prevent From and To accounts from being identical in a transfer
+  if (direction === 'transfer' && counterAccountId && finalAccountId === counterAccountId) {
+    const alternate = ctx.accounts.find((a) => !a.archived && a.id !== counterAccountId);
+    if (alternate) {
+      finalAccountId = alternate.id;
     }
   }
 
@@ -478,7 +601,7 @@ export function parseCommand(input: string, ctx: ParseContext): ParseResult {
       direction,
       date,
       description,
-      accountId: sourceAccount?.id ?? ctx.defaultAccountId,
+      accountId: finalAccountId,
       ...(counterAccountId ? { counterAccountId } : {}),
       ...(guess.categoryId ? { categoryId: guess.categoryId } : {}),
       ...(guess.merchant ? { merchant: guess.merchant } : {}),

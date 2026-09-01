@@ -67,7 +67,7 @@ export function CommandBar({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { ledger, addEntry, deleteEntry } = useLedger();
+  const { ledger, addEntry, deleteEntry, learnMerchant } = useLedger();
   const toast = useToast();
 
   const [text, setText] = useState('');
@@ -97,11 +97,6 @@ export function CommandBar({
       }),
     [text, ledger.accounts, ledger.rules, ledger.merchants, ledger.categories, defaultAccountId],
   );
-
-  // A correction applies to the line as typed; changing the line starts over.
-  useEffect(() => {
-    setOverrides({});
-  }, [text]);
 
   useEffect(() => {
     if (!open) {
@@ -146,6 +141,15 @@ export function CommandBar({
       };
 
       const id = await addEntry(draft);
+
+      // Learn merchant memory when user manually set or confirmed a category
+      if (entry.direction !== 'transfer' && entry.categoryId) {
+        const merchantToLearn = entry.merchant || entry.description.trim().toLowerCase();
+        if (merchantToLearn) {
+          void learnMerchant(merchantToLearn, entry.categoryId);
+        }
+      }
+
       toast(`${formatMoney(entry.amount)} · ${entry.description}`, {
         tone: 'good',
         undo: () => deleteEntry(id),
@@ -159,7 +163,7 @@ export function CommandBar({
     } finally {
       setBusy(false);
     }
-  }, [entry, busy, addEntry, deleteEntry, toast]);
+  }, [entry, busy, addEntry, deleteEntry, learnMerchant, toast]);
 
   return (
     <Sheet
@@ -213,6 +217,7 @@ export function CommandBar({
               type="button"
               onClick={() => {
                 setText(preset.command);
+                setOverrides({});
                 inputRef.current?.focus();
               }}
               className="flex items-center gap-1.5 shrink-0 rounded-full border border-line/80 bg-surface/90 px-3 py-1.5 text-[12px] font-medium text-ink hover:border-accent/50 hover:bg-raised shadow-2xs transition-all active:scale-95"
@@ -227,7 +232,14 @@ export function CommandBar({
           ))}
         </div>
 
-        {result.kind === 'empty' ? <Examples onPick={setText} /> : null}
+        {result.kind === 'empty' ? (
+          <Examples
+            onPick={(val) => {
+              setText(val);
+              setOverrides({});
+            }}
+          />
+        ) : null}
 
         {result.kind === 'error' ? (
           <p className="flex items-start gap-2 rounded-xl bg-raised px-3 py-2.5 text-[13px] text-muted">

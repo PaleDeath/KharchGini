@@ -34,6 +34,7 @@ export const SEED_CATEGORIES: SeedCategory[] = [
   { id: 'fuel', name: 'Fuel', kind: 'need', icon: 'fuel', color: '#f97316' },
   { id: 'health', name: 'Health', kind: 'need', icon: 'heart-pulse', color: '#ef4444' },
   { id: 'insurance', name: 'Insurance', kind: 'need', icon: 'shield', color: '#64748b' },
+  { id: 'charges', name: 'Fees & Charges', kind: 'need', icon: 'receipt', color: '#f59e0b' },
   { id: 'education', name: 'Education', kind: 'need', icon: 'graduation-cap', color: '#8b5cf6' },
   { id: 'household', name: 'Household', kind: 'need', icon: 'wrench', color: '#a16207' },
 
@@ -101,7 +102,7 @@ export const SEED_ACCOUNT = {
  * it quietly stops mattering.
  */
 export const KEYWORD_MAP: Record<string, string> = {
-  // Food delivery
+  // Food delivery & Dining
   swiggy: 'delivery',
   zomato: 'delivery',
   zepto: 'groceries',
@@ -129,6 +130,24 @@ export const KEYWORD_MAP: Record<string, string> = {
   dhaba: 'dining',
   bakery: 'dining',
   canteen: 'dining',
+  chai: 'dining',
+  tea: 'dining',
+  coffee: 'dining',
+  lunch: 'dining',
+  dinner: 'dining',
+  breakfast: 'dining',
+  snack: 'dining',
+  snacks: 'dining',
+  food: 'dining',
+  eat: 'dining',
+  eating: 'dining',
+  meal: 'dining',
+  meals: 'dining',
+  biryani: 'dining',
+  pizza: 'dining',
+  burger: 'dining',
+  sweets: 'dining',
+  mithai: 'dining',
 
   // Groceries
   bigbasket: 'groceries',
@@ -143,10 +162,18 @@ export const KEYWORD_MAP: Record<string, string> = {
   kirana: 'groceries',
   supermarket: 'groceries',
   grocery: 'groceries',
+  groceries: 'groceries',
   vegetable: 'groceries',
+  vegetables: 'groceries',
+  fruits: 'groceries',
+  fruit: 'groceries',
   sabzi: 'groceries',
   amul: 'groceries',
   'mother dairy': 'groceries',
+  milk: 'groceries',
+  bread: 'groceries',
+  eggs: 'groceries',
+  ration: 'groceries',
 
   // Transport
   ola: 'transport',
@@ -162,10 +189,16 @@ export const KEYWORD_MAP: Record<string, string> = {
   bmtc: 'transport',
   msrtc: 'transport',
   rickshaw: 'transport',
+  auto: 'transport',
+  cab: 'transport',
+  taxi: 'transport',
   toll: 'transport',
   fastag: 'transport',
   parking: 'transport',
   railway: 'transport',
+  train: 'transport',
+  flight: 'transport',
+  airfare: 'transport',
 
   // Fuel
   hpcl: 'fuel',
@@ -178,6 +211,7 @@ export const KEYWORD_MAP: Record<string, string> = {
   nayara: 'fuel',
   petrol: 'fuel',
   diesel: 'fuel',
+  cng: 'fuel',
   'fuel station': 'fuel',
   'filling station': 'fuel',
 
@@ -205,6 +239,8 @@ export const KEYWORD_MAP: Record<string, string> = {
   puma: 'shopping',
   adidas: 'shopping',
   nike: 'shopping',
+  clothes: 'shopping',
+  shoes: 'shopping',
 
   // Entertainment & subscriptions
   netflix: 'subscriptions',
@@ -247,9 +283,13 @@ export const KEYWORD_MAP: Record<string, string> = {
   bses: 'utilities',
   'water bill': 'utilities',
   'gas bill': 'utilities',
+  'gas cylinder': 'utilities',
+  'piped gas': 'utilities',
   indane: 'utilities',
   hpgas: 'utilities',
   bharatgas: 'utilities',
+  bill: 'utilities',
+  dth: 'utilities',
 
   // Phone & internet
   jio: 'phone-internet',
@@ -261,6 +301,7 @@ export const KEYWORD_MAP: Record<string, string> = {
   excitel: 'phone-internet',
   tikona: 'phone-internet',
   broadband: 'phone-internet',
+  wifi: 'phone-internet',
   recharge: 'phone-internet',
 
   // Health
@@ -282,6 +323,36 @@ export const KEYWORD_MAP: Record<string, string> = {
   doctor: 'health',
   dental: 'health',
   gym: 'health',
+  medicine: 'health',
+  medicines: 'health',
+  meds: 'health',
+  consultation: 'health',
+
+  // Fees & Charges
+  'credit card fee': 'charges',
+  'card fee': 'charges',
+  'annual fee': 'charges',
+  'joining fee': 'charges',
+  'renewal fee': 'charges',
+  'late fee': 'charges',
+  'late payment fee': 'charges',
+  'finance charge': 'charges',
+  'finance charges': 'charges',
+  'interest charge': 'charges',
+  'bank charges': 'charges',
+  'bank fee': 'charges',
+  'atm fee': 'charges',
+  'atm charge': 'charges',
+  'processing fee': 'charges',
+  'forex fee': 'charges',
+  'overlimit fee': 'charges',
+  'gst charge': 'charges',
+  'maintenance fee': 'charges',
+  penalty: 'charges',
+  fee: 'charges',
+  fees: 'charges',
+  charges: 'charges',
+  charge: 'charges',
 
   // Insurance & finance
   lic: 'insurance',

@@ -89,6 +89,8 @@ export interface LedgerValue {
   deleteEntries: (ids: string[]) => Promise<void>;
   /** Changes a category AND teaches the categoriser. The whole learning loop. */
   recategorise: (entry: Entry, categoryId: string) => Promise<void>;
+  /** Teaches the merchant memory directly when a category is manually assigned. */
+  learnMerchant: (merchant: string, categoryId: string) => Promise<void>;
   settle: (ids: string[]) => Promise<void>;
 
   // Accounts
@@ -352,6 +354,20 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           lastConfirmed: next.lastConfirmed,
         });
       }
+    },
+    [requireUid, merchants],
+  );
+
+  const learnMerchant = useCallback(
+    async (merchant: string, categoryId: string) => {
+      const id = requireUid();
+      const existing = merchants.find((m) => m.id === merchant);
+      const next = reinforce(existing, merchant, categoryId, todayISO());
+      await put(id, 'merchants', next.id, {
+        categoryId: next.categoryId,
+        confirmations: next.confirmations,
+        lastConfirmed: next.lastConfirmed,
+      });
     },
     [requireUid, merchants],
   );
@@ -687,7 +703,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const value = useMemo<LedgerValue>(
     () => ({
       ledger, loading, error, uid,
-      addEntry, addEntries, updateEntry, deleteEntry, deleteEntries, recategorise, settle,
+      addEntry, addEntries, updateEntry, deleteEntry, deleteEntries, recategorise, learnMerchant, settle,
       addAccount, updateAccount, deleteAccount,
       addCategory, updateCategory, deleteCategory,
       setAllocation, deleteEnvelope, copyEnvelopes,
@@ -698,7 +714,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     }),
     [
       ledger, loading, error, uid,
-      addEntry, addEntries, updateEntry, deleteEntry, deleteEntries, recategorise, settle,
+      addEntry, addEntries, updateEntry, deleteEntry, deleteEntries, recategorise, learnMerchant, settle,
       addAccount, updateAccount, deleteAccount,
       addCategory, updateCategory, deleteCategory,
       setAllocation, deleteEnvelope, copyEnvelopes,

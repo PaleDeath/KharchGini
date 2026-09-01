@@ -44,6 +44,11 @@ export function CategoryPicker({
     [categories, value],
   );
 
+  const availableKinds = useMemo(() => {
+    const kinds = new Set(categories.map((c) => c.kind));
+    return KIND_FILTERS.filter((tab) => tab.key === 'all' || kinds.has(tab.key));
+  }, [categories]);
+
   const filtered = useMemo(() => {
     return categories.filter((category) => {
       if (activeTab !== 'all' && category.kind !== activeTab) return false;
@@ -56,6 +61,15 @@ export function CategoryPicker({
   const handleSelect = (id: string) => {
     onChange(id);
     setOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filtered.length > 0) {
+        handleSelect(filtered[0]!.id);
+      }
+    }
   };
 
   return (
@@ -134,7 +148,8 @@ export function CategoryPicker({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by category name…"
+              onKeyDown={handleKeyDown}
+              placeholder="Search by category name… (Enter to pick)"
               className="h-10 w-full rounded-xl border border-line bg-raised/50 pl-10 pr-9 text-sm text-ink placeholder:text-faint focus:border-accent focus:bg-surface focus:outline-none transition-colors"
               autoFocus
             />
@@ -150,23 +165,25 @@ export function CategoryPicker({
           </div>
 
           {/* Kind Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-            {KIND_FILTERS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  'rounded-xl px-3 py-1.5 text-xs font-medium transition-all shrink-0 active:scale-95',
-                  activeTab === tab.key
-                    ? 'bg-ink text-surface font-semibold shadow-sm'
-                    : 'bg-raised/70 text-muted hover:bg-raised hover:text-ink',
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {availableKinds.length > 2 ? (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+              {availableKinds.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={cn(
+                    'rounded-xl px-3 py-1.5 text-xs font-medium transition-all shrink-0 active:scale-95',
+                    activeTab === tab.key
+                      ? 'bg-ink text-surface font-semibold shadow-sm'
+                      : 'bg-raised/70 text-muted hover:bg-raised hover:text-ink',
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {/* Category Visual Grid */}
           <div className="max-h-[50vh] overflow-y-auto no-scrollbar pr-0.5">
