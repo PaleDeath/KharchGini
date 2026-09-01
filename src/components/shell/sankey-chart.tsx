@@ -3,11 +3,8 @@
 import {
   ChevronLeft,
   ChevronRight,
-  HelpCircle,
   Layers,
   Sparkles,
-  TrendingDown,
-  TrendingUp,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -37,18 +34,22 @@ export function SankeyChart({
   const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
 
   const data: SankeyData = useMemo(() => computeActualSankey(ledger, month), [ledger, month]);
-
   const isCurrent = month === currentMonth();
 
-  // SVG Geometry Constants
-  const SVG_WIDTH = 760;
-  const COL_WIDTH = 130;
-  const COL_X = [20, 315, 610]; // X coordinate for columns 0, 1, 2
-  const NODE_MIN_H = 26;
-  const NODE_GAP = 10;
-  const PADDING_Y = 24;
+  // SVG Geometry Dimensions
+  const SVG_WIDTH = 900;
+  const BAR_WIDTH = 12;
+  const HUB_BAR_WIDTH = 14;
+  
+  // X positions for the 3 columns (slim vertical bars)
+  const COL_X = [230, 443, 650];
+  const MIN_NODE_H = 28;
+  const MAX_NODE_H = 140;
+  const NODE_GAP = 14;
+  const PADDING_TOP = 40;
+  const PADDING_BOTTOM = 28;
 
-  // Layout Computation
+  // Compute Layout Positions
   const layout = useMemo(() => {
     if (data.isEmpty || data.nodes.length === 0) {
       return { nodes: [], links: [], height: 260 };
@@ -58,9 +59,9 @@ export function SankeyChart({
     const col1Nodes = data.nodes.filter((n) => n.column === 1);
     const col2Nodes = data.nodes.filter((n) => n.column === 2);
 
-    const maxItems = Math.max(col0Nodes.length, col1Nodes.length, col2Nodes.length, 3);
-    const contentHeight = Math.max(300, maxItems * (NODE_MIN_H + NODE_GAP) + PADDING_Y * 2);
-    const availH = contentHeight - PADDING_Y * 2;
+    const maxItems = Math.max(col0Nodes.length, col1Nodes.length, col2Nodes.length, 2);
+    const targetHeight = Math.max(280, Math.min(480, maxItems * 58 + PADDING_TOP + PADDING_BOTTOM));
+    const availH = targetHeight - PADDING_TOP - PADDING_BOTTOM;
 
     const totalVal = data.totalInflow || 1;
 
@@ -70,40 +71,51 @@ export function SankeyChart({
       y: number;
       width: number;
       height: number;
-      sourceOffset: number; // for outgoing links tracking
-      targetOffset: number; // for incoming links tracking
+      sourceOffset: number;
+      targetOffset: number;
     }
 
     const nodePositions = new Map<string, NodePos>();
 
     const layoutCol = (nodes: SankeyNode[], colIndex: number) => {
       const colX = COL_X[colIndex] ?? 0;
-      const totalGap = Math.max(0, nodes.length - 1) * NODE_GAP;
-      const usableH = Math.max(80, availH - totalGap);
+      const isHub = colIndex === 1;
+      const w = isHub ? HUB_BAR_WIDTH : BAR_WIDTH;
 
-      // Distribute height proportionally
-      let currentY = PADDING_Y;
-      for (const node of nodes) {
-        const propHeight = (node.value / totalVal) * usableH;
-        const nodeH = Math.max(NODE_MIN_H, propHeight);
+      const totalGap = Math.max(0, nodes.length - 1) * NODE_GAP;
+      const usableH = Math.max(60, availH - totalGap);
+
+      // Compute proportional heights clamped between min and max
+      const rawHeights = nodes.map((n) => {
+        const prop = (n.value / totalVal) * usableH;
+        return Math.min(MAX_NODE_H, Math.max(MIN_NODE_H, prop));
+      });
+
+      const sumCalculatedH = rawHeights.reduce((a, b) => a + b, 0);
+      const totalColHeight = sumCalculatedH + totalGap;
+      
+      // Center column vertically within canvas
+      let currentY = PADDING_TOP + Math.max(0, (availH - totalColHeight) / 2);
+
+      nodes.forEach((node, idx) => {
+        const nodeH = rawHeights[idx]!;
         nodePositions.set(node.id, {
           node,
           x: colX,
           y: currentY,
-          width: COL_WIDTH,
+          width: w,
           height: nodeH,
           sourceOffset: 0,
           targetOffset: 0,
         });
         currentY += nodeH + NODE_GAP;
-      }
+      });
     };
 
     layoutCol(col0Nodes, 0);
     layoutCol(col1Nodes, 1);
     layoutCol(col2Nodes, 2);
 
-    // Calculate Bézier links between nodes
     interface LinkPath {
       link: SankeyLink;
       d: string;
@@ -119,25 +131,26 @@ export function SankeyChart({
       const target = nodePositions.get(link.targetId);
       if (!source || !target) continue;
 
-      const linkH = Math.max(3, (link.value / totalVal) * (availH - 40));
+      // Link ribbon height proportional to link value
+      const sourceLinkH = Math.max(3, (link.value / (source.node.value || totalVal)) * source.height);
+      const targetLinkH = Math.max(3, (link.value / (target.node.value || totalVal)) * target.height);
 
       const x0 = source.x + source.width;
       const y0 = source.y + source.sourceOffset;
       const x1 = target.x;
       const y1 = target.y + target.targetOffset;
 
-      source.sourceOffset += linkH;
-      target.targetOffset += linkH;
+      source.sourceOffset += sourceLinkH;
+      target.targetOffset += targetLinkH;
 
-      const cX1 = x0 + (x1 - x0) * 0.48;
-      const cX2 = x0 + (x1 - x0) * 0.52;
+      const cX1 = x0 + (x1 - x0) * 0.46;
+      const cX2 = x0 + (x1 - x0) * 0.54;
 
-      // Ribbon closed path
       const d = `
         M ${x0} ${y0}
         C ${cX1} ${y0}, ${cX2} ${y1}, ${x1} ${y1}
-        L ${x1} ${y1 + linkH}
-        C ${cX2} ${y1 + linkH}, ${cX1} ${y0 + linkH}, ${x0} ${y0 + linkH}
+        L ${x1} ${y1 + targetLinkH}
+        C ${cX2} ${y1 + targetLinkH}, ${cX1} ${y0 + sourceLinkH}, ${x0} ${y0 + sourceLinkH}
         Z
       `;
 
@@ -155,17 +168,33 @@ export function SankeyChart({
       });
     }
 
-    const calculatedHeight = Math.max(
-      contentHeight,
-      ...Array.from(nodePositions.values()).map((p) => p.y + p.height + PADDING_Y),
+    const maxY = Math.max(
+      targetHeight,
+      ...Array.from(nodePositions.values()).map((p) => p.y + p.height + PADDING_BOTTOM),
     );
 
     return {
       nodes: Array.from(nodePositions.values()),
       links: linkPaths,
-      height: calculatedHeight,
+      height: maxY,
     };
   }, [data, hoveredNodeId, hoveredLinkId]);
+
+  const activeInspectInfo = useMemo(() => {
+    if (hoveredLinkId) {
+      const linkItem = data.links.find((l) => l.id === hoveredLinkId);
+      if (linkItem) {
+        return `${linkItem.sourceName} → ${linkItem.targetName}: ${formatMoney(linkItem.value)} (${Math.round(linkItem.pctOfTotal)}% of cash flow)`;
+      }
+    }
+    if (hoveredNodeId) {
+      const nodeItem = data.nodes.find((n) => n.id === hoveredNodeId);
+      if (nodeItem) {
+        return `${nodeItem.name}: ${formatMoney(nodeItem.value)} (${Math.round(nodeItem.pctOfTotal)}% of total)`;
+      }
+    }
+    return null;
+  }, [hoveredLinkId, hoveredNodeId, data]);
 
   return (
     <Card className={cn('overflow-hidden rounded-3xl border border-line bg-surface/95 p-5 shadow-card space-y-4', className)}>
@@ -248,132 +277,192 @@ export function SankeyChart({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto no-scrollbar pb-2">
-          <div className="min-w-[680px]">
-            <svg
-              viewBox={`0 0 ${SVG_WIDTH} ${layout.height}`}
-              className="w-full h-auto select-none transition-all duration-300"
-              style={{ minHeight: `${layout.height}px` }}
-            >
-              <defs>
-                {/* Linear gradients for ribbons */}
-                {layout.links.map(({ link, sourcePos, targetPos }) => (
-                  <linearGradient
-                    key={`grad_${link.id}`}
-                    id={`grad_${link.id}`}
-                    gradientUnits="userSpaceOnUse"
-                    x1={sourcePos.x + sourcePos.width}
-                    y1={sourcePos.y}
-                    x2={targetPos.x}
-                    y2={targetPos.y}
+        <div className="w-full overflow-hidden select-none">
+          <svg
+            viewBox={`0 0 ${SVG_WIDTH} ${layout.height}`}
+            className="w-full h-auto max-h-[520px] transition-all duration-300"
+          >
+            <defs>
+              {layout.links.map(({ link, sourcePos, targetPos }) => (
+                <linearGradient
+                  key={`grad_${link.id}`}
+                  id={`grad_${link.id}`}
+                  gradientUnits="userSpaceOnUse"
+                  x1={sourcePos.x + sourcePos.width}
+                  y1={sourcePos.y}
+                  x2={targetPos.x}
+                  y2={targetPos.y}
+                >
+                  <stop offset="0%" stopColor={link.color} stopOpacity={0.45} />
+                  <stop offset="100%" stopColor={link.color} stopOpacity={0.25} />
+                </linearGradient>
+              ))}
+            </defs>
+
+            {/* Column Headers */}
+            <g className="text-[11px] font-extrabold uppercase tracking-wider fill-muted">
+              <text x={COL_X[0]} y={20} textAnchor="end">
+                Inflow Sources
+              </text>
+              <text x={COL_X[1] + HUB_BAR_WIDTH / 2} y={20} textAnchor="middle">
+                Spendable Pool
+              </text>
+              <text x={COL_X[2]} y={20} textAnchor="start">
+                Destinations / Allocations
+              </text>
+            </g>
+
+            {/* Bézier Flow Ribbons */}
+            <g>
+              {layout.links.map(({ link, d, isHighlighted }) => (
+                <path
+                  key={link.id}
+                  d={d}
+                  fill={`url(#grad_${link.id})`}
+                  stroke={link.color}
+                  strokeWidth={isHighlighted ? 1.5 : 0.5}
+                  strokeOpacity={isHighlighted ? 0.95 : 0.4}
+                  className="cursor-pointer transition-all duration-200"
+                  onMouseEnter={() => setHoveredLinkId(link.id)}
+                  onMouseLeave={() => setHoveredLinkId(null)}
+                >
+                  <title>{`${link.sourceName} → ${link.targetName}: ${formatMoney(link.value)} (${Math.round(link.pctOfTotal)}%)`}</title>
+                </path>
+              ))}
+            </g>
+
+            {/* Node Bars & Crisp External Typography */}
+            <g>
+              {layout.nodes.map(({ node, x, y, width, height }) => {
+                const isHovered =
+                  hoveredNodeId === node.id ||
+                  layout.links.some(
+                    (l) => l.link.id === hoveredLinkId && (l.link.sourceId === node.id || l.link.targetId === node.id),
+                  );
+
+                const isCol0 = node.column === 0;
+                const isCol1 = node.column === 1;
+                const isCol2 = node.column === 2;
+
+                return (
+                  <g
+                    key={node.id}
+                    className="cursor-pointer group"
+                    onMouseEnter={() => setHoveredNodeId(node.id)}
+                    onMouseLeave={() => setHoveredNodeId(null)}
                   >
-                    <stop offset="0%" stopColor={link.color} stopOpacity={0.45} />
-                    <stop offset="100%" stopColor={link.color} stopOpacity={0.25} />
-                  </linearGradient>
-                ))}
-              </defs>
+                    {/* Slim Vertical Pill Bar */}
+                    <rect
+                      x={x}
+                      y={y}
+                      width={width}
+                      height={height}
+                      rx={6}
+                      fill={node.color}
+                      fillOpacity={isHovered ? 1 : 0.9}
+                      stroke={isHovered ? '#ffffff' : 'none'}
+                      strokeWidth={isHovered ? 2 : 0}
+                      className="shadow-sm transition-all duration-150"
+                    />
 
-              {/* Column Category Labels */}
-              <g className="text-[10px] font-extrabold uppercase tracking-wider fill-muted/70">
-                <text x={COL_X[0]} y={14}>
-                  Inflow Sources
-                </text>
-                <text x={COL_X[1]} y={14}>
-                  Inflow Pool
-                </text>
-                <text x={COL_X[2]} y={14}>
-                  Destinations / Allocations
-                </text>
-              </g>
-
-              {/* Bézier Links */}
-              <g>
-                {layout.links.map(({ link, d, isHighlighted }) => (
-                  <path
-                    key={link.id}
-                    d={d}
-                    fill={`url(#grad_${link.id})`}
-                    stroke={link.color}
-                    strokeWidth={isHighlighted ? 1.5 : 0.5}
-                    strokeOpacity={isHighlighted ? 0.9 : 0.3}
-                    className="cursor-pointer transition-all duration-200"
-                    onMouseEnter={() => setHoveredLinkId(link.id)}
-                    onMouseLeave={() => setHoveredLinkId(null)}
-                  >
-                    <title>{`${link.sourceName} → ${link.targetName}: ${formatMoney(link.value)} (${Math.round(link.pctOfTotal)}%)`}</title>
-                  </path>
-                ))}
-              </g>
-
-              {/* Nodes */}
-              <g>
-                {layout.nodes.map(({ node, x, y, width, height }) => {
-                  const isHovered =
-                    hoveredNodeId === node.id ||
-                    layout.links.some(
-                      (l) => l.link.id === hoveredLinkId && (l.link.sourceId === node.id || l.link.targetId === node.id),
-                    );
-
-                  return (
-                    <g
-                      key={node.id}
-                      className="cursor-pointer transition-transform duration-150"
-                      onMouseEnter={() => setHoveredNodeId(node.id)}
-                      onMouseLeave={() => setHoveredNodeId(null)}
-                    >
-                      {/* Node Rectangle */}
-                      <rect
-                        x={x}
-                        y={y}
-                        width={width}
-                        height={height}
-                        rx={8}
-                        fill={node.color}
-                        fillOpacity={isHovered ? 0.95 : 0.85}
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? 2 : 0}
-                        className="shadow-sm transition-all duration-150"
-                      />
-
-                      {/* Node Text Content */}
-                      <text
-                        x={x + 10}
-                        y={y + height / 2 - (height > 34 ? 4 : 0)}
-                        dy="0.35em"
-                        className="text-[11px] font-extrabold fill-white pointer-events-none drop-shadow-xs"
-                      >
-                        {node.name.length > 18 ? `${node.name.slice(0, 17)}…` : node.name}
-                      </text>
-
-                      {height > 34 && (
+                    {/* Column 0 Text: Right Aligned to left of bar */}
+                    {isCol0 && (
+                      <g className="text-right pointer-events-none">
                         <text
-                          x={x + 10}
+                          x={x - 10}
+                          y={y + height / 2 - 5}
+                          textAnchor="end"
+                          dy="0.3em"
+                          className="text-[12px] font-extrabold fill-current text-ink"
+                        >
+                          {node.name}
+                        </text>
+                        <text
+                          x={x - 10}
                           y={y + height / 2 + 10}
-                          dy="0.35em"
-                          className="text-[10px] font-semibold fill-white/85 pointer-events-none"
+                          textAnchor="end"
+                          dy="0.3em"
+                          className="text-[11px] font-semibold fill-current text-muted"
                         >
                           {formatMoney(node.value)}
-                          {node.column !== 1 ? ` · ${Math.round(node.pctOfTotal)}%` : ''}
+                          {node.pctOfTotal < 99 && (
+                            <tspan className="text-[10px] text-faint"> · {Math.round(node.pctOfTotal)}%</tspan>
+                          )}
                         </text>
-                      )}
+                      </g>
+                    )}
 
-                      <title>{`${node.name}: ${formatMoney(node.value)} (${Math.round(node.pctOfTotal)}% of total cash flow)`}</title>
-                    </g>
-                  );
-                })}
-              </g>
-            </svg>
-          </div>
+                    {/* Column 1 Text: Central Spendable Pool Hub */}
+                    {isCol1 && (
+                      <g className="pointer-events-none">
+                        <text
+                          x={x + width / 2}
+                          y={y + height / 2 - 6}
+                          textAnchor="middle"
+                          dy="0.3em"
+                          className="text-[12px] font-black fill-current text-ink"
+                        >
+                          Total Inflow
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y + height / 2 + 9}
+                          textAnchor="middle"
+                          dy="0.3em"
+                          className="text-[11px] font-bold fill-current text-teal-500"
+                        >
+                          {formatMoney(node.value)}
+                        </text>
+                      </g>
+                    )}
+
+                    {/* Column 2 Text: Left Aligned to right of bar */}
+                    {isCol2 && (
+                      <g className="text-left pointer-events-none">
+                        <text
+                          x={x + width + 10}
+                          y={y + height / 2 - 5}
+                          textAnchor="start"
+                          dy="0.3em"
+                          className="text-[12px] font-extrabold fill-current text-ink"
+                        >
+                          {node.name}
+                        </text>
+                        <text
+                          x={x + width + 10}
+                          y={y + height / 2 + 10}
+                          textAnchor="start"
+                          dy="0.3em"
+                          className="text-[11px] font-semibold fill-current text-muted"
+                        >
+                          {formatMoney(node.value)}
+                          <tspan className="text-[10px] text-faint"> · {Math.round(node.pctOfTotal)}%</tspan>
+                        </text>
+                      </g>
+                    )}
+
+                    <title>{`${node.name}: ${formatMoney(node.value)} (${Math.round(node.pctOfTotal)}% of total)`}</title>
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
         </div>
       )}
 
-      {/* Interactive Tooltip Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-line/60 text-xs text-faint">
-        <span className="flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-accent" />
-          Hover over ribbons or nodes to inspect exact cash transfers and percentages.
+      {/* Interactive Tooltip / Detail Footer */}
+      <div className="flex items-center justify-between pt-2 border-t border-line/60 text-xs">
+        <span className="flex items-center gap-1.5 text-muted font-medium truncate">
+          <Sparkles className="h-3.5 w-3.5 text-accent shrink-0" />
+          {activeInspectInfo ? (
+            <span className="font-bold text-ink animate-in fade-in duration-150">
+              {activeInspectInfo}
+            </span>
+          ) : (
+            'Hover over ribbons or nodes to inspect exact cash flow transfers and percentages.'
+          )}
         </span>
-        <span className="font-semibold text-ink">
+        <span className="font-semibold text-faint shrink-0 text-[11px]">
           {data.nodes.length} categories & streams
         </span>
       </div>
