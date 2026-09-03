@@ -12,48 +12,48 @@
 
 @layer base {
   :root {
-    --bg: 220 20% 97.5%;
+    --bg: 240 6% 98%;
     --surface: 0 0% 100%;
-    --raised: 220 18% 94%;
-    --line: 220 14% 87%;
-    --ink: 224 45% 9%;
-    --muted: 220 16% 36%;
-    --faint: 220 14% 48%;
+    --raised: 240 5% 95%;
+    --line: 240 6% 90%;
+    --ink: 240 10% 8%;
+    --muted: 240 4% 42%;
+    --faint: 240 4% 60%;
 
-    --accent: 160 84% 33%;
+    --accent: 156 82% 32%;
     --accent-ink: 0 0% 100%;
 
-    --good: 158 80% 32%;
-    --warn: 32 95% 42%;
-    --bad: 0 78% 48%;
+    --good: 156 80% 32%;
+    --warn: 34 94% 42%;
+    --bad: 0 74% 48%;
 
     --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
-    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
   }
 
   .dark {
-    --bg: 224 30% 5.5%;
-    --surface: 224 24% 8.5%;
-    --raised: 224 20% 13%;
-    --line: 224 16% 18%;
-    --ink: 220 25% 98%;
-    --muted: 220 16% 72%;
-    --faint: 220 12% 56%;
+    --bg: 240 10% 4.5%;
+    --surface: 240 7% 7.8%;
+    --raised: 240 6% 11.5%;
+    --line: 240 5% 15%;
+    --ink: 0 0% 98%;
+    --muted: 240 5% 64%;
+    --faint: 240 5% 42%;
 
-    --accent: 158 75% 46%;
-    --accent-ink: 160 90% 5%;
+    --accent: 156 72% 43%;
+    --accent-ink: 0 0% 100%;
 
-    --good: 158 72% 48%;
-    --warn: 36 94% 58%;
-    --bad: 0 80% 64%;
+    --good: 156 70% 46%;
+    --warn: 36 92% 56%;
+    --bad: 0 74% 60%;
   }
 
   * {
-    border-color: hsl(var(--line));
+    border-color: hsl(var(--line) / 0.7);
   }
 
   html {
@@ -81,12 +81,11 @@
     text-wrap: pretty;
   }
 
-  /* Numbers must line up in columns. Tabular figures everywhere money appears. */
+  /* Tabular numbers for financial alignment in primary sans font */
   .tnum {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum' 1, 'zero' 1;
-    letter-spacing: -0.025em;
+    font-feature-settings: 'tnum' 1;
+    letter-spacing: -0.02em;
   }
 
   /* iOS zooms the page when a font smaller than 16px gets focus. */

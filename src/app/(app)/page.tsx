@@ -157,28 +157,28 @@ export default function TodayPage() {
       {/* Hero Financial Cockpit: Safe to Spend */}
       <div
         className={cn(
-          'relative overflow-hidden rounded-3xl border p-5 sm:p-7 shadow-elevated transition-all',
+          'relative overflow-hidden rounded-2xl border p-6 shadow-xs transition-all',
           sts.negative
-            ? 'border-bad/50 bg-gradient-to-br from-bad/12 via-surface to-raised/95'
-            : 'border-line/90 bg-gradient-to-br from-surface via-surface to-raised/90 hover:border-accent/50',
+            ? 'border-bad/40 bg-gradient-to-br from-bad/10 to-surface'
+            : 'border-line/60 bg-gradient-to-br from-surface to-raised/40 hover:border-line/80',
         )}
       >
         <div className="relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/15 text-accent">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/15 text-accent">
                 <Sparkles className="h-3.5 w-3.5" />
               </span>
-              <span className="text-xs font-black uppercase tracking-wider text-muted">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
                 Safe to Spend
               </span>
             </div>
             {sts.negative ? (
-              <Badge tone="bad" className="px-2.5 py-1 text-xs font-black">Deficit Risk</Badge>
+              <Badge tone="bad" className="px-2 py-0.5 text-xs font-semibold">Deficit Risk</Badge>
             ) : sts.perDay >= 50_000 ? (
-              <Badge tone="good" className="px-2.5 py-1 text-xs font-black">Healthy Runway</Badge>
+              <Badge tone="good" className="px-2 py-0.5 text-xs font-semibold">Healthy Runway</Badge>
             ) : (
-              <Badge tone="warn" className="px-2.5 py-1 text-xs font-black">Tight Pace</Badge>
+              <Badge tone="warn" className="px-2 py-0.5 text-xs font-semibold">Tight Pace</Badge>
             )}
           </div>
 
@@ -186,7 +186,7 @@ export default function TodayPage() {
             <Money
               value={sts.amount}
               className={cn(
-                'text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-none',
+                'text-4xl sm:text-5xl font-bold tracking-tight leading-none tnum',
                 sts.negative ? 'text-bad' : 'text-ink',
               )}
               tone="plain"
@@ -194,21 +194,21 @@ export default function TodayPage() {
             />
           </div>
 
-          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-raised border border-line px-3 py-1.5 text-xs text-ink font-extrabold shadow-2xs">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-raised border border-line/60 px-2.5 py-1 text-xs text-ink font-semibold shadow-2xs">
               <Money value={sts.perDay} tone="plain" /> / day
             </span>
-            <span className="text-xs font-semibold text-muted">
+            <span className="text-xs font-normal text-muted">
               for {sts.daysLeft} {sts.daysLeft === 1 ? 'day' : 'days'} (until {formatDay(sts.until)})
             </span>
           </div>
 
-          {/* Action pills row with zero emoji slop */}
-          <div className="mt-6 flex flex-wrap items-center gap-2 pt-4 border-t border-line/70">
+          {/* Action pills row */}
+          <div className="mt-5 flex flex-wrap items-center gap-2 pt-3.5 border-t border-line/50">
             <button
               type="button"
               onClick={() => setShowMath((v) => !v)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/80 px-3 py-1.5 text-xs font-bold text-muted hover:border-accent/40 hover:bg-surface hover:text-ink transition-all active:scale-95"
+              className="flex items-center gap-1 rounded-lg border border-line/50 bg-raised/40 px-2.5 py-1 text-xs font-medium text-muted hover:border-line hover:text-ink transition-colors active:scale-[0.98]"
             >
               <span>{showMath ? 'Hide math' : 'Breakdown'}</span>
               <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', showMath && 'rotate-180')} />
@@ -218,10 +218,10 @@ export default function TodayPage() {
               type="button"
               onClick={() => setShowRunway((v) => !v)}
               className={cn(
-                'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95',
+                'flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors active:scale-[0.98]',
                 showRunway
-                  ? 'border-accent bg-accent/15 text-accent'
-                  : 'border-line bg-raised/80 text-muted hover:border-accent/40 hover:text-ink',
+                  ? 'border-accent/50 bg-accent/10 text-accent font-semibold'
+                  : 'border-line/50 bg-raised/40 text-muted hover:border-line hover:text-ink',
               )}
             >
               <TrendingUp className="h-3.5 w-3.5 text-accent" />
@@ -231,7 +231,7 @@ export default function TodayPage() {
             <button
               type="button"
               onClick={() => setShowSimulator(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/80 px-3 py-1.5 text-xs font-bold text-ink hover:border-accent/50 hover:bg-accent/10 transition-all active:scale-95"
+              className="flex items-center gap-1.5 rounded-lg border border-line/50 bg-raised/40 px-2.5 py-1 text-xs font-medium text-muted hover:border-line hover:text-ink transition-colors active:scale-[0.98]"
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />
               <span>What-If simulator</span>
@@ -240,23 +240,23 @@ export default function TodayPage() {
             <button
               type="button"
               onClick={handleQuickAdd}
-              className="ml-auto flex items-center gap-1.5 rounded-xl bg-accent text-accent-ink px-3.5 py-1.5 text-xs font-black shadow-xs hover:opacity-95 active:scale-95 transition-all"
+              className="ml-auto flex items-center gap-1 rounded-lg bg-accent text-accent-ink px-3 py-1 text-xs font-semibold shadow-xs hover:opacity-95 active:scale-[0.98] transition-all"
             >
-              <Plus className="h-3.5 w-3.5 stroke-[2.8]" />
+              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
               Quick Log
             </button>
           </div>
 
           {showMath ? (
-            <dl className="mt-4 space-y-2.5 rounded-2xl bg-surface border border-line p-4 text-xs font-semibold animate-in fade-in zoom-in-95 duration-150 shadow-inner">
+            <dl className="mt-3.5 space-y-2 rounded-xl bg-surface/90 border border-line/60 p-3.5 text-xs font-medium animate-in fade-in zoom-in-95 duration-150">
               <MathRow label="In spendable accounts" value={sts.liquid} />
               <MathRow label="Bills due before then" value={-sts.committedBills} />
               <MathRow label="Reserved for needs you budgeted" value={-sts.reservedNeeds} />
               <MathRow label="Going to savings goals" value={-sts.goalFunding} />
               <Divider className="my-2" />
               <MathRow label="Safe to spend" value={sts.amount} strong />
-              <p className="pt-1.5 text-[11px] leading-relaxed text-muted font-normal">
-                Savings accounts and anything marked as set aside are not counted here, keeping your daily pace completely protected.
+              <p className="pt-1 text-[11px] leading-relaxed text-muted font-normal">
+                Savings accounts and reserved funds are excluded to protect your daily runway pace.
               </p>
             </dl>
           ) : null}
@@ -271,6 +271,47 @@ export default function TodayPage() {
           until={sts.until}
         />
       ) : null}
+
+      {/* Bento Metric Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="group relative overflow-hidden rounded-xl border border-line/60 bg-surface/80 p-4 transition-all duration-200 hover:border-line shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted">Spent today</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-orange-500/10 text-orange-500 shadow-2xs">
+              <Flame className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <Money
+            value={spentToday}
+            className="mt-2.5 block text-2xl font-bold text-ink tnum"
+            tone="plain"
+            animate
+          />
+          <p className="mt-1 text-[11px] text-muted">
+            {sts.perDay > 0
+              ? spentToday > sts.perDay
+                ? 'Above daily allowance pace'
+                : 'Within daily allowance pace'
+              : 'Discretionary spend'}
+          </p>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-xl border border-line/60 bg-surface/80 p-4 transition-all duration-200 hover:border-line shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted">This week</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-500/10 text-teal-500 shadow-2xs">
+              <TrendingDown className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <Money
+            value={spentThisWeek}
+            className="mt-2.5 block text-2xl font-bold text-ink tnum"
+            tone="plain"
+            animate
+          />
+          <p className="mt-1 text-[11px] text-muted">Cumulative 7-day outgo</p>
+        </div>
+      </div>
 
       {/* Dip Warning if forecast drops underwater */}
       {dip ? (
@@ -319,55 +360,14 @@ export default function TodayPage() {
         </button>
       ) : null}
 
-      {/* Bento Metric Cards */}
-      <div className="grid grid-cols-2 gap-3.5">
-        <div className="group relative overflow-hidden rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 transition-all duration-200 hover:border-accent/40 hover:bg-raised/60 shadow-card">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">Spent today</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500 shadow-2xs">
-              <Flame className="h-4 w-4" />
-            </span>
-          </div>
-          <Money
-            value={spentToday}
-            className="mt-3 block text-2xl sm:text-3xl font-black text-ink"
-            tone="plain"
-            animate
-          />
-          <p className="mt-1 text-[11px] text-faint">
-            {sts.perDay > 0
-              ? spentToday > sts.perDay
-                ? 'Above daily allowance pace'
-                : 'Within daily allowance pace'
-              : 'Discretionary spend'}
-          </p>
-        </div>
-
-        <div className="group relative overflow-hidden rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 transition-all duration-200 hover:border-accent/40 hover:bg-raised/60 shadow-card">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">This week</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-teal-500/15 text-teal-500 shadow-2xs">
-              <TrendingDown className="h-4 w-4" />
-            </span>
-          </div>
-          <Money
-            value={spentThisWeek}
-            className="mt-3 block text-2xl sm:text-3xl font-black text-ink"
-            tone="plain"
-            animate
-          />
-          <p className="mt-1 text-[11px] text-faint">Cumulative 7-day outgo</p>
-        </div>
-      </div>
-
       {/* Upcoming Bills */}
       {bills.length > 0 ? (
         <Section title="Next seven days">
-          <Card className="stagger divide-y divide-line overflow-hidden rounded-3xl shadow-card">
+          <Card className="stagger divide-y divide-line/50 overflow-hidden rounded-xl border border-line/60 bg-surface/60 shadow-xs">
             {bills.map((bill) => (
               <div
                 key={`${bill.recurring.id}-${bill.dueDate}`}
-                className="flex items-center gap-3 px-4 py-3.5 hover:bg-raised/60 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-raised/50 transition-colors"
               >
                 <button
                   type="button"
@@ -376,10 +376,10 @@ export default function TodayPage() {
                 >
                   <span
                     className={cn(
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border shadow-2xs',
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-2xs',
                       bill.overdue
                         ? 'border-bad/30 bg-bad/15 text-bad'
-                        : 'border-line bg-raised/80 text-muted',
+                        : 'border-line/60 bg-raised text-muted',
                     )}
                   >
                     {bill.overdue ? (
@@ -389,7 +389,7 @@ export default function TodayPage() {
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-ink">
+                    <span className="block truncate text-sm font-semibold text-ink">
                       {bill.recurring.description}
                     </span>
                     <span className="block text-xs text-muted">
@@ -399,12 +399,14 @@ export default function TodayPage() {
                   </span>
                 </button>
                 <span className="flex shrink-0 items-center gap-2.5">
-                  <Money value={bill.amount} className="text-sm font-extrabold" tone="plain" />
+                  <span className="text-sm font-semibold text-ink tnum">
+                    <Money value={bill.amount} tone="plain" />
+                  </span>
                   {!bill.recurring.autoPost ? (
                     <button
                       type="button"
                       onClick={() => void postRecurring(bill.recurring)}
-                      className="rounded-xl border border-line bg-surface px-3 py-1 text-xs font-bold text-ink hover:border-accent hover:text-accent transition-all active:scale-95 shadow-2xs"
+                      className="rounded-lg border border-line/60 bg-surface px-2.5 py-1 text-xs font-semibold text-ink hover:border-accent hover:text-accent transition-all active:scale-95 shadow-2xs"
                     >
                       Paid
                     </button>
@@ -424,7 +426,7 @@ export default function TodayPage() {
             <button
               type="button"
               onClick={handleQuickAdd}
-              className="text-xs font-bold text-accent hover:underline flex items-center gap-1 active:scale-95"
+              className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 active:scale-95"
             >
               <Plus className="h-3 w-3" /> Add spend
             </button>
@@ -436,7 +438,7 @@ export default function TodayPage() {
             Nothing logged for {quiet} days. Logging the big spends keeps your Safe to Spend honest.
           </p>
         ) : null}
-        <Card className="stagger divide-y divide-line overflow-hidden rounded-3xl shadow-card">
+        <Card className="stagger divide-y divide-line/50 overflow-hidden rounded-xl border border-line/60 bg-surface/60 shadow-xs">
           {recent.length === 0 ? (
             <Empty
               icon={<Wallet className="h-6 w-6" />}

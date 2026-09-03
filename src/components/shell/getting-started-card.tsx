@@ -56,14 +56,14 @@ export function GettingStartedCard({
   }
 
   return (
-    <Card className="relative overflow-hidden rounded-3xl border border-accent/40 bg-gradient-to-br from-surface via-surface to-accent/5 p-5 shadow-card">
+    <Card className="relative overflow-hidden rounded-xl border border-line/60 bg-surface/80 p-4 shadow-xs">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/15 text-accent shadow-2xs">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent shadow-2xs">
             <Sparkles className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="text-sm font-extrabold text-ink tracking-tight">Getting Started with KharchGini</h2>
+            <h2 className="text-sm font-semibold text-ink tracking-tight">Getting Started with KharchGini</h2>
             <p className="text-xs text-muted">
               {completedSteps} of 3 setup steps completed
             </p>

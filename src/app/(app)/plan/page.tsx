@@ -167,15 +167,15 @@ export default function PlanPage() {
       </Card>
 
       {/* ‘What-If’ Sandbox Simulator Banner */}
-      <div className="rounded-3xl border border-accent/40 bg-gradient-to-br from-accent/10 via-surface to-raised/90 p-5 shadow-card space-y-3">
+      <div className="rounded-xl border border-line/60 bg-surface/80 p-4 shadow-xs space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent/20 text-accent shadow-2xs">
-              <Sparkles className="h-5 w-5" />
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent shadow-2xs">
+              <Sparkles className="h-4 w-4" />
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-extrabold tracking-tight text-ink">
+                <h3 className="text-sm font-semibold tracking-tight text-ink">
                   ‘What-If’ Sandbox Simulator
                 </h3>
                 <Badge tone="good">In-Memory</Badge>
@@ -190,7 +190,7 @@ export default function PlanPage() {
             size="sm"
             variant="primary"
             onClick={() => setSimulatorOpen(true)}
-            className="font-extrabold gap-1.5 shadow-sm active:scale-95"
+            className="font-semibold gap-1.5 shadow-xs active:scale-95 text-xs h-8"
           >
             <Sparkles className="h-3.5 w-3.5" />
             Launch Simulator
@@ -213,7 +213,7 @@ export default function PlanPage() {
               size="sm"
               variant="outline"
               onClick={() => setEnvelopeFor({ open: true, categoryId: null })}
-              className="text-xs font-bold gap-1"
+              className="text-xs font-semibold gap-1 h-8"
             >
               <Plus className="h-3.5 w-3.5" />
               Add budget
@@ -222,7 +222,7 @@ export default function PlanPage() {
         }
       >
         {envelopes.length === 0 ? (
-          <Card className="shadow-card">
+          <Card className="rounded-xl border border-line/60 shadow-xs">
             <Empty
               icon={<Wallet className="h-6 w-6" />}
               title="No budgets for this month"
@@ -230,7 +230,7 @@ export default function PlanPage() {
             />
           </Card>
         ) : (
-          <Card className="stagger divide-y divide-line overflow-hidden shadow-card">
+          <Card className="stagger divide-y divide-line/50 overflow-hidden rounded-xl border border-line/60 bg-surface/60 shadow-xs">
             {envelopes.map((status) => (
               <EnvelopeRow
                 key={status.envelope.id}
@@ -316,7 +316,7 @@ export default function PlanPage() {
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {goals.map((progress) => {
               const pct =
                 Math.min(100, Math.round((progress.saved / progress.goal.targetAmount) * 100)) || 0;
@@ -328,36 +328,36 @@ export default function PlanPage() {
                     setGoal(progress.goal);
                     setGoalOpen(true);
                   }}
-                  className="group relative flex flex-col justify-between rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 text-left transition-all duration-200 hover:border-accent/50 hover:bg-raised/60 hover:shadow-card active:scale-[0.98] shadow-card"
+                  className="group relative flex flex-col justify-between rounded-xl border border-line/60 bg-surface/80 p-4 text-left transition-all duration-150 hover:border-line hover:bg-raised/30 active:scale-[0.98] shadow-xs"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/25 text-amber-500 shadow-2xs">
-                      <CategoryIcon name={progress.goal.icon} color="#f59e0b" className="h-5 w-5" />
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 shadow-2xs">
+                      <CategoryIcon name={progress.goal.icon} color="#f59e0b" className="h-4 w-4" />
                     </span>
-                    <span className="rounded-full bg-raised border border-line/70 px-2.5 py-1 text-xs font-black text-ink group-hover:text-accent transition-colors shadow-2xs">
+                    <span className="rounded-md bg-raised border border-line/60 px-2 py-0.5 text-xs font-semibold text-ink shadow-2xs tnum">
                       {pct}%
                     </span>
                   </div>
 
-                  <div className="mt-3.5">
-                    <h4 className="truncate text-base font-extrabold text-ink">
+                  <div className="mt-3">
+                    <h4 className="truncate text-sm font-semibold text-ink">
                       {progress.goal.name}
                     </h4>
                     {progress.goal.targetDate ? (
-                      <p className="text-xs text-faint mt-0.5">
+                      <p className="text-xs text-muted mt-0.5">
                         Target: {formatDay(progress.goal.targetDate)}
                       </p>
                     ) : (
-                      <p className="text-xs text-faint mt-0.5">Ongoing fund</p>
+                      <p className="text-xs text-muted mt-0.5">Ongoing fund</p>
                     )}
                   </div>
 
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-3.5 space-y-1.5">
                     <div className="flex items-baseline justify-between text-xs">
-                      <span className="font-extrabold text-ink">
+                      <span className="font-semibold text-ink tnum">
                         {formatMoney(progress.saved)}
                       </span>
-                      <span className="text-faint font-medium">
+                      <span className="text-muted font-normal tnum">
                         of {formatMoney(progress.goal.targetAmount)}
                       </span>
                     </div>
@@ -365,9 +365,9 @@ export default function PlanPage() {
                       value={progress.saved}
                       max={progress.goal.targetAmount}
                       tone={progress.onTrack === false ? 'warn' : 'good'}
-                      className="h-2 rounded-full"
+                      className="h-1.5 rounded-full"
                     />
-                    <p className="text-[11px] text-faint truncate pt-0.5 font-medium">
+                    <p className="text-[11px] text-muted truncate pt-0.5">
                       {goalLine(progress)}
                     </p>
                   </div>

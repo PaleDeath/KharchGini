@@ -167,15 +167,15 @@ export default function YouPage() {
 
       {/* Net Worth Summary Card */}
       {liveAccounts > 0 ? (
-        <Card className="relative overflow-hidden rounded-3xl p-6 shadow-elevated bg-gradient-to-br from-surface via-surface to-raised/90 border border-line">
-          <p className="text-xs font-black uppercase tracking-wider text-muted">Total Net Worth</p>
+        <Card className="relative overflow-hidden rounded-2xl p-5 shadow-xs bg-surface/80 border border-line/60">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">Total Net Worth</p>
           <Money
             value={worth}
-            className="mt-2 block text-3xl sm:text-4xl md:text-5xl font-black tracking-tight"
+            className="mt-1.5 block text-3xl sm:text-4xl font-bold tracking-tight tnum"
             tone={worth < 0 ? 'bad' : 'plain'}
             animate
           />
-          <p className="mt-2 text-xs leading-relaxed text-muted">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
             Assets minus liabilities across all {liveAccounts}{' '}
             {liveAccounts === 1 ? 'account' : 'accounts'}. Includes spendable money, savings & liabilities.
           </p>
@@ -184,62 +184,62 @@ export default function YouPage() {
 
       {/* Six months trend */}
       <Section title="Six months trend">
-        <Card className="p-5 sm:p-6 rounded-3xl shadow-card space-y-4 border border-line bg-surface/95">
+        <Card className="p-4 sm:p-5 rounded-xl shadow-xs space-y-3.5 border border-line/60 bg-surface/80">
           <div className="flex items-end justify-between gap-3 pt-2">
             {trend.map((row) => (
               <div key={row.month} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                <div className="flex h-28 w-full items-end justify-center gap-1">
+                <div className="flex h-24 w-full items-end justify-center gap-1">
                   <div
-                    className="w-3 rounded-t-lg bg-gradient-to-t from-good to-emerald-400 transition-all duration-300 shadow-2xs"
+                    className="w-2.5 rounded-t-sm bg-good/80 transition-all duration-300"
                     style={{ height: `${Math.max(4, (row.income / peak) * 100)}%` }}
                     title={`In: ${formatMoney(row.income)}`}
                   />
                   <div
-                    className="w-3 rounded-t-lg bg-gradient-to-t from-accent to-teal-400 transition-all duration-300 shadow-2xs"
+                    className="w-2.5 rounded-t-sm bg-ink/70 transition-all duration-300"
                     style={{ height: `${Math.max(4, (row.spending / peak) * 100)}%` }}
                     title={`Out: ${formatMoney(row.spending)}`}
                   />
                 </div>
-                <span className="truncate text-xs font-bold text-muted">
+                <span className="truncate text-[11px] font-medium text-muted">
                   {formatMonthShort(row.month).slice(0, 3)}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="flex items-center justify-center gap-6 border-t border-line/70 pt-3 text-xs font-bold text-muted">
+          <div className="flex items-center justify-center gap-6 border-t border-line/50 pt-2.5 text-xs font-medium text-muted">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-good shadow-2xs" /> Money In
+              <span className="h-2 w-2 rounded-full bg-good" /> Money In
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-accent shadow-2xs" /> Money Out
+              <span className="h-2 w-2 rounded-full bg-ink/70" /> Money Out
             </span>
           </div>
         </Card>
       </Section>
 
       {/* Monthly Summary Cards */}
-      <div className="grid grid-cols-2 gap-3.5">
-        <Card className="p-5 rounded-3xl shadow-card border border-line bg-surface/95">
-          <p className="text-xs font-black uppercase tracking-wider text-muted">Kept this month</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-4 rounded-xl shadow-xs border border-line/60 bg-surface/80">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Kept this month</p>
           <Money
             value={summary.saved}
             signed
-            className="mt-2 block text-2xl sm:text-3xl font-black text-ink"
+            className="mt-1.5 block text-xl sm:text-2xl font-bold text-ink tnum"
           />
-          <p className="mt-1 text-xs font-semibold text-muted">
+          <p className="mt-1 text-xs font-normal text-muted">
             {summary.income > 0
               ? `${Math.round(summary.savingsRate)}% savings rate`
               : 'No income recorded'}
           </p>
         </Card>
 
-        <Card className="p-5 rounded-3xl shadow-card border border-line bg-surface/95">
-          <p className="text-xs font-black uppercase tracking-wider text-muted">Needs vs wants</p>
-          <p className="mt-2 text-2xl sm:text-3xl font-black text-ink tnum">
+        <Card className="p-4 rounded-xl shadow-xs border border-line/60 bg-surface/80">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Needs vs wants</p>
+          <p className="mt-1.5 text-xl sm:text-2xl font-bold text-ink tnum">
             {splitTotal > 0 ? `${Math.round((summary.needs / splitTotal) * 100)}%` : '—'}
           </p>
-          <p className="mt-1 text-xs font-semibold text-muted truncate">
+          <p className="mt-1 text-xs font-normal text-muted truncate">
             {splitTotal > 0
               ? `Needs · ${formatMoney(summary.wants)} wants`
               : 'Nothing spent yet'}
@@ -439,7 +439,7 @@ export default function YouPage() {
 
       {/* Settings Section */}
       <Section title="Settings & Appearance">
-        <Card className="space-y-4.5 p-6 rounded-3xl shadow-card border border-line bg-surface/95">
+        <Card className="space-y-4 p-5 rounded-xl shadow-xs border border-line/60 bg-surface/80">
           <Field label="What should it call you">
             <Input
               value={name}
@@ -472,11 +472,11 @@ export default function YouPage() {
           </Field>
 
           <div className="space-y-1.5">
-            <span className="block text-xs font-bold uppercase tracking-wider text-muted">Appearance</span>
+            <span className="block text-xs font-semibold uppercase tracking-wider text-muted">Appearance</span>
             <Segmented options={THEMES} value={theme} onChange={setTheme} />
           </div>
 
-          <div className="border-t border-line/70 pt-4">
+          <div className="border-t border-line/50 pt-3.5">
             <Switch
               checked={ledger.prefs.privacyMode === true}
               onChange={(next) => void savePrefs({ privacyMode: next })}
@@ -485,16 +485,16 @@ export default function YouPage() {
             />
           </div>
 
-          <div className="border-t border-line/70 pt-4 flex items-center justify-between gap-3">
+          <div className="border-t border-line/50 pt-3.5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-ink">How KharchGini works</p>
+              <p className="text-sm font-semibold text-ink">How KharchGini works</p>
               <p className="text-xs text-muted">Review philosophy and runway mechanics</p>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setTourOpen(true)}
-              className="gap-1.5 text-xs font-bold shrink-0"
+              className="gap-1.5 text-xs font-semibold shrink-0 h-8"
             >
               <HelpCircle className="h-3.5 w-3.5 text-accent" />
               View guide
@@ -505,7 +505,7 @@ export default function YouPage() {
 
       {/* Data Backup & Restore */}
       <Section title="Your Data">
-        <Card className="space-y-3 p-6 rounded-3xl shadow-card border border-line bg-surface/95">
+        <Card className="space-y-3 p-5 rounded-xl shadow-xs border border-line/60 bg-surface/80">
           <p className="text-xs leading-relaxed text-muted">
             {ledger.entries.length} entries, {ledger.accounts.length} accounts. Fully stored in your personal Firebase database.
           </p>

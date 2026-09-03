@@ -225,19 +225,19 @@ export default function MoneyPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between gap-3 px-1">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Money & Accounts</h1>
-          <p className="text-xs text-muted">
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Money & Accounts</h1>
+          <p className="text-xs text-muted mt-0.5">
             {ledger.accounts.filter((a) => !a.archived).length} accounts · {filtered.length} entries
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {selectionMode ? (
             <>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={handleSelectAll}
-                className="text-xs"
+                className="text-xs h-8 px-2.5"
               >
                 {selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}
               </Button>
@@ -248,7 +248,7 @@ export default function MoneyPage() {
                   setSelectionMode(false);
                   setSelectedIds(new Set());
                 }}
-                className="text-xs"
+                className="text-xs h-8 px-3 font-semibold"
               >
                 Done
               </Button>
@@ -257,15 +257,21 @@ export default function MoneyPage() {
             <>
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 onClick={() => setSelectionMode(true)}
                 disabled={filtered.length === 0}
-                className="text-xs gap-1"
+                className="text-xs h-8 gap-1.5 px-2.5 border-line/70"
               >
                 <CheckSquare className="h-3.5 w-3.5" />
                 Select
               </Button>
-              <Button size="sm" variant="ghost" onClick={exportCSV} disabled={filtered.length === 0}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportCSV}
+                disabled={filtered.length === 0}
+                className="text-xs h-8 gap-1.5 px-2.5 border-line/70"
+              >
                 <Download className="h-3.5 w-3.5" />
                 Export
               </Button>
@@ -275,7 +281,7 @@ export default function MoneyPage() {
       </header>
 
       {/* Balances Carousel */}
-      <div className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 no-scrollbar sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
         {ledger.accounts
           .filter((account) => !account.archived)
           .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -290,21 +296,26 @@ export default function MoneyPage() {
                   onClick={() => setAccountId(active ? null : account.id)}
                   onDoubleClick={() => setEditingAccountId(account.id)}
                   className={cn(
-                    'w-48 rounded-3xl border p-4.5 text-left transition-all duration-150 active:scale-[0.97] shadow-card',
+                    'w-56 rounded-xl border p-3.5 text-left transition-all duration-150 active:scale-[0.98] shadow-xs',
                     active
-                      ? 'border-accent bg-accent/12 ring-2 ring-accent/35 shadow-elevated'
-                      : 'border-line bg-surface/95 hover:border-accent/40 hover:bg-raised/60',
+                      ? 'border-accent bg-accent/10 ring-1 ring-accent/30'
+                      : 'border-line/60 bg-surface hover:border-line hover:bg-raised/40',
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={cn(
-                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border shadow-2xs',
-                        getAccountBadgeColor(account.type),
-                      )}
-                    >
-                      {getAccountIcon(account.type)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-muted shadow-2xs',
+                          getAccountBadgeColor(account.type),
+                        )}
+                      >
+                        {getAccountIcon(account.type)}
+                      </span>
+                      <span className="rounded-md bg-raised/80 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted border border-line/40">
+                        {owed ? 'Owed' : ACCOUNT_TYPE_LABEL[account.type]}
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -312,20 +323,19 @@ export default function MoneyPage() {
                         setEditingAccountId(account.id);
                       }}
                       title="Edit account"
-                      className="rounded-xl p-1.5 text-muted hover:text-ink hover:bg-raised transition-all active:scale-95"
+                      className="rounded-md p-1 text-muted hover:text-ink hover:bg-raised transition-colors opacity-0 group-hover:opacity-100"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-3 w-3" />
                     </button>
                   </div>
-                  <p className="mt-3.5 truncate text-sm font-bold text-ink">{account.name}</p>
-                  <Money
-                    value={owed ? Math.abs(balance) : balance}
-                    className="mt-0.5 block text-xl font-black text-ink"
-                    tone={balance < 0 && !owed ? 'bad' : 'plain'}
-                  />
-                  <p className="mt-0.5 truncate text-[10px] uppercase font-black tracking-wider text-muted">
-                    {owed ? 'owed balance' : ACCOUNT_TYPE_LABEL[account.type]}
-                  </p>
+                  <div className="mt-3">
+                    <p className="truncate text-xs font-medium text-muted">{account.name}</p>
+                    <Money
+                      value={owed ? Math.abs(balance) : balance}
+                      className="mt-0.5 block text-lg font-bold text-ink"
+                      tone={balance < 0 && !owed ? 'bad' : 'plain'}
+                    />
+                  </div>
                 </button>
               </div>
             );
@@ -334,19 +344,19 @@ export default function MoneyPage() {
         <button
           type="button"
           onClick={() => setAddingAccount(true)}
-          className="flex w-40 shrink-0 flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-line bg-raised/40 p-4 text-xs font-bold text-muted transition-all hover:border-accent hover:text-accent hover:bg-accent/5 active:scale-95 shadow-2xs"
+          className="flex w-44 shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-line/70 bg-surface/30 p-3.5 text-xs font-medium text-muted transition-all hover:border-accent hover:text-accent hover:bg-accent/5 active:scale-[0.98]"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface border border-line text-muted shadow-2xs">
-            <Plus className="h-4 w-4 stroke-[2.5]" />
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-raised border border-line/60 text-muted">
+            <Plus className="h-3.5 w-3.5" />
           </span>
-          Add account
+          <span>Add account</span>
         </button>
       </div>
 
       {accountId ? (
         <div className="flex items-center gap-2 px-1">
           <span className="text-xs text-muted">Filtered by:</span>
-          <span className="inline-flex items-center gap-1.5 rounded-xl border border-accent/40 bg-accent/15 px-3 py-1 text-xs font-bold text-accent shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent shadow-2xs">
             {accounts.get(accountId)?.name}
             <button
               type="button"
@@ -362,34 +372,34 @@ export default function MoneyPage() {
 
       {/* Credit Cards & Spends Manager */}
       {creditCards.length > 0 ? (
-        <div className="rounded-3xl border border-line bg-gradient-to-br from-surface via-surface to-raised/90 p-5 shadow-card space-y-4">
+        <div className="rounded-xl border border-line/60 bg-surface/80 p-4 space-y-3.5 shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-500 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15 text-orange-500 shadow-2xs">
                 <CreditCard className="h-4 w-4" />
               </span>
               <div>
-                <h2 className="text-sm font-extrabold tracking-tight text-ink">
-                  Credit Cards & Spends
+                <h2 className="text-sm font-semibold tracking-tight text-ink">
+                  Credit Cards & Limits
                 </h2>
-                <p className="text-[11px] text-faint">Track statement limits & bill settlements</p>
+                <p className="text-[11px] text-muted">Statement limits and pay-off tracking</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-raised/80 border border-line/60 px-3 py-1 text-xs">
-              <span className="text-faint">Monthly Card Spends:</span>
-              <Money value={cardSpendsThisMonth} tone="plain" className="font-extrabold text-ink" />
+            <div className="flex items-center gap-1.5 rounded-md bg-raised border border-line/50 px-2.5 py-1 text-xs">
+              <span className="text-muted text-[11px]">Monthly card spends:</span>
+              <Money value={cardSpendsThisMonth} tone="plain" className="font-semibold text-ink" />
             </div>
           </div>
 
           {/* Utilization Header Banner */}
           {totalCreditLimit > 0 ? (
-            <div className="rounded-2xl border border-line/70 bg-surface/80 p-3.5 space-y-2 shadow-inner">
+            <div className="rounded-lg border border-line/50 bg-raised/40 p-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-ink">Overall Credit Utilization</span>
+                  <span className="font-medium text-ink">Overall Credit Utilization</span>
                   <span
                     className={cn(
-                      'rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-wider',
+                      'rounded px-1.5 py-0.2 text-[10px] font-semibold uppercase tracking-wider',
                       creditUtilization <= 30
                         ? 'bg-good/15 text-good'
                         : creditUtilization <= 50
@@ -400,19 +410,19 @@ export default function MoneyPage() {
                     {creditUtilization}% · {creditUtilization <= 30 ? 'Healthy (<30%)' : creditUtilization <= 50 ? 'Moderate' : 'High'}
                   </span>
                 </div>
-                <span className="text-faint font-medium">
-                  <Money value={totalCardDebt} tone="plain" className="font-bold text-ink" /> / <Money value={totalCreditLimit} tone="plain" />
+                <span className="text-muted font-medium text-xs">
+                  <Money value={totalCardDebt} tone="plain" className="font-semibold text-ink" /> / <Money value={totalCreditLimit} tone="plain" />
                 </span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-raised">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-raised">
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-500',
                     creditUtilization <= 30
-                      ? 'bg-gradient-to-r from-good to-emerald-400'
+                      ? 'bg-good'
                       : creditUtilization <= 50
-                      ? 'bg-gradient-to-r from-warn to-amber-400'
-                      : 'bg-gradient-to-r from-bad to-red-500',
+                      ? 'bg-warn'
+                      : 'bg-bad',
                   )}
                   style={{ width: `${Math.min(100, creditUtilization)}%` }}
                 />
@@ -421,7 +431,7 @@ export default function MoneyPage() {
           ) : null}
 
           {/* Credit Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {creditCards.map((card) => {
               const bal = balances.get(card.id) ?? 0;
               const owed = bal < 0 ? Math.abs(bal) : 0;
@@ -565,46 +575,46 @@ export default function MoneyPage() {
       ) : null}
 
       {/* Filter and Search Controls */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search description, tag, merchant, amount…"
-            className="pl-11 pr-10 text-sm rounded-2xl bg-surface/95"
+            className="pl-10 pr-9 text-sm h-9.5 rounded-xl bg-surface/90 border-line/60"
           />
           {query ? (
             <button
               type="button"
               onClick={() => setQuery('')}
               aria-label="Clear search"
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-faint hover:text-ink"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:text-ink"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <div className="w-full sm:w-auto sm:min-w-[240px]">
             <Segmented
               options={[
-                { value: 'this', label: `${formatMonthShort(currentMonth())} (Current)` },
-                { value: 'last', label: `${formatMonthShort(addMonthsToKey(currentMonth(), -1))} (Last)` },
+                { value: 'this', label: 'This month' },
+                { value: 'last', label: 'Last month' },
                 { value: 'all', label: 'All time' },
               ]}
               value={range}
               onChange={setRange}
             />
           </div>
-          <div className="flex-1">
+          <div className="w-full sm:flex-1">
             <Segmented
               options={[
                 { value: 'all', label: 'All' },
-                { value: 'out', label: 'Spends' },
+                { value: 'out', label: 'Expenses' },
                 { value: 'in', label: 'Income' },
-                { value: 'transfer', label: 'Moves' },
+                { value: 'transfer', label: 'Transfers' },
               ]}
               value={filter}
               onChange={setFilter}
@@ -614,36 +624,41 @@ export default function MoneyPage() {
       </div>
 
       {/* Income / Out / Net Overview Strip */}
-      <Card className="flex items-center justify-around px-6 py-4 rounded-3xl border border-line bg-surface/95 shadow-card">
-        <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wider text-muted font-black">Money In</p>
-          <Money value={moneyIn} className="text-lg sm:text-xl font-black mt-0.5" tone="good" animate />
+      <div className="grid grid-cols-3 divide-x divide-line/60 rounded-xl border border-line/60 bg-surface/70 px-4 py-3 shadow-2xs">
+        <div className="text-center px-2">
+          <p className="text-[10px] uppercase font-semibold tracking-wider text-muted">Inflow</p>
+          <span className="text-base font-bold text-good mt-0.5 inline-block tnum">
+            +<Money value={moneyIn} tone="plain" />
+          </span>
         </div>
-        <div className="h-9 w-px bg-line/80" />
-        <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wider text-muted font-black">Money Out</p>
-          <Money value={moneyOut} className="text-lg sm:text-xl font-black text-ink mt-0.5" tone="plain" animate />
+        <div className="text-center px-2">
+          <p className="text-[10px] uppercase font-semibold tracking-wider text-muted">Outflow</p>
+          <span className="text-base font-bold text-ink mt-0.5 inline-block tnum">
+            −<Money value={moneyOut} tone="plain" />
+          </span>
         </div>
-        <div className="h-9 w-px bg-line/80" />
-        <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wider text-muted font-black">Net Cash Flow</p>
-          <Money
-            value={moneyIn - moneyOut}
-            signed
-            className="text-lg sm:text-xl font-black mt-0.5"
-            animate
-          />
+        <div className="text-center px-2">
+          <p className="text-[10px] uppercase font-semibold tracking-wider text-muted">Net Flow</p>
+          <span
+            className={cn(
+              'text-base font-bold mt-0.5 inline-block tnum',
+              moneyIn - moneyOut > 0 ? 'text-good' : moneyIn - moneyOut < 0 ? 'text-bad' : 'text-muted',
+            )}
+          >
+            {moneyIn - moneyOut > 0 ? '+' : moneyIn - moneyOut < 0 ? '−' : ''}
+            <Money value={Math.abs(moneyIn - moneyOut)} tone="plain" />
+          </span>
         </div>
-      </Card>
+      </div>
 
       {/* Transactions List */}
       {days.length === 0 ? (
-        <Card className="p-8 text-center space-y-4 rounded-3xl shadow-card">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-raised border border-line text-faint shadow-2xs">
-            <Search className="h-7 w-7" />
+        <Card className="p-8 text-center space-y-3 rounded-2xl shadow-xs">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-raised border border-line/60 text-muted shadow-2xs">
+            <Search className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-ink">
+            <h3 className="text-sm font-semibold text-ink">
               {query
                 ? 'No transactions match your search'
                 : range === 'this'
@@ -667,7 +682,7 @@ export default function MoneyPage() {
                 setAccountId(null);
                 setQuery('');
               }}
-              className="text-xs rounded-xl font-bold"
+              className="text-xs rounded-lg font-semibold"
             >
               Reset All Filters
             </Button>
@@ -675,20 +690,20 @@ export default function MoneyPage() {
         </Card>
       ) : (
         <Section>
-          <div className="stagger space-y-4">
+          <div className="stagger space-y-3.5">
             {days.map((group) => (
               <div key={group.date}>
                 <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
-                  <span className="text-xs font-bold text-muted uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
                     {formatDay(group.date)}
                   </span>
                   {group.out > 0 ? (
-                    <span className="text-xs font-medium text-faint">
-                      Day total: <Money value={group.out} tone="plain" className="font-bold text-ink" />
+                    <span className="text-xs text-muted">
+                      Day total: <span className="font-semibold text-ink tnum">−<Money value={group.out} tone="plain" /></span>
                     </span>
                   ) : null}
                 </div>
-                <Card className="divide-y divide-line overflow-hidden shadow-card">
+                <Card className="divide-y divide-line/50 overflow-hidden rounded-xl border border-line/60 bg-surface/60 shadow-xs">
                   {group.rows.map((entry) => (
                     <EntryRow
                       key={entry.id}

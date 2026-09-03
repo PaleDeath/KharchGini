@@ -59,7 +59,7 @@ export function Field({
   );
 }
 
-/** A row of mutually exclusive options with tactile active tab styling. */
+/** A compact row of mutually exclusive options with refined Apple/Linear styling. */
 export function Segmented<T extends string>({
   options,
   value,
@@ -74,7 +74,7 @@ export function Segmented<T extends string>({
   return (
     <div
       role="tablist"
-      className={cn('flex gap-1 rounded-2xl bg-raised/90 p-1 border border-line/60', className)}
+      className={cn('inline-flex w-full items-center gap-0.5 rounded-lg bg-raised/80 p-0.5 border border-line/60 select-none', className)}
     >
       {options.map((option) => {
         const isSelected = value === option.value;
@@ -86,10 +86,10 @@ export function Segmented<T extends string>({
             aria-selected={isSelected}
             onClick={() => onChange(option.value)}
             className={cn(
-              'flex-1 rounded-xl px-3 py-1.5 text-xs font-bold transition-all duration-150 active:scale-95 text-center',
+              'flex-1 truncate rounded-md px-2.5 py-1 text-xs transition-all text-center whitespace-nowrap active:scale-[0.98]',
               isSelected
-                ? 'bg-surface text-ink shadow-xs border border-line/70 font-extrabold'
-                : 'text-muted hover:text-ink hover:bg-surface/50',
+                ? 'bg-surface text-ink shadow-2xs font-semibold'
+                : 'font-medium text-muted hover:text-ink',
             )}
           >
             {option.label}

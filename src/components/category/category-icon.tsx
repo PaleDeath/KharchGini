@@ -222,8 +222,7 @@ export function CategoryIcon({
 }
 
 /**
- * The icon inside its own tinted squircle — crafted with a subtle gradient,
- * soft ambient glow, and hairline border for an Apple/Linear grade finish.
+ * Subtle category icon badge — understated neutral container with crisp iconography.
  */
 export function CategoryChip({
   name,
@@ -234,23 +233,17 @@ export function CategoryChip({
   color?: string;
   className?: string;
 }) {
-  const customColor = color || '#0d9488';
   return (
     <span
       className={cn(
-        'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-xs transition-all',
+        'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-raised border border-line/60 text-muted transition-colors',
         className,
       )}
-      style={{
-        background: `linear-gradient(135deg, ${customColor}26 0%, ${customColor}0d 100%)`,
-        border: `1px solid ${customColor}33`,
-        boxShadow: `0 2px 6px -1px ${customColor}18`,
-      }}
     >
       <CategoryIcon
         name={name}
-        color={customColor}
-        className="h-4 w-4 drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.08)]"
+        color={color}
+        className="h-4 w-4 stroke-[1.8]"
       />
     </span>
   );
