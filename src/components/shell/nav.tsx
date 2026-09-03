@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Calculator,
   CalendarDays,
   Compass,
   HelpCircle,
@@ -44,7 +45,7 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /** Clean mobile bottom dock. */
-export function BottomNav({ onAdd }: { onAdd: () => void }) {
+export function BottomNav({ onAdd, onOpenCalc }: { onAdd: () => void; onOpenCalc?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -68,6 +69,18 @@ export function BottomNav({ onAdd }: { onAdd: () => void }) {
           );
         })}
 
+        {onOpenCalc ? (
+          <button
+            type="button"
+            onClick={onOpenCalc}
+            aria-label="Financial Calculator"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-line/60 bg-surface/80 text-muted hover:text-accent shadow-2xs hover:bg-raised active:scale-95 transition-all"
+            title="Calculator"
+          >
+            <Calculator className="h-4 w-4" />
+          </button>
+        ) : null}
+
         {/* Quick Add action in bottom bar */}
         <button
           type="button"
@@ -83,7 +96,15 @@ export function BottomNav({ onAdd }: { onAdd: () => void }) {
 }
 
 /** Executive sidebar rail on desktop. */
-export function SideNav({ onAdd, onOpenTour }: { onAdd: () => void; onOpenTour?: () => void }) {
+export function SideNav({
+  onAdd,
+  onOpenTour,
+  onOpenCalc,
+}: {
+  onAdd: () => void;
+  onOpenTour?: () => void;
+  onOpenCalc?: () => void;
+}) {
   const pathname = usePathname();
   const { setTheme, resolved } = useTheme();
   const { ledger, updatePrefs } = useLedger();
@@ -156,9 +177,15 @@ export function SideNav({ onAdd, onOpenTour }: { onAdd: () => void; onOpenTour?:
       {/* Footer controls */}
       <div className="mt-auto space-y-3 pt-4 border-t border-line/50">
         {/* Keyboard shortcut hint */}
-        <div className="flex items-center justify-between px-2 text-[11px] text-muted">
-          <span>Command menu</span>
-          <kbd className="rounded border border-line/50 bg-raised/50 px-1 text-[10px] font-mono">⌘K</kbd>
+        <div className="space-y-1 px-2 text-[11px] text-muted">
+          <div className="flex items-center justify-between">
+            <span>Command menu</span>
+            <kbd className="rounded border border-line/50 bg-raised/50 px-1 text-[10px] font-mono">⌘K</kbd>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Calculator</span>
+            <kbd className="rounded border border-line/50 bg-raised/50 px-1 text-[10px] font-mono">C</kbd>
+          </div>
         </div>
 
         {/* Bottom utility controls */}
@@ -175,6 +202,16 @@ export function SideNav({ onAdd, onOpenTour }: { onAdd: () => void; onOpenTour?:
           ) : <span />}
 
           <div className="flex items-center gap-1">
+            {onOpenCalc ? (
+              <button
+                type="button"
+                onClick={onOpenCalc}
+                title="Financial Calculator (C)"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-line/60 bg-surface/50 text-muted hover:bg-raised hover:text-accent transition-colors"
+              >
+                <Calculator className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => void updatePrefs({ privacyMode: !ledger.prefs.privacyMode })}

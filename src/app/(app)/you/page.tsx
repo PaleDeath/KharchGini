@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Calculator,
   Download,
   FileUp,
   HelpCircle,
@@ -34,6 +35,7 @@ import {
 } from '@/domain/derive';
 import { formatAmount, formatMoney } from '@/domain/money';
 import { CATEGORY_KIND_LABEL, type Category, type UserPrefs } from '@/domain/types';
+import { CalculatorSheet } from '@/components/calculator/calculator-sheet';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { CategoryEntriesSheet } from '@/components/category/category-entries-sheet';
 import { CategorySheet } from '@/components/category/category-sheet';
@@ -73,6 +75,7 @@ export default function YouPage() {
   const [confirmWipe, setConfirmWipe] = useState('');
   const [restoring, setRestoring] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
   const [name, setName] = useState(ledger.prefs.displayName ?? '');
   const [payday, setPayday] = useState(
     ledger.prefs.payday ? String(ledger.prefs.payday) : '',
@@ -504,6 +507,25 @@ export default function YouPage() {
 
           <div className="border-t border-line/50 pt-3.5 flex items-center justify-between gap-3">
             <div>
+              <p className="text-sm font-semibold text-ink flex items-center gap-1.5">
+                <Calculator className="h-4 w-4 text-accent" />
+                <span>Financial Calculator & Tools</span>
+              </p>
+              <p className="text-xs text-muted">Tactile math, smart multipliers, EMI loan planner, and SIP growth</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCalcOpen(true)}
+              className="gap-1.5 text-xs font-semibold shrink-0 h-8"
+            >
+              <Calculator className="h-3.5 w-3.5 text-accent" />
+              Open calc
+            </Button>
+          </div>
+
+          <div className="border-t border-line/50 pt-3.5 flex items-center justify-between gap-3">
+            <div>
               <p className="text-sm font-semibold text-ink">How KharchGini works</p>
               <p className="text-xs text-muted">Review philosophy and runway mechanics</p>
             </div>
@@ -623,6 +645,7 @@ export default function YouPage() {
         onClose={() => setCategoryOpen(false)}
       />
       <ImportSheet open={importOpen} onClose={() => setImportOpen(false)} />
+      <CalculatorSheet open={calcOpen} onClose={() => setCalcOpen(false)} />
       <WalkthroughDialog open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );

@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 
+import { CalculatorSheet } from '@/components/calculator/calculator-sheet';
 import { CommandBar } from '@/components/command/command-bar';
 import { Gate } from '@/components/shell/gate';
 import { BottomNav, SideNav } from '@/components/shell/nav';
@@ -23,6 +24,7 @@ function isTyping(target: EventTarget | null): boolean {
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { ledger, updatePrefs } = useLedger();
   const [adding, setAdding] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const pathname = usePathname();
 
@@ -35,7 +37,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     window.history.replaceState({}, '', url.pathname + url.search);
   }, []);
 
-  // "/" to add, ⌘K for palette, Shift+P for privacy mode toggle
+  // "/" to add, ⌘K for palette, "C" for calculator, Shift+P for privacy mode toggle
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)) {
@@ -46,6 +48,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       if (event.key === '/' && !isTyping(event.target) && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
         setAdding(true);
+        return;
+      }
+      if ((event.key === 'c' || event.key === 'C') && !isTyping(event.target) && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        setCalcOpen((prev) => !prev);
         return;
       }
       if ((event.key === 'P' || event.key === 'p') && event.shiftKey && !isTyping(event.target)) {
@@ -60,8 +67,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <Gate>
-      <SideNav onAdd={() => setAdding(true)} onOpenTour={() => setTourOpen(true)} />
-      <BottomNav onAdd={() => setAdding(true)} />
+      <SideNav
+        onAdd={() => setAdding(true)}
+        onOpenTour={() => setTourOpen(true)}
+        onOpenCalc={() => setCalcOpen(true)}
+      />
+      <BottomNav
+        onAdd={() => setAdding(true)}
+        onOpenCalc={() => setCalcOpen(true)}
+      />
 
       <main className="md:pl-60 transition-[padding] duration-200 min-h-dvh">
         <div
@@ -73,6 +87,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </main>
 
       <CommandBar open={adding} onOpenChange={setAdding} />
+      <CalculatorSheet
+        open={calcOpen}
+        onClose={() => setCalcOpen(false)}
+        onLogSpend={(rupees) => {
+          setCalcOpen(false);
+          setAdding(true);
+        }}
+      />
       <WalkthroughDialog open={tourOpen} onClose={() => setTourOpen(false)} />
     </Gate>
   );
