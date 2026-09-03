@@ -48,7 +48,8 @@ service cloud.firestore {
       allow write: if owns(userId)
                    && data().keys().hasOnly([
                         'displayName', 'currency', 'weekStartsOn', 'payday',
-                        'createdAt', 'updatedAt', 'onboardedAt', 'privacyMode'
+                        'createdAt', 'updatedAt', 'onboardedAt', 'privacyMode',
+                        'salaryFundsNextMonth'
                       ]);
 
       match /accounts/{accountId} {
@@ -57,9 +58,15 @@ service cloud.firestore {
           && shortText(data().name, 60)
           && data().type in ['cash', 'bank', 'wallet', 'card', 'savings']
           // openingBalance may be negative for a card carrying a balance.
-          && data().openingBalance is int
+          && (data().openingBalance is int || (data().openingBalance is number && data().openingBalance == int(data().openingBalance)))
           && data().openingBalance >= -100000000000
-          && data().openingBalance <= 100000000000;
+          && data().openingBalance <= 100000000000
+          && (!('creditLimit' in data()) || validPaise(data().creditLimit))
+          && (!('billingDueDay' in data()) || (data().billingDueDay is int && data().billingDueDay >= 1 && data().billingDueDay <= 31))
+          && (!('last4' in data()) || shortText(data().last4, 4))
+          && (!('sortOrder' in data()) || data().sortOrder is int)
+          && (!('archived' in data()) || data().archived is bool)
+          && (!('excludeFromSafeToSpend' in data()) || data().excludeFromSafeToSpend is bool);
       }
 
       match /entries/{entryId} {
@@ -73,6 +80,7 @@ service cloud.firestore {
           && (!('note' in data()) || shortText(data().note, 500))
           && (!('merchant' in data()) || shortText(data().merchant, 120))
           && (!('tags' in data()) || (data().tags is list && data().tags.size() <= 12))
+          && (!('budgetMonth' in data()) || validMonth(data().budgetMonth))
           // A transfer must name a destination, and it must differ from the source.
           && (data().direction != 'transfer'
               || (shortText(data().counterAccountId, 64)

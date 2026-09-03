@@ -3,10 +3,12 @@
 import { ArrowRight, Check, Repeat } from 'lucide-react';
 import { useMemo } from 'react';
 
-import { formatDay } from '@/domain/dates';
+import { formatDay, formatMonthShort, monthOf } from '@/domain/dates';
+import { effectiveMonthOf } from '@/domain/derive';
 import type { Account, Category, Entry } from '@/domain/types';
 import { CategoryChip } from '@/components/category/category-icon';
 import { Money } from '@/components/ui/money';
+import { useLedger } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 /**
@@ -46,6 +48,14 @@ export function EntryRow({
     return parts.join(' · ');
   }, [showDate, entry.date, entry.tags, isTransfer, account, counter, category]);
 
+  const { ledger } = useLedger();
+  const effectiveMonth = useMemo(
+    () => effectiveMonthOf(entry, ledger.prefs, categories),
+    [entry, ledger.prefs, categories],
+  );
+  const calendarMonth = monthOf(entry.date);
+  const isDifferentMonth = entry.direction === 'in' && effectiveMonth !== calendarMonth;
+
   const inner = (
     <>
       {selectable ? (
@@ -73,8 +83,13 @@ export function EntryRow({
       )}
 
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5 flex-wrap">
           <span className="min-w-0 truncate text-sm font-semibold text-ink">{entry.description}</span>
+          {isDifferentMonth ? (
+            <span className="shrink-0 rounded-md bg-accent/15 border border-accent/30 px-1.5 text-[10px] font-bold text-accent shadow-2xs">
+              Funds {formatMonthShort(effectiveMonth)}
+            </span>
+          ) : null}
           {entry.source === 'recurring' ? (
             <Repeat className="h-3 w-3 shrink-0 text-muted" aria-label="Recurring" />
           ) : null}

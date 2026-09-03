@@ -3,7 +3,7 @@
 import { Banknote, CreditCard, Landmark, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { today as todayISO } from '@/domain/dates';
+import { addMonthsToKey, formatMonthShort, monthOf, today as todayISO } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
 import type { Direction, Entry } from '@/domain/types';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ export function EntrySheet({
   const [categoryId, setCategoryId] = useState('');
   const [tags, setTags] = useState('');
   const [note, setNote] = useState('');
+  const [budgetMonth, setBudgetMonth] = useState('');
   const [reimbursable, setReimbursable] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -62,6 +63,7 @@ export function EntrySheet({
     setCategoryId(entry.categoryId ?? '');
     setTags(entry.tags.join(' '));
     setNote(entry.note ?? '');
+    setBudgetMonth(entry.budgetMonth ?? '');
     setReimbursable(entry.reimbursable === true);
   }, [entry]);
 
@@ -155,6 +157,7 @@ export function EntrySheet({
           .map((t) => t.replace(/^#/, '').toLowerCase())
           .filter(Boolean),
         note: note.trim() || undefined,
+        budgetMonth: direction === 'in' ? budgetMonth || undefined : undefined,
         reimbursable: reimbursable || undefined,
       });
 
@@ -267,6 +270,26 @@ export function EntrySheet({
             />
           </Field>
         )}
+
+        {!isTransfer && direction === 'in' ? (
+          <Field
+            label="Funds budget for"
+            hint="Which month this income counts toward in Plan, Inflow & Sankey."
+          >
+            <Segmented
+              options={[
+                { value: 'auto', label: 'Auto (Payday)' },
+                { value: monthOf(date), label: formatMonthShort(monthOf(date)) },
+                {
+                  value: addMonthsToKey(monthOf(date), 1),
+                  label: `${formatMonthShort(addMonthsToKey(monthOf(date), 1))} (Next)`,
+                },
+              ]}
+              value={budgetMonth || 'auto'}
+              onChange={(val) => setBudgetMonth(val === 'auto' ? '' : val)}
+            />
+          </Field>
+        ) : null}
 
         <Field label="Tags" hint="Space separated. Useful for a trip or a project.">
           <Input

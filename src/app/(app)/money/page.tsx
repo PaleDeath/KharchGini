@@ -24,11 +24,12 @@ import {
   startOfMonth,
   today as todayISO,
 } from '@/domain/dates';
-import { accountBalances, byId, entriesBetween, totalIn, totalOut } from '@/domain/derive';
+import { accountBalances, byId, entriesBetween, entriesInMonth, totalIn, totalOut } from '@/domain/derive';
 import { formatAmount, formatMoney } from '@/domain/money';
-import { ACCOUNT_TYPE_LABEL, isLiability, type Direction, type Entry } from '@/domain/types';
+import { ACCOUNT_TYPE_LABEL, isLiability, type Account, type Direction, type Entry } from '@/domain/types';
 import { getAccountBadgeColor, getAccountIcon } from '@/components/account/account-picker-modal';
 import { AccountSheet } from '@/components/account/account-sheet';
+import { PayBillSheet } from '@/components/account/pay-bill-sheet';
 import { EntryRow } from '@/components/entry/entry-row';
 import { EntrySheet } from '@/components/entry/entry-sheet';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ export default function MoneyPage() {
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [addingAccount, setAddingAccount] = useState(false);
+  const [payingCard, setPayingCard] = useState<{ card: Account; owed: number } | null>(null);
 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -109,8 +111,8 @@ export default function MoneyPage() {
   const window = useMemo(() => {
     if (range === 'all') return ledger.entries;
     const month = range === 'this' ? currentMonth() : addMonthsToKey(currentMonth(), -1);
-    return entriesBetween(ledger.entries, startOfMonth(month), endOfMonth(month));
-  }, [ledger.entries, range]);
+    return entriesInMonth(ledger.entries, month, ledger.prefs, categories);
+  }, [ledger.entries, range, ledger.prefs, categories]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -523,43 +525,7 @@ export default function MoneyPage() {
                     {owed > 0 ? (
                       <button
                         type="button"
-                        onClick={async () => {
-                          const primaryBank =
-                            liquidAccounts.find((a) => a.type === 'bank') ??
-                            liquidAccounts[0];
-                          if (!primaryBank) {
-                            toast(
-                              'Add a bank account first to record bill payment transfer.',
-                              { tone: 'bad' },
-                            );
-                            return;
-                          }
-                          try {
-                            await addEntries([
-                              {
-                                date: day,
-                                amount: owed,
-                                direction: 'transfer',
-                                accountId: primaryBank.id,
-                                counterAccountId: card.id,
-                                description: `Pay ${card.name} Bill`,
-                                tags: ['bill-payment', 'credit-card'],
-                                source: 'manual',
-                              },
-                            ]);
-                            toast(
-                              `Recorded bill payment of ${formatMoney(owed)} for ${card.name}.`,
-                              { tone: 'good' },
-                            );
-                          } catch (err) {
-                            toast(
-                              err instanceof Error
-                                ? err.message
-                                : 'Could not record payment',
-                              { tone: 'bad' },
-                            );
-                          }
-                        }}
+                        onClick={() => setPayingCard({ card, owed })}
                         className="rounded-xl border border-good/40 bg-good/15 hover:bg-good/25 text-good px-3 py-1.5 text-xs font-bold transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
                       >
                         <Check className="h-3.5 w-3.5 stroke-[3]" />
@@ -749,6 +715,12 @@ export default function MoneyPage() {
           setAddingAccount(false);
           setEditingAccountId(null);
         }}
+      />
+      <PayBillSheet
+        card={payingCard?.card ?? null}
+        owed={payingCard?.owed ?? 0}
+        open={payingCard !== null}
+        onClose={() => setPayingCard(null)}
       />
     </div>
   );

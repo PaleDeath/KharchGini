@@ -17,6 +17,7 @@
 import {
   addDays,
   addMonths,
+  addMonthsToKey,
   currentMonth,
   daysBetween,
   daysInMonth,
@@ -82,8 +83,77 @@ export function entriesBetween(entries: Entry[], from: ISODate, to: ISODate): En
   return entries.filter((e) => isWithin(e.date, from, to));
 }
 
-export function entriesInMonth(entries: Entry[], month: MonthKey): Entry[] {
-  return entries.filter((e) => monthOf(e.date) === month);
+/**
+ * Detects if an entry represents salary or primary paycheck income.
+ */
+export function isSalaryEntry(
+  entry: Entry,
+  categories?: Map<string, Category>,
+): boolean {
+  if (entry.direction !== 'in') return false;
+  if (entry.tags.some((t) => t.toLowerCase() === 'salary' || t.toLowerCase() === 'payroll')) {
+    return true;
+  }
+  const cat = entry.categoryId && categories ? categories.get(entry.categoryId) : undefined;
+  if (cat && (cat.id === 'salary' || cat.name.toLowerCase().includes('salary'))) {
+    return true;
+  }
+  const desc = entry.description.toLowerCase();
+  return (
+    desc.includes('salary') ||
+    desc.includes('payroll') ||
+    desc.includes('stipend') ||
+    desc.includes('monthly pay')
+  );
+}
+
+/**
+ * Returns the effective budget month ('YYYY-MM') for an entry.
+ *
+ * For income: If the user configured a late-month payday (>= 20) or enabled
+ * salaryFundsNextMonth, credit arriving on or after payday (e.g. 28 Aug)
+ * is attributed to the upcoming month (September) where the money will be spent.
+ * Can be explicitly overridden per-entry via `entry.budgetMonth`.
+ */
+export function effectiveMonthOf(
+  entry: Entry,
+  prefs?: UserPrefs,
+  categories?: Map<string, Category>,
+): MonthKey {
+  if (entry.budgetMonth) {
+    return entry.budgetMonth;
+  }
+
+  if (entry.direction !== 'in') {
+    return monthOf(entry.date);
+  }
+
+  const payday = prefs?.payday;
+  const fundsNext =
+    prefs?.salaryFundsNextMonth ?? (payday !== undefined && payday >= 20);
+
+  if (!fundsNext) {
+    return monthOf(entry.date);
+  }
+
+  const dayOfMonth = Number(entry.date.slice(8, 10));
+  const thresholdDay = payday ? Math.min(payday, 25) : 25;
+  const isSalary = isSalaryEntry(entry, categories);
+
+  if (isSalary || dayOfMonth >= thresholdDay) {
+    return addMonthsToKey(monthOf(entry.date), 1);
+  }
+
+  return monthOf(entry.date);
+}
+
+export function entriesInMonth(
+  entries: Entry[],
+  month: MonthKey,
+  prefs?: UserPrefs,
+  categories?: Map<string, Category>,
+): Entry[] {
+  return entries.filter((e) => effectiveMonthOf(e, prefs, categories) === month);
 }
 
 /** A category and its direct children. One level of nesting, as the model allows. */
@@ -327,8 +397,8 @@ export function spendByCategory(
 }
 
 export function monthSummary(ledger: Ledger, month: MonthKey): MonthSummary {
-  const entries = entriesInMonth(ledger.entries, month);
   const categories = byId(ledger.categories);
+  const entries = entriesInMonth(ledger.entries, month, ledger.prefs, categories);
 
   const income = totalIn(entries);
   const spending = totalOut(entries);
@@ -673,7 +743,7 @@ export function anomalies(
   const out: Anomaly[] = [];
 
   const active = new Set(
-    entriesInMonth(ledger.entries, month)
+    entriesInMonth(ledger.entries, month, ledger.prefs, categories)
       .filter((e) => e.direction === 'out' && e.categoryId)
       .map((e) => e.categoryId as string),
   );
@@ -704,7 +774,7 @@ export function anomalies(
       thisPeriod,
       typical,
       ratio,
-      entryIds: entriesInMonth(ledger.entries, month)
+      entryIds: entriesInMonth(ledger.entries, month, ledger.prefs, categories)
         .filter((e) => e.direction === 'out' && e.categoryId && family.has(e.categoryId))
         .map((e) => e.id),
     });

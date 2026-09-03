@@ -109,6 +109,8 @@ export interface Entry {
   settledAt?: ISODate;
   source: EntrySource;
   recurringId?: string;
+  /** Optional explicit budget month this entry attributes to (e.g. '2026-09'). */
+  budgetMonth?: MonthKey;
   /** Stable key from an imported file, used to never import the same row twice. */
   externalId?: string;
   createdAt: string;
@@ -434,6 +436,11 @@ export interface UserPrefs {
   displayName?: string;
   /** Day of month salary usually lands. Drives the Safe to Spend horizon. */
   payday?: number;
+  /**
+   * If true, salary received on or after payday (or the 20th) is attributed to the upcoming
+   * month's budget. Defaults to true when payday >= 20.
+   */
+  salaryFundsNextMonth?: boolean;
   privacyMode?: boolean;
   onboardedAt?: string;
   createdAt?: string;

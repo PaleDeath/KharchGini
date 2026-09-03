@@ -1,10 +1,24 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
+import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
+
 import { Providers } from '@/components/shell/providers';
 import { THEME_SCRIPT } from '@/components/shell/theme';
 
 import './globals.css';
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'KharchGini — Personal Financial State Machine',
@@ -33,7 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-dvh antialiased">
+      <body className={`${plusJakarta.variable} ${jetbrainsMono.variable} min-h-dvh antialiased font-sans`}>
         <Providers>{children}</Providers>
       </body>
     </html>

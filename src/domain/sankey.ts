@@ -58,9 +58,9 @@ const DEFAULT_UNSORTED_COLOR = '#94a3b8'; // Slate
  * Computes a balanced Sankey cash-flow graph from actual transactions in a given month.
  */
 export function computeActualSankey(ledger: Ledger, month: MonthKey): SankeyData {
-  const monthEntries = entriesInMonth(ledger.entries, month);
   const categories = byId(ledger.categories);
   const accounts = byId(ledger.accounts);
+  const monthEntries = entriesInMonth(ledger.entries, month, ledger.prefs, categories);
 
   const incomeEntries = monthEntries.filter((e) => e.direction === 'in');
   const expenseEntries = monthEntries.filter((e) => e.direction === 'out');

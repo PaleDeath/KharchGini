@@ -115,10 +115,10 @@ export function AccountSheet({
     setBusy(true);
     try {
       if (account) {
-        // Target current balance after reconciliation
-        const targetBalance = type === 'card' ? -Math.abs(parsed) : parsed;
+        // Target current balance after reconciliation. Normalize zero to prevent -0 IEEE 754 float representation.
+        const targetBalance = (type === 'card' ? (parsed === 0 ? 0 : -Math.abs(parsed)) : parsed) || 0;
         // Adjusted opening balance: targetBalance = openingBalance + entriesDelta => openingBalance = targetBalance - entriesDelta
-        const openingBalance = targetBalance - entriesDelta;
+        const openingBalance = (targetBalance - entriesDelta) || 0;
 
         await updateAccount(account.id, {
           name: trimmed,
@@ -130,7 +130,7 @@ export function AccountSheet({
           excludeFromSafeToSpend: excluded || undefined,
         });
       } else {
-        const openingBalance = type === 'card' ? -Math.abs(parsed) : parsed;
+        const openingBalance = (type === 'card' ? (parsed === 0 ? 0 : -Math.abs(parsed)) : parsed) || 0;
         await addAccount({
           name: trimmed,
           type,

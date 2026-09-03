@@ -476,6 +476,18 @@ export default function YouPage() {
             />
           </Field>
 
+          <div className="border-t border-line/50 pt-3.5">
+            <Switch
+              checked={
+                ledger.prefs.salaryFundsNextMonth ??
+                (ledger.prefs.payday !== undefined && ledger.prefs.payday >= 20)
+              }
+              onChange={(next) => void savePrefs({ salaryFundsNextMonth: next })}
+              label="Salary funds next month"
+              hint="Credit received on or after payday (e.g. 28 Aug) counts as inflow for the upcoming month (September)."
+            />
+          </div>
+
           <div className="space-y-1.5">
             <span className="block text-xs font-semibold uppercase tracking-wider text-muted">Appearance</span>
             <Segmented options={THEMES} value={theme} onChange={setTheme} />
