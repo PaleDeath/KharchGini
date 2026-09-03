@@ -529,24 +529,24 @@ function EnvelopeRow({
             className="mt-2.5"
           />
 
-          <span className="mt-2 flex items-center justify-between text-xs text-faint">
+          <span className="mt-2 flex items-center justify-between text-xs text-muted">
             <span>
               {over ? (
-                <span className="text-bad font-bold">
+                <span className="text-bad font-black">
                   {formatMoney(Math.abs(status.remaining))} over budget
                 </span>
               ) : current && status.dailyAllowance > 0 ? (
                 <>
-                  <span className="font-semibold text-ink">{formatMoney(status.remaining)}</span> left · {formatMoney(status.dailyAllowance)} a day
+                  <span className="font-bold text-ink">{formatMoney(status.remaining)}</span> left · {formatMoney(status.dailyAllowance)} a day
                   {status.paceAhead ? (
-                    <span className="text-warn font-bold"> · ahead of pace</span>
+                    <span className="text-warn font-black"> · ahead of pace</span>
                   ) : null}
                 </>
               ) : (
-                `${formatMoney(status.remaining)} left`
+                <span className="font-semibold">{formatMoney(status.remaining)} left</span>
               )}
             </span>
-            <span className="text-accent opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-bold">
+            <span className="text-accent opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold">
               View entries →
             </span>
           </span>

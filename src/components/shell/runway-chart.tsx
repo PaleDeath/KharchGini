@@ -89,13 +89,16 @@ export function RunwayChart({
   const activePoint = hoveredIdx !== null ? points[hoveredIdx] : points[0];
 
   return (
-    <Card className="overflow-hidden p-4 space-y-3">
-      <div className="flex items-start justify-between gap-2">
+    <Card className="overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-surface via-surface to-raised/80 p-5 space-y-3.5 shadow-card">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-ink flex items-center gap-1.5">
-            <Wallet className="h-4 w-4 text-accent" /> Cash Flow Runway Forecast
+          <h3 className="text-sm font-extrabold text-ink flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/15 text-accent">
+              <Wallet className="h-3.5 w-3.5" />
+            </span>
+            <span>Cash Flow Runway Forecast</span>
           </h3>
-          <p className="text-[12px] text-muted mt-0.5">
+          <p className="text-xs text-muted mt-1">
             Projected liquidity until {formatDayFull(until)} based on recurring bills & income
           </p>
         </div>

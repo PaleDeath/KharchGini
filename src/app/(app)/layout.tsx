@@ -63,10 +63,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <SideNav onAdd={() => setAdding(true)} onOpenTour={() => setTourOpen(true)} />
       <BottomNav onAdd={() => setAdding(true)} />
 
-      <main className="md:pl-60 transition-[padding] duration-200">
+      <main className="md:pl-64 transition-[padding] duration-200 min-h-dvh">
         <div
           key={pathname}
-          className="mx-auto max-w-2xl animate-fade-in px-4 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-16 md:pt-8"
+          className="mx-auto max-w-3xl animate-fade-in px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 md:px-8 md:pb-16 md:pt-8"
         >
           {children}
         </div>

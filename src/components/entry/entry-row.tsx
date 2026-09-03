@@ -74,29 +74,29 @@ export function EntryRow({
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className="min-w-0 truncate text-sm font-semibold text-ink">{entry.description}</span>
+          <span className="min-w-0 truncate text-sm font-bold text-ink">{entry.description}</span>
           {entry.source === 'recurring' ? (
-            <Repeat className="h-3 w-3 shrink-0 text-faint" aria-label="Recurring" />
+            <Repeat className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="Recurring" />
           ) : null}
           {entry.reimbursable && !entry.settledAt ? (
-            <span className="shrink-0 rounded-md bg-warn/15 border border-warn/30 px-1.5 text-[10px] font-bold text-warn shadow-2xs">
+            <span className="shrink-0 rounded-md bg-warn/15 border border-warn/30 px-1.5 text-[10px] font-black text-warn shadow-2xs">
               owed
             </span>
           ) : null}
         </span>
-        <span className="mt-0.5 block truncate text-xs text-faint font-medium">{context}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted font-medium">{context}</span>
       </span>
 
       <Money
         value={entry.amount}
         tone={entry.direction === 'in' ? 'good' : isTransfer ? 'muted' : 'plain'}
-        className={cn('shrink-0 text-sm font-bold', entry.direction === 'in' && 'font-black')}
+        className={cn('shrink-0 text-sm font-extrabold', entry.direction === 'in' && 'font-black')}
       />
     </>
   );
 
   const shared = cn(
-    'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150',
+    'flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-all duration-150',
     selected && 'bg-accent/10',
   );
 
@@ -106,7 +106,7 @@ export function EntryRow({
     <button
       type="button"
       onClick={() => onOpen(entry)}
-      className={cn(shared, 'hover:bg-raised/70 active:bg-raised')}
+      className={cn(shared, 'hover:bg-raised/60 active:bg-raised/80 active:scale-[0.99]')}
     >
       {inner}
     </button>

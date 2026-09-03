@@ -161,30 +161,30 @@ export default function YouPage() {
   return (
     <div className="space-y-6">
       <header className="px-1">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink">You & Insights</h1>
-        <p className="text-xs text-faint">{user?.email}</p>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-ink">You & Insights</h1>
+        <p className="text-xs text-muted font-medium">{user?.email}</p>
       </header>
 
       {/* Net Worth Summary Card */}
       {liveAccounts > 0 ? (
-        <Card className="relative overflow-hidden rounded-3xl p-5 shadow-card bg-gradient-to-br from-surface via-surface to-raised/90 border border-line">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted">Total Net Worth</p>
+        <Card className="relative overflow-hidden rounded-3xl p-6 shadow-elevated bg-gradient-to-br from-surface via-surface to-raised/90 border border-line">
+          <p className="text-xs font-black uppercase tracking-wider text-muted">Total Net Worth</p>
           <Money
             value={worth}
-            className="mt-1 block text-3xl sm:text-4xl font-black tracking-tight"
+            className="mt-2 block text-3xl sm:text-4xl md:text-5xl font-black tracking-tight"
             tone={worth < 0 ? 'bad' : 'plain'}
             animate
           />
           <p className="mt-2 text-xs leading-relaxed text-muted">
             Assets minus liabilities across all {liveAccounts}{' '}
-            {liveAccounts === 1 ? 'account' : 'accounts'}. Includes savings, credit cards & investments.
+            {liveAccounts === 1 ? 'account' : 'accounts'}. Includes spendable money, savings & liabilities.
           </p>
         </Card>
       ) : null}
 
       {/* Six months trend */}
       <Section title="Six months trend">
-        <Card className="p-5 shadow-card space-y-4">
+        <Card className="p-5 sm:p-6 rounded-3xl shadow-card space-y-4 border border-line bg-surface/95">
           <div className="flex items-end justify-between gap-3 pt-2">
             {trend.map((row) => (
               <div key={row.month} className="flex min-w-0 flex-1 flex-col items-center gap-2">
@@ -200,14 +200,14 @@ export default function YouPage() {
                     title={`Out: ${formatMoney(row.spending)}`}
                   />
                 </div>
-                <span className="truncate text-xs font-semibold text-muted">
+                <span className="truncate text-xs font-bold text-muted">
                   {formatMonthShort(row.month).slice(0, 3)}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="flex items-center justify-center gap-6 border-t border-line/70 pt-3 text-xs font-semibold text-muted">
+          <div className="flex items-center justify-center gap-6 border-t border-line/70 pt-3 text-xs font-bold text-muted">
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-good shadow-2xs" /> Money In
             </span>
@@ -219,27 +219,27 @@ export default function YouPage() {
       </Section>
 
       {/* Monthly Summary Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4 shadow-card">
-          <p className="text-xs font-bold uppercase tracking-wider text-faint">Kept this month</p>
+      <div className="grid grid-cols-2 gap-3.5">
+        <Card className="p-5 rounded-3xl shadow-card border border-line bg-surface/95">
+          <p className="text-xs font-black uppercase tracking-wider text-muted">Kept this month</p>
           <Money
             value={summary.saved}
             signed
-            className="mt-1 block text-xl font-black text-ink"
+            className="mt-2 block text-2xl sm:text-3xl font-black text-ink"
           />
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-xs font-semibold text-muted">
             {summary.income > 0
               ? `${Math.round(summary.savingsRate)}% savings rate`
               : 'No income recorded'}
           </p>
         </Card>
 
-        <Card className="p-4 shadow-card">
-          <p className="text-xs font-bold uppercase tracking-wider text-faint">Needs vs wants</p>
-          <p className="mt-1 text-xl font-black text-ink tnum">
+        <Card className="p-5 rounded-3xl shadow-card border border-line bg-surface/95">
+          <p className="text-xs font-black uppercase tracking-wider text-muted">Needs vs wants</p>
+          <p className="mt-2 text-2xl sm:text-3xl font-black text-ink tnum">
             {splitTotal > 0 ? `${Math.round((summary.needs / splitTotal) * 100)}%` : '—'}
           </p>
-          <p className="mt-1 text-xs text-muted truncate">
+          <p className="mt-1 text-xs font-semibold text-muted truncate">
             {splitTotal > 0
               ? `Needs · ${formatMoney(summary.wants)} wants`
               : 'Nothing spent yet'}
@@ -439,7 +439,7 @@ export default function YouPage() {
 
       {/* Settings Section */}
       <Section title="Settings & Appearance">
-        <Card className="space-y-4 p-5 shadow-card">
+        <Card className="space-y-4.5 p-6 rounded-3xl shadow-card border border-line bg-surface/95">
           <Field label="What should it call you">
             <Input
               value={name}
@@ -472,7 +472,7 @@ export default function YouPage() {
           </Field>
 
           <div className="space-y-1.5">
-            <span className="block text-xs font-semibold uppercase tracking-wider text-muted">Appearance</span>
+            <span className="block text-xs font-bold uppercase tracking-wider text-muted">Appearance</span>
             <Segmented options={THEMES} value={theme} onChange={setTheme} />
           </div>
 
@@ -505,7 +505,7 @@ export default function YouPage() {
 
       {/* Data Backup & Restore */}
       <Section title="Your Data">
-        <Card className="space-y-3 p-5 shadow-card">
+        <Card className="space-y-3 p-6 rounded-3xl shadow-card border border-line bg-surface/95">
           <p className="text-xs leading-relaxed text-muted">
             {ledger.entries.length} entries, {ledger.accounts.length} accounts. Fully stored in your personal Firebase database.
           </p>

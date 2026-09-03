@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 const BASE =
   'w-full rounded-2xl border border-line bg-surface/95 px-3.5 text-ink placeholder:text-faint ' +
-  'transition-all duration-150 focus:border-accent focus:ring-1 focus:ring-accent/40 focus:outline-none disabled:opacity-50 shadow-2xs';
+  'transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/25 focus:outline-none disabled:opacity-50 shadow-2xs';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
@@ -48,12 +48,12 @@ export function Field({
 }) {
   return (
     <label className={cn('block space-y-1.5', className)}>
-      <span className="block text-xs font-semibold text-muted uppercase tracking-wider">{label}</span>
+      <span className="block text-xs font-bold text-muted uppercase tracking-wider">{label}</span>
       {children}
       {error ? (
-        <span className="block text-[12px] text-bad font-medium">{error}</span>
+        <span className="block text-xs text-bad font-semibold">{error}</span>
       ) : hint ? (
-        <span className="block text-[12px] text-faint">{hint}</span>
+        <span className="block text-xs text-faint">{hint}</span>
       ) : null}
     </label>
   );
@@ -86,9 +86,9 @@ export function Segmented<T extends string>({
             aria-selected={isSelected}
             onClick={() => onChange(option.value)}
             className={cn(
-              'flex-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-150 active:scale-95 text-center',
+              'flex-1 rounded-xl px-3 py-1.5 text-xs font-bold transition-all duration-150 active:scale-95 text-center',
               isSelected
-                ? 'bg-surface text-ink shadow-xs border border-line/70 font-bold'
+                ? 'bg-surface text-ink shadow-xs border border-line/70 font-extrabold'
                 : 'text-muted hover:text-ink hover:bg-surface/50',
             )}
           >
@@ -120,8 +120,8 @@ export function Switch({
       className="flex w-full items-center justify-between gap-4 text-left transition-opacity hover:opacity-90 active:scale-[0.99]"
     >
       <span className="min-w-0">
-        <span className="block text-sm font-semibold text-ink">{label}</span>
-        {hint ? <span className="block text-xs text-faint mt-0.5">{hint}</span> : null}
+        <span className="block text-sm font-bold text-ink">{label}</span>
+        {hint ? <span className="block text-xs text-muted mt-0.5">{hint}</span> : null}
       </span>
       <span
         className={cn(
@@ -131,8 +131,8 @@ export function Switch({
       >
         <span
           className={cn(
-            'absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white shadow-sm transition-all duration-200',
-            checked ? 'left-[22px]' : 'left-0.5',
+            'absolute top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-all duration-200',
+            checked ? 'left-[22px]' : 'left-[3px]',
           )}
         />
       </span>

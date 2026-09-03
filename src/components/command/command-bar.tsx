@@ -350,7 +350,7 @@ function Preview({
 
       <div className="space-y-3">
         <div>
-          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-faint">
+          <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-muted">
             Date
           </span>
           <QuickDatePicker
@@ -361,7 +361,7 @@ function Preview({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-faint">
+            <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-muted">
               {isTransfer ? 'From' : 'Account'}
             </span>
             <AccountPicker
@@ -372,7 +372,7 @@ function Preview({
           </div>
 
           <div>
-            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-faint">
+            <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-muted">
               {isTransfer ? 'To' : 'Category'}
             </span>
             {isTransfer ? (
@@ -399,23 +399,23 @@ function Preview({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-faint pt-2 border-t border-line/60 font-medium">
-        <span className="inline-flex items-center gap-1">
-          <Sparkles className="h-3 w-3 text-accent" />
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted pt-2.5 border-t border-line/60 font-semibold">
+        <span className="inline-flex items-center gap-1 text-ink">
+          <Sparkles className="h-3.5 w-3.5 text-accent" />
           {formatRelativeDay(entry.date)} · {formatDayFull(entry.date)}
         </span>
         {!isTransfer && entry.categorySource !== 'none' ? (
-          <span className="inline-flex items-center gap-1">
-            <Wand2 className="h-3 w-3 text-accent" />
+          <span className="inline-flex items-center gap-1 text-accent font-bold">
+            <Wand2 className="h-3.5 w-3.5 text-accent" />
             {CATEGORY_SOURCE_LABEL[entry.categorySource]}
           </span>
         ) : null}
         {entry.tags.map((tag) => (
-          <span key={tag} className="rounded-md bg-raised px-1.5 py-0.5 text-ink font-bold">
+          <span key={tag} className="rounded-md bg-raised border border-line px-1.5 py-0.5 text-ink font-bold">
             #{tag}
           </span>
         ))}
-        {entry.note ? <span className="italic">“{entry.note}”</span> : null}
+        {entry.note ? <span className="italic text-muted">“{entry.note}”</span> : null}
       </div>
     </div>
   );

@@ -119,11 +119,10 @@ export default function TodayPage() {
       {/* Header with greeting, streak, and quick guide */}
       <header className="flex items-end justify-between gap-3 px-1">
         <div>
-          <p className="text-xs font-semibold text-faint uppercase tracking-wider">
+          <p className="text-xs font-bold text-muted uppercase tracking-wider">
             {formatDayFull(day)}
           </p>
-          <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight text-ink flex items-center gap-2">
-            <span>{greetingEmoji()}</span>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-ink flex items-center gap-2">
             <span>
               {greetingText()}
               {name ? `, ${name}` : ''}
@@ -132,8 +131,8 @@ export default function TodayPage() {
         </div>
         <div className="flex items-center gap-2">
           {streak > 1 ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-warn/30 bg-warn/10 px-3 py-1 text-xs font-bold text-warn shadow-2xs">
-              <Flame className="h-3.5 w-3.5 fill-warn text-warn animate-pulse" />
+            <span className="flex items-center gap-1.5 rounded-full border border-warn/30 bg-warn/15 px-3 py-1 text-xs font-black text-warn shadow-2xs">
+              <Flame className="h-3.5 w-3.5 fill-warn text-warn" />
               {streak} day streak
             </span>
           ) : null}
@@ -142,7 +141,7 @@ export default function TodayPage() {
             onClick={() => setShowTour(true)}
             aria-label="How KharchGini works"
             title="How KharchGini works"
-            className="flex h-9 w-9 items-center justify-center rounded-2xl border border-line bg-surface/90 text-muted hover:bg-raised hover:text-ink transition-all active:scale-95 shadow-2xs"
+            className="flex h-9 w-9 items-center justify-center rounded-2xl border border-line bg-surface text-muted hover:bg-raised hover:text-ink transition-all active:scale-95 shadow-2xs"
           >
             <HelpCircle className="h-4 w-4" />
           </button>
@@ -158,46 +157,36 @@ export default function TodayPage() {
       {/* Hero Financial Cockpit: Safe to Spend */}
       <div
         className={cn(
-          'relative overflow-hidden rounded-3xl border p-5 sm:p-6 shadow-md transition-all',
+          'relative overflow-hidden rounded-3xl border p-5 sm:p-7 shadow-elevated transition-all',
           sts.negative
-            ? 'border-bad/40 bg-gradient-to-br from-bad/10 via-surface to-raised/90 shadow-bad/10'
-            : 'border-line/90 bg-gradient-to-br from-surface via-surface to-raised/95 hover:border-accent/40',
+            ? 'border-bad/50 bg-gradient-to-br from-bad/12 via-surface to-raised/95'
+            : 'border-line/90 bg-gradient-to-br from-surface via-surface to-raised/90 hover:border-accent/50',
         )}
       >
-        {/* Subtle Ambient Radial Glow */}
-        <div
-          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full blur-3xl opacity-35"
-          style={{
-            background: sts.negative
-              ? 'radial-gradient(circle, rgba(239,68,68,0.6) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(16,185,129,0.55) 0%, transparent 70%)',
-          }}
-        />
-
         <div className="relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/15 text-accent">
                 <Sparkles className="h-3.5 w-3.5" />
               </span>
-              <span className="text-xs font-bold uppercase tracking-wider text-muted">
+              <span className="text-xs font-black uppercase tracking-wider text-muted">
                 Safe to Spend
               </span>
             </div>
             {sts.negative ? (
-              <Badge tone="bad" className="px-2.5 py-1">Deficit Risk</Badge>
+              <Badge tone="bad" className="px-2.5 py-1 text-xs font-black">Deficit Risk</Badge>
             ) : sts.perDay >= 50_000 ? (
-              <Badge tone="good" className="px-2.5 py-1">Healthy Runway</Badge>
+              <Badge tone="good" className="px-2.5 py-1 text-xs font-black">Healthy Runway</Badge>
             ) : (
-              <Badge tone="warn" className="px-2.5 py-1">Tight Pace</Badge>
+              <Badge tone="warn" className="px-2.5 py-1 text-xs font-black">Tight Pace</Badge>
             )}
           </div>
 
-          <div className="mt-3.5 flex items-baseline gap-2">
+          <div className="mt-4 flex items-baseline gap-2">
             <Money
               value={sts.amount}
               className={cn(
-                'text-4xl sm:text-5xl font-black tracking-tight',
+                'text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-none',
                 sts.negative ? 'text-bad' : 'text-ink',
               )}
               tone="plain"
@@ -205,62 +194,69 @@ export default function TodayPage() {
             />
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-raised/95 border border-line px-3 py-1 text-xs text-ink font-bold shadow-2xs">
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-raised border border-line px-3 py-1.5 text-xs text-ink font-extrabold shadow-2xs">
               <Money value={sts.perDay} tone="plain" /> / day
             </span>
-            <span className="text-xs font-medium text-muted">
+            <span className="text-xs font-semibold text-muted">
               for {sts.daysLeft} {sts.daysLeft === 1 ? 'day' : 'days'} (until {formatDay(sts.until)})
             </span>
           </div>
 
-          {/* Action pills row */}
-          <div className="mt-5 flex flex-wrap items-center gap-2 pt-3 border-t border-line/70">
+          {/* Action pills row with zero emoji slop */}
+          <div className="mt-6 flex flex-wrap items-center gap-2 pt-4 border-t border-line/70">
             <button
               type="button"
               onClick={() => setShowMath((v) => !v)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/70 px-3 py-1.5 text-xs font-semibold text-muted hover:border-accent/40 hover:bg-surface hover:text-ink transition-all active:scale-95"
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/80 px-3 py-1.5 text-xs font-bold text-muted hover:border-accent/40 hover:bg-surface hover:text-ink transition-all active:scale-95"
             >
-              {showMath ? 'Hide breakdown' : 'Why this number?'}
+              <span>{showMath ? 'Hide math' : 'Breakdown'}</span>
               <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', showMath && 'rotate-180')} />
             </button>
 
             <button
               type="button"
               onClick={() => setShowRunway((v) => !v)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/70 px-3 py-1.5 text-xs font-semibold text-accent hover:border-accent/50 hover:bg-accent/10 transition-all active:scale-95"
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95',
+                showRunway
+                  ? 'border-accent bg-accent/15 text-accent'
+                  : 'border-line bg-raised/80 text-muted hover:border-accent/40 hover:text-ink',
+              )}
             >
-              {showRunway ? 'Hide graph' : 'Runway graph 📈'}
+              <TrendingUp className="h-3.5 w-3.5 text-accent" />
+              <span>{showRunway ? 'Hide forecast' : 'Runway forecast'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowSimulator(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/70 px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent/50 hover:bg-accent/10 transition-all active:scale-95"
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-raised/80 px-3 py-1.5 text-xs font-bold text-ink hover:border-accent/50 hover:bg-accent/10 transition-all active:scale-95"
             >
-              What-If 🔮
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span>What-If simulator</span>
             </button>
 
             <button
               type="button"
               onClick={handleQuickAdd}
-              className="ml-auto flex items-center gap-1 rounded-xl bg-accent text-accent-ink px-3 py-1.5 text-xs font-bold shadow-xs hover:opacity-95 active:scale-95 transition-all"
+              className="ml-auto flex items-center gap-1.5 rounded-xl bg-accent text-accent-ink px-3.5 py-1.5 text-xs font-black shadow-xs hover:opacity-95 active:scale-95 transition-all"
             >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+              <Plus className="h-3.5 w-3.5 stroke-[2.8]" />
               Quick Log
             </button>
           </div>
 
           {showMath ? (
-            <dl className="mt-3.5 space-y-2 rounded-2xl bg-surface/95 border border-line p-4 text-xs font-medium animate-in fade-in zoom-in-95 duration-150 shadow-inner">
+            <dl className="mt-4 space-y-2.5 rounded-2xl bg-surface border border-line p-4 text-xs font-semibold animate-in fade-in zoom-in-95 duration-150 shadow-inner">
               <MathRow label="In spendable accounts" value={sts.liquid} />
               <MathRow label="Bills due before then" value={-sts.committedBills} />
               <MathRow label="Reserved for needs you budgeted" value={-sts.reservedNeeds} />
               <MathRow label="Going to savings goals" value={-sts.goalFunding} />
               <Divider className="my-2" />
               <MathRow label="Safe to spend" value={sts.amount} strong />
-              <p className="pt-1.5 text-[11px] leading-relaxed text-faint">
-                Savings accounts and anything marked as set aside are not counted here, even though they are yours.
+              <p className="pt-1.5 text-[11px] leading-relaxed text-muted font-normal">
+                Savings accounts and anything marked as set aside are not counted here, keeping your daily pace completely protected.
               </p>
             </dl>
           ) : null}
@@ -324,55 +320,63 @@ export default function TodayPage() {
       ) : null}
 
       {/* Bento Metric Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface/95 p-4 transition-all duration-200 hover:border-accent/40 hover:bg-raised/60 shadow-card">
+      <div className="grid grid-cols-2 gap-3.5">
+        <div className="group relative overflow-hidden rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 transition-all duration-200 hover:border-accent/40 hover:bg-raised/60 shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted">Spent today</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted">Spent today</span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500 shadow-2xs">
               <Flame className="h-4 w-4" />
             </span>
           </div>
           <Money
             value={spentToday}
-            className="mt-2.5 block text-2xl font-black text-ink"
+            className="mt-3 block text-2xl sm:text-3xl font-black text-ink"
             tone="plain"
             animate
           />
+          <p className="mt-1 text-[11px] text-faint">
+            {sts.perDay > 0
+              ? spentToday > sts.perDay
+                ? 'Above daily allowance pace'
+                : 'Within daily allowance pace'
+              : 'Discretionary spend'}
+          </p>
         </div>
 
-        <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface/95 p-4 transition-all duration-200 hover:border-accent/40 hover:bg-raised/60 shadow-card">
+        <div className="group relative overflow-hidden rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 transition-all duration-200 hover:border-accent/40 hover:bg-raised/60 shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted">This week</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-teal-500/10 text-teal-500">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted">This week</span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-teal-500/15 text-teal-500 shadow-2xs">
               <TrendingDown className="h-4 w-4" />
             </span>
           </div>
           <Money
             value={spentThisWeek}
-            className="mt-2.5 block text-2xl font-black text-ink"
+            className="mt-3 block text-2xl sm:text-3xl font-black text-ink"
             tone="plain"
             animate
           />
+          <p className="mt-1 text-[11px] text-faint">Cumulative 7-day outgo</p>
         </div>
       </div>
 
       {/* Upcoming Bills */}
       {bills.length > 0 ? (
         <Section title="Next seven days">
-          <Card className="stagger divide-y divide-line overflow-hidden shadow-card">
+          <Card className="stagger divide-y divide-line overflow-hidden rounded-3xl shadow-card">
             {bills.map((bill) => (
               <div
                 key={`${bill.recurring.id}-${bill.dueDate}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-raised/60 transition-colors"
+                className="flex items-center gap-3 px-4 py-3.5 hover:bg-raised/60 transition-colors"
               >
                 <button
                   type="button"
                   onClick={() => setEditingRecurring(bill.recurring)}
-                  className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                  className="flex items-center gap-3 min-w-0 flex-1 text-left active:scale-[0.99] transition-transform"
                 >
                   <span
                     className={cn(
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border',
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border shadow-2xs',
                       bill.overdue
                         ? 'border-bad/30 bg-bad/15 text-bad'
                         : 'border-line bg-raised/80 text-muted',
@@ -385,22 +389,22 @@ export default function TodayPage() {
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-ink">
+                    <span className="block truncate text-sm font-bold text-ink">
                       {bill.recurring.description}
                     </span>
-                    <span className="block text-xs text-faint">
+                    <span className="block text-xs text-muted">
                       {formatDueIn(bill.dueDate, day)}
                       {bill.recurring.variableAmount ? ' · amount varies' : ''}
                     </span>
                   </span>
                 </button>
-                <span className="flex shrink-0 items-center gap-2">
-                  <Money value={bill.amount} className="text-sm font-bold" tone="plain" />
+                <span className="flex shrink-0 items-center gap-2.5">
+                  <Money value={bill.amount} className="text-sm font-extrabold" tone="plain" />
                   {!bill.recurring.autoPost ? (
                     <button
                       type="button"
                       onClick={() => void postRecurring(bill.recurring)}
-                      className="rounded-xl border border-line bg-raised px-2.5 py-1 text-xs font-bold text-ink hover:border-accent hover:text-accent transition-all active:scale-95"
+                      className="rounded-xl border border-line bg-surface px-3 py-1 text-xs font-bold text-ink hover:border-accent hover:text-accent transition-all active:scale-95 shadow-2xs"
                     >
                       Paid
                     </button>
@@ -414,13 +418,13 @@ export default function TodayPage() {
 
       {/* Latest Entries List */}
       <Section
-        title="Latest"
+        title="Latest Spends"
         action={
           recent.length > 0 ? (
             <button
               type="button"
               onClick={handleQuickAdd}
-              className="text-xs font-semibold text-accent hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-accent hover:underline flex items-center gap-1 active:scale-95"
             >
               <Plus className="h-3 w-3" /> Add spend
             </button>
@@ -428,21 +432,21 @@ export default function TodayPage() {
         }
       >
         {quiet !== null && quiet >= 3 ? (
-          <p className="px-1 text-xs text-faint">
+          <p className="px-1 text-xs text-muted">
             Nothing logged for {quiet} days. Logging the big spends keeps your Safe to Spend honest.
           </p>
         ) : null}
-        <Card className="stagger divide-y divide-line overflow-hidden shadow-card">
+        <Card className="stagger divide-y divide-line overflow-hidden rounded-3xl shadow-card">
           {recent.length === 0 ? (
             <Empty
               icon={<Wallet className="h-6 w-6" />}
               title="Nothing logged yet"
-              hint="Tap '+ Quick Log' and type it naturally — '280 chai' or paste your bank debit SMS."
+              hint="Tap '+ Quick Log' and type naturally — '280 chai' or paste your bank debit SMS."
               action={
                 <button
                   type="button"
                   onClick={handleQuickAdd}
-                  className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-ink shadow-xs transition-all active:scale-95"
+                  className="rounded-xl bg-accent px-4 py-2 text-xs font-black text-accent-ink shadow-xs transition-all active:scale-95"
                 >
                   Log first entry
                 </button>
@@ -519,13 +523,4 @@ function greetingText(): string {
   if (hour < 17) return 'Good afternoon';
   if (hour < 21) return 'Good evening';
   return 'Good night';
-}
-
-function greetingEmoji(): string {
-  const hour = new Date().getHours();
-  if (hour < 5) return '✨';
-  if (hour < 12) return '🌅';
-  if (hour < 17) return '☀️';
-  if (hour < 21) return '🌆';
-  return '🌙';
 }

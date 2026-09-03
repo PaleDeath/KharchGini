@@ -20,7 +20,7 @@ export function BrandLogo({
       viewBox="0 0 64 64"
       width={size}
       height={size}
-      className={cn('shrink-0 shadow-md shadow-accent/20 transition-transform duration-200 hover:scale-105', rounded, className)}
+      className={cn('shrink-0 shadow-sm shadow-accent/25 select-none', rounded, className)}
       role="img"
       aria-label="KharchGini"
     >

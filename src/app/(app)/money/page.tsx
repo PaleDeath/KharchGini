@@ -275,7 +275,7 @@ export default function MoneyPage() {
       </header>
 
       {/* Balances Carousel */}
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar md:-mx-8 md:px-8">
+      <div className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 no-scrollbar sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
         {ledger.accounts
           .filter((account) => !account.archived)
           .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -290,16 +290,16 @@ export default function MoneyPage() {
                   onClick={() => setAccountId(active ? null : account.id)}
                   onDoubleClick={() => setEditingAccountId(account.id)}
                   className={cn(
-                    'w-44 rounded-3xl border p-4 text-left transition-all duration-150 active:scale-[0.98] shadow-card',
+                    'w-48 rounded-3xl border p-4.5 text-left transition-all duration-150 active:scale-[0.97] shadow-card',
                     active
-                      ? 'border-accent bg-accent/15 ring-2 ring-accent/30 shadow-md'
+                      ? 'border-accent bg-accent/12 ring-2 ring-accent/35 shadow-elevated'
                       : 'border-line bg-surface/95 hover:border-accent/40 hover:bg-raised/60',
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span
                       className={cn(
-                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border shadow-2xs',
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border shadow-2xs',
                         getAccountBadgeColor(account.type),
                       )}
                     >
@@ -312,18 +312,18 @@ export default function MoneyPage() {
                         setEditingAccountId(account.id);
                       }}
                       title="Edit account"
-                      className="rounded-xl p-1.5 text-faint hover:text-ink hover:bg-raised transition-all"
+                      className="rounded-xl p-1.5 text-muted hover:text-ink hover:bg-raised transition-all active:scale-95"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <p className="mt-3 truncate text-sm font-bold text-ink">{account.name}</p>
+                  <p className="mt-3.5 truncate text-sm font-bold text-ink">{account.name}</p>
                   <Money
                     value={owed ? Math.abs(balance) : balance}
-                    className="mt-0.5 block text-lg font-black text-ink"
+                    className="mt-0.5 block text-xl font-black text-ink"
                     tone={balance < 0 && !owed ? 'bad' : 'plain'}
                   />
-                  <p className="mt-0.5 truncate text-[10px] uppercase font-bold tracking-wider text-faint">
+                  <p className="mt-0.5 truncate text-[10px] uppercase font-black tracking-wider text-muted">
                     {owed ? 'owed balance' : ACCOUNT_TYPE_LABEL[account.type]}
                   </p>
                 </button>
@@ -334,10 +334,10 @@ export default function MoneyPage() {
         <button
           type="button"
           onClick={() => setAddingAccount(true)}
-          className="flex w-36 shrink-0 flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-line/80 bg-raised/40 p-4 text-xs font-semibold text-muted transition-all hover:border-accent hover:text-accent hover:bg-accent/5 active:scale-95 shadow-2xs"
+          className="flex w-40 shrink-0 flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-line bg-raised/40 p-4 text-xs font-bold text-muted transition-all hover:border-accent hover:text-accent hover:bg-accent/5 active:scale-95 shadow-2xs"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-surface border border-line text-faint shadow-2xs">
-            <Plus className="h-4 w-4" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface border border-line text-muted shadow-2xs">
+            <Plus className="h-4 w-4 stroke-[2.5]" />
           </span>
           Add account
         </button>
@@ -614,23 +614,23 @@ export default function MoneyPage() {
       </div>
 
       {/* Income / Out / Net Overview Strip */}
-      <Card className="flex items-center justify-around px-4 py-3.5 rounded-2xl shadow-card">
+      <Card className="flex items-center justify-around px-6 py-4 rounded-3xl border border-line bg-surface/95 shadow-card">
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wider text-faint font-bold">In</p>
-          <Money value={moneyIn} className="text-lg font-black" tone="good" animate />
+          <p className="text-[11px] uppercase tracking-wider text-muted font-black">Money In</p>
+          <Money value={moneyIn} className="text-lg sm:text-xl font-black mt-0.5" tone="good" animate />
         </div>
-        <div className="h-8 w-px bg-line/80" />
+        <div className="h-9 w-px bg-line/80" />
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wider text-faint font-bold">Out</p>
-          <Money value={moneyOut} className="text-lg font-black text-ink" tone="plain" animate />
+          <p className="text-[11px] uppercase tracking-wider text-muted font-black">Money Out</p>
+          <Money value={moneyOut} className="text-lg sm:text-xl font-black text-ink mt-0.5" tone="plain" animate />
         </div>
-        <div className="h-8 w-px bg-line/80" />
+        <div className="h-9 w-px bg-line/80" />
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-wider text-faint font-bold">Net</p>
+          <p className="text-[11px] uppercase tracking-wider text-muted font-black">Net Cash Flow</p>
           <Money
             value={moneyIn - moneyOut}
             signed
-            className="text-lg font-black"
+            className="text-lg sm:text-xl font-black mt-0.5"
             animate
           />
         </div>
