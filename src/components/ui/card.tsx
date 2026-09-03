@@ -8,7 +8,7 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       <div
         ref={ref}
         className={cn(
-          'rounded-2xl border border-line bg-surface/95 shadow-card transition-all',
+          'rounded-xl border border-line/60 bg-surface/80 shadow-2xs transition-colors',
           className,
         )}
         {...props}
@@ -29,12 +29,12 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-3 px-4 pt-4', className)}>
+    <div className={cn('flex items-start justify-between gap-3 px-4 pt-3.5', className)}>
       <div className="min-w-0">
-        <h2 className="text-[12px] font-bold uppercase tracking-wider text-muted">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
           {title}
         </h2>
-        {subtitle ? <p className="mt-0.5 text-xs text-faint">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-0.5 text-xs text-muted">{subtitle}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -47,7 +47,7 @@ export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>
 
 /** A hairline between rows inside a card. Lists read better than boxes-in-boxes. */
 export function Divider({ className }: { className?: string }) {
-  return <div className={cn('h-px bg-line/75', className)} />;
+  return <div className={cn('h-px bg-line/50', className)} />;
 }
 
 export function Section({
@@ -62,11 +62,11 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn('space-y-2.5', className)}>
+    <section className={cn('space-y-2', className)}>
       {title || action ? (
         <div className="flex items-center justify-between gap-3 px-1">
           {title ? (
-            <h2 className="text-[12px] font-bold uppercase tracking-wider text-muted">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted">
               {title}
             </h2>
           ) : (
@@ -92,15 +92,15 @@ export function Empty({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2.5 px-6 py-10 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 px-6 py-8 text-center">
       {icon ? (
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-line/60 bg-raised/50 text-faint shadow-2xs">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-line/60 bg-raised/50 text-muted shadow-2xs">
           {icon}
         </div>
       ) : null}
-      <p className="text-sm font-bold text-ink tracking-tight">{title}</p>
-      {hint ? <p className="max-w-xs text-[13px] leading-relaxed text-muted">{hint}</p> : null}
-      {action ? <div className="pt-1.5">{action}</div> : null}
+      <p className="text-sm font-semibold text-ink tracking-tight">{title}</p>
+      {hint ? <p className="max-w-xs text-xs leading-relaxed text-muted">{hint}</p> : null}
+      {action ? <div className="pt-1">{action}</div> : null}
     </div>
   );
 }

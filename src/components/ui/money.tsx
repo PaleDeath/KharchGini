@@ -85,16 +85,16 @@ export function Bar({
 
   const colour =
     tone === 'bad' || over
-      ? 'bg-gradient-to-r from-bad to-red-600'
+      ? 'bg-bad'
       : tone === 'warn'
-        ? 'bg-gradient-to-r from-warn to-amber-500'
+        ? 'bg-warn'
         : tone === 'good'
-          ? 'bg-gradient-to-r from-good to-emerald-500'
-          : 'bg-gradient-to-r from-accent to-emerald-500';
+          ? 'bg-good'
+          : 'bg-accent';
 
   return (
     <div
-      className={cn('h-2 w-full overflow-hidden rounded-full bg-raised border border-line/60', className)}
+      className={cn('h-1.5 w-full overflow-hidden rounded-full bg-raised/80 border border-line/40', className)}
       role="progressbar"
       aria-valuenow={Math.round(filled)}
       aria-valuemin={0}
@@ -118,16 +118,16 @@ export function Badge({
   className?: string;
 }) {
   const tones: Record<string, string> = {
-    neutral: 'bg-raised/90 text-muted border-line/80',
-    good: 'bg-good/15 text-good border-good/30',
-    warn: 'bg-warn/15 text-warn border-warn/30',
-    bad: 'bg-bad/15 text-bad border-bad/30',
-    accent: 'bg-accent/15 text-accent border-accent/30',
+    neutral: 'bg-raised text-muted border-line/60',
+    good: 'bg-good/15 text-good border-good/25',
+    warn: 'bg-warn/15 text-warn border-warn/25',
+    bad: 'bg-bad/15 text-bad border-bad/25',
+    accent: 'bg-accent/15 text-accent border-accent/25',
   };
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-bold tracking-tight shadow-2xs',
+        'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.2 text-[10px] font-semibold tracking-tight shadow-2xs',
         tones[tone],
         className,
       )}

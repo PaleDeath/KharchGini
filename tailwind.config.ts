@@ -24,9 +24,9 @@ const config: Config = {
         mono: ['var(--font-mono)', 'monospace'],
       },
       borderRadius: {
-        card: '20px',
-        '2xl': '22px',
-        '3xl': '28px',
+        card: '12px',
+        '2xl': '16px',
+        '3xl': '20px',
       },
       boxShadow: {
         '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',

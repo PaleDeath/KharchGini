@@ -57,7 +57,7 @@ function Splash({ label }: { label: string }) {
     <Centred>
       <div className="relative">
         <BrandLogo size={56} className="shadow-xl shadow-accent/30" />
-        <div className="pointer-events-none absolute -inset-2 rounded-3xl bg-accent/20 blur-xl" />
+        <div className="pointer-events-none absolute -inset-2 rounded-full bg-accent/20 blur-xl" />
       </div>
       <p className="flex items-center gap-2 text-xs font-bold text-muted uppercase tracking-wider">
         <Loader2 className="h-4 w-4 animate-spin text-accent" />
@@ -94,8 +94,8 @@ function SetupScreen() {
         <code className="rounded bg-raised px-1.5 py-0.5 text-xs font-mono">.env.local</code>.
       </p>
 
-      <div className="rounded-3xl border border-line bg-surface/95 p-5 shadow-card">
-        <p className="text-xs font-bold uppercase tracking-wider text-muted">Missing values</p>
+      <div className="rounded-xl border border-line/60 bg-surface/90 p-4 shadow-xs">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted">Missing values</p>
         <ul className="mt-3 space-y-1.5">
           {missingFirebaseKeys.length === 0 ? (
             <li className="text-xs text-muted">
@@ -157,13 +157,13 @@ function SignIn() {
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-6 py-12 animate-fade-in">
-      <div className="space-y-2 text-center">
+    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-5 px-6 py-12 animate-fade-in">
+      <div className="space-y-1.5 text-center">
         <div className="mx-auto flex justify-center">
-          <BrandLogo size={52} className="shadow-lg shadow-accent/25" />
+          <BrandLogo size={40} className="shadow-md shadow-accent/20" />
         </div>
-        <h1 className="text-3xl font-black tracking-tight text-ink">KharchGini</h1>
-        <p className="text-xs text-muted">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">KharchGini</h1>
+        <p className="text-xs text-muted font-normal">
           {mode === 'up'
             ? 'Create your private financial ledger in seconds.'
             : mode === 'reset'
@@ -172,8 +172,8 @@ function SignIn() {
         </p>
       </div>
 
-      <div className="rounded-3xl border border-line bg-surface/95 p-6 shadow-card space-y-4">
-        <form onSubmit={submit} className="space-y-3.5">
+      <div className="rounded-xl border border-line/60 bg-surface/90 p-5 shadow-xs space-y-3.5">
+        <form onSubmit={submit} className="space-y-3">
           <Field label="Email Address">
             <Input
               type="email"
@@ -202,7 +202,7 @@ function SignIn() {
           {error ? <p className="text-xs text-bad font-medium">{error}</p> : null}
           {sent ? <p className="text-xs text-good font-semibold">Check your inbox for reset email.</p> : null}
 
-          <Button type="submit" variant="primary" size="lg" className="w-full font-black mt-2" disabled={busy}>
+          <Button type="submit" variant="primary" size="md" className="w-full font-semibold mt-1" disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {mode === 'in' ? 'Sign in' : mode === 'up' ? 'Create account' : 'Send reset link'}
           </Button>

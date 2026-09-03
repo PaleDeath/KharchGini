@@ -161,8 +161,8 @@ export default function YouPage() {
   return (
     <div className="space-y-6">
       <header className="px-1">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-ink">You & Insights</h1>
-        <p className="text-xs text-muted font-medium">{user?.email}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">You & Insights</h1>
+        <p className="text-xs text-muted mt-0.5">{user?.email}</p>
       </header>
 
       {/* Net Worth Summary Card */}
@@ -253,13 +253,13 @@ export default function YouPage() {
       {/* Spending Distribution */}
       {spend.length > 0 ? (
         <Section title={`Where it went in ${formatMonthShort(month)}`}>
-          <Card className="divide-y divide-line overflow-hidden shadow-card">
+          <Card className="divide-y divide-line/50 overflow-hidden shadow-xs">
             {spend.map((row) => (
               <button
                 key={row.categoryId ?? 'none'}
                 type="button"
                 onClick={() => setDrilldownCategory(row.categoryId ?? '')}
-                className="flex w-full flex-col px-4 py-3.5 text-left hover:bg-raised/60 transition-colors group"
+                className="flex w-full flex-col px-4 py-3 text-left hover:bg-raised/50 transition-colors group"
               >
                 <div className="flex items-center gap-2.5 w-full">
                   <CategoryIcon
@@ -267,15 +267,15 @@ export default function YouPage() {
                     color={row.category?.color}
                     className="h-4 w-4 shrink-0"
                   />
-                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
                     {row.category?.name ?? 'Uncategorised'}
                   </span>
-                  <span className="shrink-0 text-xs font-semibold text-muted">
+                  <span className="shrink-0 text-xs font-medium text-muted tnum">
                     {Math.round(row.pctOfTotal)}%
                   </span>
-                  <Money value={row.total} className="shrink-0 text-sm font-black text-ink" tone="plain" />
+                  <Money value={row.total} className="shrink-0 text-sm font-semibold text-ink tnum" tone="plain" />
                 </div>
-                <Bar value={row.total} max={spend[0]?.total ?? row.total} className="mt-2.5 w-full h-2" />
+                <Bar value={row.total} max={spend[0]?.total ?? row.total} className="mt-2 w-full h-1.5" />
               </button>
             ))}
           </Card>
@@ -285,7 +285,7 @@ export default function YouPage() {
       {/* Merchant Inflation Index */}
       {prices.length > 0 ? (
         <Section title="What quietly got more expensive">
-          <Card className="divide-y divide-line overflow-hidden shadow-card">
+          <Card className="divide-y divide-line/50 overflow-hidden shadow-xs">
             {prices.slice(0, 5).map((observation) => (
               <div
                 key={observation.merchant}
@@ -298,42 +298,47 @@ export default function YouPage() {
                   )}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold capitalize text-ink">
+                  <span className="block truncate text-sm font-semibold text-ink">
                     {observation.merchant}
                   </span>
-                  <span className="block text-xs text-faint">
+                  <span className="block text-xs text-muted">
                     {formatMoney(observation.first.amount)} → {formatMoney(observation.latest.amount)}{' '}
                     since {formatDay(observation.first.date)}
                   </span>
                 </span>
-                <Badge tone={observation.changePct > 0 ? 'warn' : 'good'}>
+                <span
+                  className={cn(
+                    'shrink-0 text-xs font-semibold tnum',
+                    observation.changePct > 0 ? 'text-warn' : 'text-good',
+                  )}
+                >
                   {observation.changePct > 0 ? '+' : ''}
-                  {Math.round(observation.changePct)}%
-                </Badge>
+                  {Math.round(observation.changePct * 100)}%
+                </span>
               </div>
             ))}
           </Card>
         </Section>
       ) : null}
 
-      {/* Owed to you */}
-      {owed.length > 0 ? (
+      {/* Reimbursable / Owed */}
+      {owedTotal > 0 ? (
         <Section
-          title="Owed to you"
+          title="Money owed to you"
           action={
             <Button
               size="sm"
               variant="outline"
               onClick={() => void settle(owed.map((entry) => entry.id))}
-              className="text-xs font-bold"
+              className="text-xs font-semibold h-7 px-2"
             >
               Settle all
             </Button>
           }
         >
-          <Card className="p-4 shadow-card">
+          <Card className="p-3.5 shadow-xs">
             <p className="text-xs text-muted">
-              <Money value={owedTotal} className="font-bold text-ink" tone="plain" /> across{' '}
+              <Money value={owedTotal} className="font-semibold text-ink" tone="plain" /> across{' '}
               {owed.length} {owed.length === 1 ? 'entry' : 'entries'}.
             </p>
           </Card>
@@ -351,17 +356,17 @@ export default function YouPage() {
               setCategory(null);
               setCategoryOpen(true);
             }}
-            className="text-xs font-bold gap-1"
+            className="text-xs font-semibold gap-1 h-7 px-2"
           >
             <Plus className="h-3.5 w-3.5" />
             Add category
           </Button>
         }
       >
-        <Card className="divide-y divide-line overflow-hidden shadow-card">
+        <Card className="divide-y divide-line/50 overflow-hidden shadow-xs">
           {visibleCategories.length === 0 ? (
             <Empty
-              icon={<Shapes className="h-6 w-6" />}
+              icon={<Shapes className="h-5 w-5" />}
               title="No categories"
               hint="Add categories to organize your expenses."
             />
@@ -374,15 +379,15 @@ export default function YouPage() {
                   setCategory(row);
                   setCategoryOpen(true);
                 }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-raised/60"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-raised/50"
               >
                 <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-2xs"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-2xs"
                   style={{ backgroundColor: `${row.color}20`, border: `1px solid ${row.color}35` }}
                 >
-                  <CategoryIcon name={row.icon} color={row.color} className="h-4 w-4" />
+                  <CategoryIcon name={row.icon} color={row.color} className="h-3.5 w-3.5" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
                   {row.parentId ? `${categories.get(row.parentId)?.name ?? '?'} → ` : ''}
                   {row.name}
                 </span>
@@ -395,7 +400,7 @@ export default function YouPage() {
           <button
             type="button"
             onClick={() => setShowAllCategories((v) => !v)}
-            className="px-1 text-xs font-bold text-accent hover:underline"
+            className="px-1 text-xs font-semibold text-accent hover:underline"
           >
             {showAllCategories
               ? 'Show fewer'
@@ -407,7 +412,7 @@ export default function YouPage() {
       {/* Learned Rules */}
       {ledger.rules.length > 0 ? (
         <Section title="Rules you taught it">
-          <Card className="divide-y divide-line overflow-hidden shadow-card">
+          <Card className="divide-y divide-line/50 overflow-hidden shadow-xs">
             {ledger.rules.map((rule) => (
               <div key={rule.id} className="flex items-center gap-3 px-4 py-3">
                 <Wand2 className="h-4 w-4 shrink-0 text-accent" />
@@ -562,14 +567,14 @@ export default function YouPage() {
 
       {/* Account actions */}
       <Section title="Account">
-        <Card className="space-y-4 p-5 shadow-card">
-          <Button variant="secondary" onClick={() => void leave()} className="w-full font-bold">
+        <Card className="space-y-3.5 p-4 shadow-xs">
+          <Button variant="secondary" onClick={() => void leave()} className="w-full font-medium">
             <LogOut className="h-4 w-4" />
             Sign out
           </Button>
 
-          <div className="space-y-2 border-t border-line/70 pt-4">
-            <p className="text-sm font-bold text-ink">Delete everything</p>
+          <div className="space-y-2 border-t border-line/50 pt-3.5">
+            <p className="text-sm font-semibold text-ink">Delete everything</p>
             <p className="text-xs leading-relaxed text-muted">
               Permanently delete all entries, accounts, budgets, and rules. Type <strong>DELETE</strong> to confirm.
             </p>

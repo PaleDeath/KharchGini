@@ -117,21 +117,18 @@ export default function TodayPage() {
   return (
     <div className="space-y-6">
       {/* Header with greeting, streak, and quick guide */}
-      <header className="flex items-end justify-between gap-3 px-1">
+      <header className="flex items-center justify-between gap-3 px-1">
         <div>
-          <p className="text-xs font-bold text-muted uppercase tracking-wider">
+          <p className="text-xs text-muted font-normal">
             {formatDayFull(day)}
           </p>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-ink flex items-center gap-2">
-            <span>
-              {greetingText()}
-              {name ? `, ${name}` : ''}
-            </span>
+          <h1 className="text-xl font-semibold tracking-tight text-ink mt-0.5">
+            {greetingText()}{name ? `, ${name}` : ''}
           </h1>
         </div>
         <div className="flex items-center gap-2">
           {streak > 1 ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-warn/30 bg-warn/15 px-3 py-1 text-xs font-black text-warn shadow-2xs">
+            <span className="flex items-center gap-1 rounded-md border border-warn/30 bg-warn/10 px-2 py-0.5 text-xs font-medium text-warn">
               <Flame className="h-3.5 w-3.5 fill-warn text-warn" />
               {streak} day streak
             </span>
@@ -141,9 +138,9 @@ export default function TodayPage() {
             onClick={() => setShowTour(true)}
             aria-label="How KharchGini works"
             title="How KharchGini works"
-            className="flex h-9 w-9 items-center justify-center rounded-2xl border border-line bg-surface text-muted hover:bg-raised hover:text-ink transition-all active:scale-95 shadow-2xs"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-line/60 bg-surface/50 text-muted hover:bg-raised hover:text-ink transition-colors"
           >
-            <HelpCircle className="h-4 w-4" />
+            <HelpCircle className="h-3.5 w-3.5" />
           </button>
         </div>
       </header>
@@ -157,10 +154,10 @@ export default function TodayPage() {
       {/* Hero Financial Cockpit: Safe to Spend */}
       <div
         className={cn(
-          'relative overflow-hidden rounded-2xl border p-6 shadow-xs transition-all',
+          'relative overflow-hidden rounded-xl border p-5 shadow-xs transition-all',
           sts.negative
             ? 'border-bad/40 bg-gradient-to-br from-bad/10 to-surface'
-            : 'border-line/60 bg-gradient-to-br from-surface to-raised/40 hover:border-line/80',
+            : 'border-line/60 bg-gradient-to-br from-surface to-raised/30 hover:border-line/80',
         )}
       >
         <div className="relative z-10">
@@ -182,7 +179,7 @@ export default function TodayPage() {
             )}
           </div>
 
-          <div className="mt-4 flex items-baseline gap-2">
+          <div className="mt-3.5 flex items-baseline gap-2">
             <Money
               value={sts.amount}
               className={cn(
@@ -194,8 +191,8 @@ export default function TodayPage() {
             />
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-lg bg-raised border border-line/60 px-2.5 py-1 text-xs text-ink font-semibold shadow-2xs">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-md bg-raised border border-line/60 px-2 py-0.5 text-xs text-ink font-semibold shadow-2xs">
               <Money value={sts.perDay} tone="plain" /> / day
             </span>
             <span className="text-xs font-normal text-muted">
@@ -204,46 +201,39 @@ export default function TodayPage() {
           </div>
 
           {/* Action pills row */}
-          <div className="mt-5 flex flex-wrap items-center gap-2 pt-3.5 border-t border-line/50">
-            <button
-              type="button"
-              onClick={() => setShowMath((v) => !v)}
-              className="flex items-center gap-1 rounded-lg border border-line/50 bg-raised/40 px-2.5 py-1 text-xs font-medium text-muted hover:border-line hover:text-ink transition-colors active:scale-[0.98]"
-            >
-              <span>{showMath ? 'Hide math' : 'Breakdown'}</span>
-              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', showMath && 'rotate-180')} />
-            </button>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-line/50">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowMath((v) => !v)}
+                className="flex items-center gap-1 rounded-md border border-line/60 bg-raised/40 px-2.5 py-1 text-xs font-medium text-muted hover:border-line hover:text-ink transition-colors"
+              >
+                <span>{showMath ? 'Hide breakdown' : 'Breakdown'}</span>
+                <ChevronDown className={cn('h-3 w-3 transition-transform duration-200', showMath && 'rotate-180')} />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShowRunway((v) => !v)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors active:scale-[0.98]',
-                showRunway
-                  ? 'border-accent/50 bg-accent/10 text-accent font-semibold'
-                  : 'border-line/50 bg-raised/40 text-muted hover:border-line hover:text-ink',
-              )}
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-accent" />
-              <span>{showRunway ? 'Hide forecast' : 'Runway forecast'}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowRunway((v) => !v)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
+                  showRunway
+                    ? 'border-accent/50 bg-accent/10 text-accent font-semibold'
+                    : 'border-line/60 bg-raised/40 text-muted hover:border-line hover:text-ink',
+                )}
+              >
+                <TrendingUp className="h-3 w-3 text-accent" />
+                <span>{showRunway ? 'Hide forecast' : 'Runway forecast'}</span>
+              </button>
+            </div>
 
             <button
               type="button"
               onClick={() => setShowSimulator(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-line/50 bg-raised/40 px-2.5 py-1 text-xs font-medium text-muted hover:border-line hover:text-ink transition-colors active:scale-[0.98]"
+              className="flex items-center gap-1.5 rounded-md border border-line/60 bg-raised/40 px-2.5 py-1 text-xs font-medium text-muted hover:border-line hover:text-ink transition-colors"
             >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <Sparkles className="h-3 w-3 text-amber-500" />
               <span>What-If simulator</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleQuickAdd}
-              className="ml-auto flex items-center gap-1 rounded-lg bg-accent text-accent-ink px-3 py-1 text-xs font-semibold shadow-xs hover:opacity-95 active:scale-[0.98] transition-all"
-            >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-              Quick Log
             </button>
           </div>
 
@@ -315,23 +305,23 @@ export default function TodayPage() {
 
       {/* Dip Warning if forecast drops underwater */}
       {dip ? (
-        <Card className="border-warn/40 bg-warn/10 p-4 shadow-2xs">
-          <div className="flex items-start gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-warn/20 text-warn">
+        <Card className="border-warn/40 bg-warn/10 p-3.5 shadow-2xs">
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-warn/20 text-warn">
               <TrendingDown className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-ink">
+              <p className="text-sm font-semibold text-ink">
                 You go below zero on {formatDayFull(dip.crossing.date)}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted">
-                Counting only recurring bills and scheduled income, your spendable
+              <p className="mt-0.5 text-xs leading-relaxed text-muted font-normal">
+                Counting only recurring bills and scheduled income, spendable
                 money bottoms out at{' '}
-                <Money value={dip.worst.balance} signed className="font-bold text-ink" /> around{' '}
+                <Money value={dip.worst.balance} signed className="font-semibold text-ink" /> around{' '}
                 {formatDay(dip.worst.date)}.
               </p>
               {dip.crossing.events.length > 0 ? (
-                <p className="mt-1.5 text-[11px] font-medium text-faint">
+                <p className="mt-1 text-[11px] text-muted">
                   Due that day: {dip.crossing.events.map((event) => event.label).join(' · ')}
                 </p>
               ) : null}
@@ -345,15 +335,15 @@ export default function TodayPage() {
         <button
           type="button"
           onClick={() => setReviewing(true)}
-          className="group flex w-full items-center gap-3 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3.5 text-left transition-all hover:bg-accent/15 hover:shadow-xs active:scale-[0.99]"
+          className="group flex w-full items-center gap-3 rounded-xl border border-accent/40 bg-accent/10 px-3.5 py-3 text-left transition-colors hover:bg-accent/15 active:scale-[0.99]"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent">
-            <ListChecks className="h-5 w-5" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent/20 text-accent">
+            <ListChecks className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-ink">Your weekly five minutes</span>
-            <span className="block text-xs text-muted">
-              {pending.length} {pending.length === 1 ? 'transaction needs' : 'transactions need'} a review
+            <span className="block text-sm font-semibold text-ink">Weekly Review</span>
+            <span className="block text-xs text-muted font-normal">
+              {pending.length} {pending.length === 1 ? 'transaction needs' : 'transactions need'} your review
             </span>
           </span>
           <ArrowUpRight className="h-4 w-4 text-accent transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -448,7 +438,7 @@ export default function TodayPage() {
                 <button
                   type="button"
                   onClick={handleQuickAdd}
-                  className="rounded-xl bg-accent px-4 py-2 text-xs font-black text-accent-ink shadow-xs transition-all active:scale-95"
+                  className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink shadow-2xs transition-colors hover:opacity-90 active:scale-95"
                 >
                   Log first entry
                 </button>

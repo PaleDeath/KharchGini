@@ -197,42 +197,42 @@ export function SankeyChart({
   }, [hoveredLinkId, hoveredNodeId, data]);
 
   return (
-    <Card className={cn('overflow-hidden rounded-3xl border border-line bg-surface/95 p-5 shadow-card space-y-4', className)}>
+    <Card className={cn('overflow-hidden rounded-xl border border-line/60 bg-surface/80 p-4 shadow-xs space-y-3.5', className)}>
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-teal-500/15 text-teal-500 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400 shadow-2xs">
             <Layers className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-base font-extrabold tracking-tight text-ink flex items-center gap-2">
+            <h3 className="text-sm font-semibold tracking-tight text-ink flex items-center gap-2">
               <span>Cash Flow Sankey</span>
               {data.savingsRatePct > 0 ? (
-                <Badge tone="good" className="text-[10px] py-0.5 px-2 font-bold">
+                <Badge tone="good" className="text-[10px] py-0.2 px-1.5 font-medium">
                   {Math.round(data.savingsRatePct)}% Retained
                 </Badge>
               ) : null}
             </h3>
-            <p className="text-xs text-faint">Visual money flow: Income → Spendable Pool → Categories & Savings</p>
+            <p className="text-xs text-muted font-normal">Visual money flow: Income → Spendable Pool → Allocations</p>
           </div>
         </div>
 
         {/* Month Picker Controls */}
-        <div className="flex items-center gap-1 rounded-2xl border border-line bg-surface/90 p-1 shadow-2xs">
+        <div className="flex items-center gap-0.5 rounded-lg border border-line/60 bg-raised/50 p-0.5 shadow-2xs">
           <button
             type="button"
             onClick={() => setMonth(addMonthsToKey(month, -1))}
             aria-label="Previous month"
-            className="rounded-xl p-1.5 text-muted hover:bg-raised hover:text-ink transition-colors active:scale-95"
+            className="rounded-md p-1 text-muted hover:bg-surface hover:text-ink transition-colors active:scale-95"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
             onClick={() => setMonth(currentMonth())}
             className={cn(
-              'min-w-[6.5rem] rounded-xl px-2.5 py-1 text-center text-xs font-bold transition-all active:scale-95',
-              isCurrent ? 'bg-raised text-ink' : 'text-accent hover:bg-raised',
+              'min-w-[6rem] rounded-md px-2 py-0.5 text-center text-xs font-semibold transition-colors',
+              isCurrent ? 'bg-surface text-ink shadow-2xs' : 'text-accent hover:bg-surface',
             )}
             title={isCurrent ? undefined : 'Back to current month'}
           >
@@ -242,26 +242,26 @@ export function SankeyChart({
             type="button"
             onClick={() => setMonth(addMonthsToKey(month, 1))}
             aria-label="Next month"
-            className="rounded-xl p-1.5 text-muted hover:bg-raised hover:text-ink transition-colors active:scale-95"
+            className="rounded-md p-1 text-muted hover:bg-surface hover:text-ink transition-colors active:scale-95"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
       {/* Summary KPI Strip */}
-      <div className="grid grid-cols-3 gap-2 border-y border-line/70 py-2.5 text-center text-xs">
+      <div className="grid grid-cols-3 divide-x divide-line/60 border-y border-line/50 py-2 text-center text-xs">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-faint block">Total Inflow</span>
-          <Money value={data.totalInflow} tone="good" className="font-extrabold text-sm sm:text-base mt-0.5" />
-        </div>
-        <div className="border-x border-line/70">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-faint block">Total Outflow</span>
-          <Money value={data.totalOutflow} tone="plain" className="font-extrabold text-sm sm:text-base mt-0.5 text-ink" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">Inflow</span>
+          <Money value={data.totalInflow} tone="good" className="font-bold text-sm sm:text-base mt-0.5 tnum" />
         </div>
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-faint block">Net Saved</span>
-          <Money value={data.netSaved} signed tone="auto" className="font-extrabold text-sm sm:text-base mt-0.5" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">Outflow</span>
+          <Money value={data.totalOutflow} tone="plain" className="font-bold text-sm sm:text-base mt-0.5 text-ink tnum" />
+        </div>
+        <div>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">Net Saved</span>
+          <Money value={data.netSaved} signed tone="auto" className="font-bold text-sm sm:text-base mt-0.5 tnum" />
         </div>
       </div>
 
@@ -400,7 +400,7 @@ export function SankeyChart({
                           y={y + height / 2 - 6}
                           textAnchor="middle"
                           dy="0.3em"
-                          className="text-[12px] font-black fill-current text-ink"
+                          className="text-[12px] font-semibold fill-current text-ink"
                         >
                           Total Inflow
                         </text>

@@ -482,7 +482,7 @@ export default function MoneyPage() {
                       <span className="text-xs font-semibold text-faint uppercase tracking-wider">Current Owed</span>
                       <Money
                         value={owed}
-                        className={cn('text-xl font-black', owed > 0 ? 'text-bad' : 'text-good')}
+                        className={cn('text-lg font-bold tnum', owed > 0 ? 'text-bad' : 'text-good')}
                         tone="plain"
                       />
                     </div>

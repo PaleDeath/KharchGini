@@ -94,26 +94,26 @@ export default function PlanPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between gap-2 px-1">
+      <header className="flex items-center justify-between gap-3 px-1">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Plan & Budgets</h1>
-          <p className="text-xs text-muted">Envelopes, recurring commitments & saving goals</p>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Plan</h1>
+          <p className="text-xs text-muted mt-0.5">Envelopes, savings funds & repeating bills</p>
         </div>
-        <div className="flex items-center gap-1 rounded-2xl border border-line bg-surface/90 p-1 shadow-2xs">
+        <div className="flex items-center gap-0.5 rounded-lg border border-line/60 bg-raised/50 p-0.5 shadow-2xs">
           <button
             type="button"
             onClick={() => setMonth(addMonthsToKey(month, -1))}
             aria-label="Previous month"
-            className="rounded-xl p-1.5 text-muted hover:bg-raised hover:text-ink transition-colors active:scale-95"
+            className="rounded-md p-1 text-muted hover:bg-surface hover:text-ink transition-colors active:scale-95"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
             onClick={() => setMonth(currentMonth())}
             className={cn(
-              'min-w-[7.5rem] rounded-xl px-2.5 py-1 text-center text-xs font-bold transition-all active:scale-95',
-              isCurrent ? 'bg-raised text-ink' : 'text-accent hover:bg-raised',
+              'min-w-[6rem] rounded-md px-2 py-0.5 text-center text-xs font-semibold transition-colors',
+              isCurrent ? 'bg-surface text-ink shadow-2xs' : 'text-accent hover:bg-surface',
             )}
             title={isCurrent ? undefined : 'Back to current month'}
           >
@@ -123,31 +123,31 @@ export default function PlanPage() {
             type="button"
             onClick={() => setMonth(addMonthsToKey(month, 1))}
             aria-label="Next month"
-            className="rounded-xl p-1.5 text-muted hover:bg-raised hover:text-ink transition-colors active:scale-95"
+            className="rounded-md p-1 text-muted hover:bg-surface hover:text-ink transition-colors active:scale-95"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </header>
 
       {/* Budgeted vs Spent Overview */}
-      <Card className="p-5 shadow-card space-y-3">
+      <Card className="p-4 shadow-xs space-y-3">
         <div className="flex items-baseline justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/15 text-accent">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/15 text-accent">
               <CalendarDays className="h-3.5 w-3.5" />
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
               Monthly Budgeted
             </span>
           </div>
-          <Money value={allocated} className="text-xl font-black text-ink" tone="plain" />
+          <Money value={allocated} className="text-xl font-bold text-ink tnum" tone="plain" />
         </div>
 
-        <Bar value={spentInEnvelopes} max={allocated} className="h-2.5" />
+        <Bar value={spentInEnvelopes} max={allocated} className="h-2 rounded-full" />
 
-        <div className="flex flex-wrap items-center justify-between text-xs text-muted pt-1">
-          <span className="font-semibold text-ink">
+        <div className="flex flex-wrap items-center justify-between text-xs text-muted pt-0.5">
+          <span className="font-medium text-ink">
             <Money value={spentInEnvelopes} tone="plain" /> spent in envelopes
           </span>
           {summary.income > 0 ? (
@@ -156,13 +156,11 @@ export default function PlanPage() {
                 <span className="text-bad font-semibold">Over-allocated vs income</span>
               ) : (
                 <span>
-                  <Money value={summary.income - allocated} tone="plain" className="font-bold text-ink" /> unallocated
+                  <Money value={summary.income - allocated} tone="plain" className="font-semibold text-ink" /> unallocated
                 </span>
               )}
             </span>
-          ) : (
-            <span className="text-faint">Income not recorded yet</span>
-          )}
+          ) : null}
         </div>
       </Card>
 
@@ -249,11 +247,11 @@ export default function PlanPage() {
       {/* Unbudgeted Spending Callout */}
       {unbudgeted.length > 0 ? (
         <Section title="Spending with no budget">
-          <Card className="divide-y divide-line overflow-hidden shadow-card">
+          <Card className="divide-y divide-line/50 overflow-hidden shadow-xs">
             {unbudgeted.slice(0, 6).map((row) => (
               <div
                 key={row.categoryId ?? 'none'}
-                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-raised/60 transition-colors"
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-raised/50 transition-colors"
               >
                 <button
                   type="button"
@@ -265,12 +263,12 @@ export default function PlanPage() {
                     <span className="block truncate text-sm font-semibold text-ink">
                       {row.category?.name ?? 'Uncategorised'}
                     </span>
-                    <span className="block text-xs text-faint">
+                    <span className="block text-xs text-muted">
                       {row.count} {row.count === 1 ? 'entry' : 'entries'} · tap to view
                     </span>
                   </span>
                 </button>
-                <Money value={row.total} className="shrink-0 text-sm font-bold text-ink" tone="plain" />
+                <Money value={row.total} className="shrink-0 text-sm font-semibold text-ink tnum" tone="plain" />
                 {row.categoryId ? (
                   <button
                     type="button"
@@ -278,9 +276,10 @@ export default function PlanPage() {
                       setEnvelopeFor({ open: true, categoryId: row.categoryId ?? null })
                     }
                     title="Set budget"
-                    className="flex h-8 items-center gap-1 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-muted hover:border-accent hover:text-accent transition-all active:scale-95 shadow-2xs"
+                    className="flex h-7 items-center gap-1 rounded-lg border border-line/60 bg-surface px-2 text-xs font-semibold text-muted hover:border-accent hover:text-accent transition-colors shadow-2xs"
                   >
-                    <Plus className="h-3 w-3" /> Budget
+                    <Plus className="h-3 w-3" />
+                    Budget
                   </button>
                 ) : null}
               </div>
@@ -308,9 +307,9 @@ export default function PlanPage() {
         }
       >
         {goals.length === 0 ? (
-          <Card className="shadow-card">
+          <Card className="shadow-xs">
             <Empty
-              icon={<Target className="h-6 w-6" />}
+              icon={<Target className="h-5 w-5" />}
               title="Nothing being saved for"
               hint="A goal here connects to a dedicated savings or liquid account so your progress updates in real time."
             />
@@ -378,9 +377,8 @@ export default function PlanPage() {
         )}
       </Section>
 
-      {/* Repeats & Scheduled Rules */}
       <Section
-        title="Repeats & Recurring"
+        title="Repeating commitments"
         action={
           <Button
             size="sm"
@@ -389,7 +387,7 @@ export default function PlanPage() {
               setRule(null);
               setRuleOpen(true);
             }}
-            className="text-xs font-bold gap-1"
+            className="text-xs font-semibold gap-1 h-8"
           >
             <Plus className="h-3.5 w-3.5" />
             Add rule
@@ -397,16 +395,16 @@ export default function PlanPage() {
         }
       >
         {ledger.recurring.length === 0 ? (
-          <Card className="shadow-card">
+          <Card className="shadow-xs">
             <Empty
-              icon={<Repeat className="h-6 w-6" />}
+              icon={<Repeat className="h-5 w-5" />}
               title="Nothing on a schedule"
               hint="Rent, EMIs, SIPs, salary, OTT subscriptions. Adding them models your runway forecast accurately."
             />
           </Card>
         ) : (
           <>
-            <Card className="divide-y divide-line overflow-hidden shadow-card">
+            <Card className="divide-y divide-line/50 overflow-hidden shadow-xs">
               {[...ledger.recurring]
                 .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
                 .map((item) => {
@@ -419,25 +417,25 @@ export default function PlanPage() {
                         setRule(item);
                         setRuleOpen(true);
                       }}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-raised/60"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-raised/50"
                     >
                       <span
                         className={cn(
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-2xs',
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-2xs',
                           item.direction === 'in'
                             ? 'border-good/30 bg-good/15 text-good'
-                            : 'border-line bg-raised/80 text-muted',
+                            : 'border-line/60 bg-raised text-muted',
                         )}
                       >
                         <Repeat className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
-                          <span className="truncate text-sm font-bold text-ink">{item.description}</span>
+                          <span className="truncate text-sm font-semibold text-ink">{item.description}</span>
                           {!item.isActive ? <Badge>paused</Badge> : null}
                           {item.variableAmount ? <Badge tone="warn">varies</Badge> : null}
                         </span>
-                        <span className="block truncate text-xs text-faint mt-0.5">
+                        <span className="block truncate text-xs text-muted mt-0.5">
                           {describeSchedule(item)} · next {formatDay(item.nextDueDate)}
                           {inMonth > 1 ? ` · ${inMonth}× this month` : ''}
                         </span>
@@ -532,14 +530,14 @@ function EnvelopeRow({
           <span className="mt-2 flex items-center justify-between text-xs text-muted">
             <span>
               {over ? (
-                <span className="text-bad font-black">
+                <span className="text-bad font-semibold">
                   {formatMoney(Math.abs(status.remaining))} over budget
                 </span>
               ) : current && status.dailyAllowance > 0 ? (
                 <>
-                  <span className="font-bold text-ink">{formatMoney(status.remaining)}</span> left · {formatMoney(status.dailyAllowance)} a day
+                  <span className="font-semibold text-ink">{formatMoney(status.remaining)}</span> left · {formatMoney(status.dailyAllowance)} a day
                   {status.paceAhead ? (
-                    <span className="text-warn font-black"> · ahead of pace</span>
+                    <span className="text-warn font-semibold"> · ahead of pace</span>
                   ) : null}
                 </>
               ) : (

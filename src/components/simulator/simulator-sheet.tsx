@@ -229,7 +229,7 @@ export function SimulatorSheet({
         </div>
 
         {/* Input Form Controls */}
-        <div className="rounded-3xl border border-line bg-surface/90 p-4 sm:p-5 space-y-4 shadow-card">
+        <div className="rounded-xl border border-line/60 bg-surface/90 p-4 space-y-3.5 shadow-xs">
           <Segmented
             options={SIM_TYPES}
             value={type}
@@ -327,8 +327,8 @@ export function SimulatorSheet({
 
                   {emiBreakdown && (
                     <div className="sm:col-span-2 flex items-center justify-between text-xs pt-2 border-t border-line/60">
-                      <span className="font-semibold text-muted">
-                        Monthly EMI: <Money value={emiBreakdown.monthlyPaise} tone="plain" className="font-black text-ink" /> / mo
+                      <span className="font-medium text-muted">
+                        Monthly EMI: <Money value={emiBreakdown.monthlyPaise} tone="plain" className="font-bold text-ink tnum" /> / mo
                       </span>
                       <span className="text-faint">
                         Total Interest: {formatMoney(emiBreakdown.totalInterest)}
@@ -356,18 +356,18 @@ export function SimulatorSheet({
         {/* Dynamic Simulation Verdict Card */}
         <div
           className={cn(
-            'rounded-3xl border p-5 shadow-card transition-all duration-300',
+            'rounded-xl border p-4 shadow-xs transition-colors',
             result.verdict === 'safe'
-              ? 'border-good/40 bg-gradient-to-br from-good/10 via-surface to-raised/90 shadow-good/5'
+              ? 'border-good/40 bg-good/10'
               : result.verdict === 'tight'
-              ? 'border-warn/40 bg-gradient-to-br from-warn/10 via-surface to-raised/90 shadow-warn/5'
-              : 'border-bad/40 bg-gradient-to-br from-bad/10 via-surface to-raised/90 shadow-bad/10',
+              ? 'border-warn/40 bg-warn/10'
+              : 'border-bad/40 bg-bad/10',
           )}
         >
-          <div className="flex items-start gap-3.5">
+          <div className="flex items-start gap-3">
             <span
               className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border shadow-2xs',
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-2xs',
                 result.verdict === 'safe'
                   ? 'border-good/30 bg-good/20 text-good'
                   : result.verdict === 'tight'
@@ -386,7 +386,7 @@ export function SimulatorSheet({
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h4 className="text-base font-black text-ink">{result.verdictTitle}</h4>
+                <h4 className="text-sm font-bold text-ink">{result.verdictTitle}</h4>
                 <Badge
                   tone={
                     result.verdict === 'safe'
@@ -410,52 +410,52 @@ export function SimulatorSheet({
           </div>
 
           {/* Comparative Metrics Grid */}
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3 border-t border-line/70 text-xs">
-            <div className="rounded-2xl bg-surface/90 border border-line/80 p-3 shadow-inner">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-faint block">
+          <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-3 border-t border-line/50 text-xs">
+            <div className="rounded-lg bg-surface/90 border border-line/60 p-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
                 Safe to Spend
               </span>
-              <div className="flex items-baseline gap-1 mt-1">
+              <div className="flex items-baseline gap-1 mt-0.5">
                 <Money
                   value={result.simulatedSTS.amount}
-                  className="font-black text-base"
+                  className="font-bold text-sm sm:text-base tnum"
                   tone={result.simulatedSTS.amount < 0 ? 'bad' : 'plain'}
                 />
               </div>
-              <span className={cn('text-[11px] font-bold mt-0.5 block', result.stsDelta >= 0 ? 'text-good' : 'text-bad')}>
+              <span className={cn('text-[11px] font-medium mt-0.5 block tnum', result.stsDelta >= 0 ? 'text-good' : 'text-bad')}>
                 {result.stsDelta >= 0 ? '+' : ''}{formatMoney(result.stsDelta)} delta
               </span>
             </div>
 
-            <div className="rounded-2xl bg-surface/90 border border-line/80 p-3 shadow-inner">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-faint block">
+            <div className="rounded-lg bg-surface/90 border border-line/60 p-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
                 Daily Allowance
               </span>
-              <div className="flex items-baseline gap-1 mt-1">
+              <div className="flex items-baseline gap-1 mt-0.5">
                 <Money
                   value={result.simulatedSTS.perDay}
-                  className="font-black text-base"
+                  className="font-bold text-sm sm:text-base tnum"
                   tone="plain"
                 />
-                <span className="text-faint text-[10px]">/ day</span>
+                <span className="text-muted text-[10px]">/ day</span>
               </div>
-              <span className={cn('text-[11px] font-bold mt-0.5 block', result.dailyAllowanceDelta >= 0 ? 'text-good' : 'text-bad')}>
+              <span className={cn('text-[11px] font-medium mt-0.5 block tnum', result.dailyAllowanceDelta >= 0 ? 'text-good' : 'text-bad')}>
                 {result.dailyAllowanceDelta >= 0 ? '+' : ''}{formatMoney(result.dailyAllowanceDelta)}/day
               </span>
             </div>
 
-            <div className="col-span-2 sm:col-span-1 rounded-2xl bg-surface/90 border border-line/80 p-3 shadow-inner">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-faint block">
+            <div className="col-span-2 sm:col-span-1 rounded-lg bg-surface/90 border border-line/60 p-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
                 60-Day Runway Floor
               </span>
-              <div className="flex items-baseline gap-1 mt-1">
+              <div className="flex items-baseline gap-1 mt-0.5">
                 <Money
                   value={result.simulatedLowestPoint?.balance ?? 0}
-                  className="font-black text-base"
+                  className="font-bold text-sm sm:text-base tnum"
                   tone={(result.simulatedLowestPoint?.balance ?? 0) < 0 ? 'bad' : 'plain'}
                 />
               </div>
-              <span className="text-[11px] text-faint mt-0.5 block">
+              <span className="text-[11px] text-muted mt-0.5 block">
                 {result.simulatedDeficitDate
                   ? `Deficit on ${formatDay(result.simulatedDeficitDate)}`
                   : `Floor on ${formatDay(result.simulatedLowestPoint?.date ?? today)}`}
@@ -481,7 +481,7 @@ export function SimulatorSheet({
               {result.goalImpacts.map((g) => (
                 <div
                   key={g.goal.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface/95 px-4 py-3 text-xs shadow-card"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line/60 bg-surface/90 px-3.5 py-2.5 text-xs shadow-xs"
                 >
                   <div className="min-w-0 flex-1">
                     <span className="font-extrabold text-ink block truncate">{g.goal.name}</span>
@@ -494,7 +494,7 @@ export function SimulatorSheet({
                     {g.deltaDays !== null ? (
                       <span
                         className={cn(
-                          'rounded-md px-2 py-0.5 text-xs font-black',
+                          'rounded-md px-2 py-0.5 text-[11px] font-semibold',
                           g.deltaDays < 0
                             ? 'bg-good/15 text-good'
                             : g.deltaDays > 0
@@ -519,8 +519,8 @@ export function SimulatorSheet({
         )}
 
         {/* Key Takeaways List */}
-        <div className="rounded-3xl border border-line bg-raised/50 p-4 space-y-2 shadow-2xs">
-          <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+        <div className="rounded-xl border border-line/60 bg-raised/40 p-3.5 space-y-2 shadow-2xs">
+          <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5 text-accent" />
             Key Strategic Takeaways
           </span>

@@ -10,21 +10,21 @@ type Size = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-gradient-to-r from-accent to-emerald-600 text-accent-ink hover:opacity-95 shadow-sm shadow-accent/25 border border-white/20 active:scale-[0.97]',
+    'bg-accent text-accent-ink hover:bg-accent/90 shadow-2xs font-medium border border-accent/80 active:scale-[0.98]',
   secondary:
-    'bg-raised text-ink hover:bg-raised/80 border border-line active:scale-[0.97] shadow-2xs',
-  ghost: 'text-muted hover:bg-raised hover:text-ink active:scale-[0.97]',
+    'bg-raised text-ink hover:bg-raised/80 border border-line/60 active:scale-[0.98] shadow-2xs font-medium',
+  ghost: 'text-muted hover:bg-raised hover:text-ink active:scale-[0.98] font-medium',
   danger:
-    'bg-gradient-to-r from-bad to-red-600 text-white hover:opacity-95 shadow-sm shadow-bad/20 border border-white/20 active:scale-[0.97]',
+    'bg-bad text-white hover:bg-bad/90 shadow-2xs border border-bad/80 active:scale-[0.98] font-medium',
   outline:
-    'border border-line bg-surface text-ink hover:bg-raised hover:border-line/90 active:scale-[0.97] shadow-2xs',
+    'border border-line/60 bg-surface/80 text-ink hover:bg-raised hover:border-line active:scale-[0.98] shadow-2xs font-medium',
 };
 
 const SIZES: Record<Size, string> = {
-  sm: 'h-8 px-3 text-xs gap-1.5 rounded-xl font-bold',
-  md: 'h-10 px-4 text-sm gap-2 rounded-2xl font-bold',
-  lg: 'h-12 px-5 text-[15px] gap-2.5 rounded-2xl font-black',
-  icon: 'h-9 w-9 rounded-xl',
+  sm: 'h-7.5 px-2.5 text-xs gap-1.5 rounded-lg',
+  md: 'h-9 px-3 text-xs gap-2 rounded-lg',
+  lg: 'h-10.5 px-4 text-sm gap-2 rounded-lg',
+  icon: 'h-8.5 w-8.5 rounded-lg',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

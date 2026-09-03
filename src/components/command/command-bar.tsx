@@ -268,11 +268,11 @@ function Examples({ onPick }: { onPick: (value: string) => void }) {
         </span>
       </div>
 
-      <div className="rounded-2xl border border-line/70 bg-raised/50 p-3 text-xs text-muted space-y-1">
-        <p className="font-bold text-ink flex items-center gap-1.5">
+      <div className="rounded-lg border border-line/50 bg-raised/40 p-3 text-xs text-muted space-y-1">
+        <p className="font-semibold text-ink flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5 text-accent" /> Smart Paste Supported
         </p>
-        <p className="text-faint leading-relaxed text-[11px]">
+        <p className="text-muted leading-relaxed text-[11px] font-normal">
           Copy any UPI or Bank debit SMS from your phone and paste it directly above. KharchGini extracts the amount, merchant, and bank account automatically.
         </p>
       </div>
@@ -283,10 +283,10 @@ function Examples({ onPick }: { onPick: (value: string) => void }) {
             key={example.input}
             type="button"
             onClick={() => onPick(example.input)}
-            className="flex w-full items-baseline gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-raised/70 active:scale-[0.99]"
+            className="flex w-full items-baseline gap-3 rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-raised/70 active:scale-[0.99]"
           >
-            <code className="shrink-0 text-xs font-bold text-ink font-mono">{example.input}</code>
-            <span className="min-w-0 flex-1 truncate text-xs text-faint">{example.means}</span>
+            <code className="shrink-0 text-xs font-semibold text-ink font-mono">{example.input}</code>
+            <span className="min-w-0 flex-1 truncate text-xs text-muted">{example.means}</span>
           </button>
         ))}
       </div>
@@ -309,24 +309,24 @@ function Preview({
   const isSMS = entry.note?.includes('Ref') || entry.note?.includes('Card');
 
   return (
-    <div className="space-y-4 rounded-3xl border border-line bg-surface/95 p-4 sm:p-5 shadow-card">
+    <div className="space-y-3.5 rounded-xl border border-line/60 bg-surface/90 p-4 shadow-xs">
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-base font-extrabold text-ink">{entry.description}</p>
+            <p className="truncate text-base font-semibold text-ink">{entry.description}</p>
             {isSMS ? (
-              <Badge tone="good" className="text-[10px] py-0.5 px-2 font-bold">
+              <Badge tone="good" className="text-[10px] py-0.5 px-1.5 font-medium">
                 Bank SMS
               </Badge>
             ) : null}
           </div>
           {entry.note ? (
-            <p className="text-xs text-faint truncate mt-0.5">{entry.note}</p>
+            <p className="text-xs text-muted truncate mt-0.5">{entry.note}</p>
           ) : null}
         </div>
         <Money
           value={entry.amount}
-          className="shrink-0 text-2xl font-black"
+          className="shrink-0 text-2xl font-bold tnum"
           tone={entry.direction === 'in' ? 'good' : 'plain'}
         />
       </div>
@@ -350,7 +350,7 @@ function Preview({
 
       <div className="space-y-3">
         <div>
-          <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-muted">
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
             Date
           </span>
           <QuickDatePicker
@@ -361,7 +361,7 @@ function Preview({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-muted">
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
               {isTransfer ? 'From' : 'Account'}
             </span>
             <AccountPicker
@@ -372,7 +372,7 @@ function Preview({
           </div>
 
           <div>
-            <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-muted">
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
               {isTransfer ? 'To' : 'Category'}
             </span>
             {isTransfer ? (
@@ -435,15 +435,15 @@ function Answer({ query }: { query: ParsedQuery }) {
 
     const { yes, after, sts } = canAfford(ledger, query.affordAmount);
     return (
-      <div className="space-y-2 rounded-2xl border border-line bg-raised/70 p-4 shadow-card">
-        <p className={cn('text-lg font-extrabold', yes ? 'text-good' : 'text-bad')}>
+      <div className="space-y-2 rounded-xl border border-line/60 bg-raised/50 p-3.5 shadow-2xs">
+        <p className={cn('text-base font-bold', yes ? 'text-good' : 'text-bad')}>
           {yes ? 'Yes.' : 'Not comfortably.'}
         </p>
-        <p className="text-xs leading-relaxed text-muted">
-          You have <Money value={sts.amount} className="font-bold text-ink" /> safe to spend
+        <p className="text-xs leading-relaxed text-muted font-normal">
+          You have <Money value={sts.amount} className="font-semibold text-ink" /> safe to spend
           until {formatDayFull(sts.until)}. Spending{' '}
-          <Money value={query.affordAmount} className="font-bold text-ink" /> leaves{' '}
-          <Money value={after} className="font-bold" tone={after < 0 ? 'bad' : 'good'} /> for{' '}
+          <Money value={query.affordAmount} className="font-semibold text-ink" /> leaves{' '}
+          <Money value={after} className="font-semibold" tone={after < 0 ? 'bad' : 'good'} /> for{' '}
           {sts.daysLeft} {sts.daysLeft === 1 ? 'day' : 'days'}.
         </p>
       </div>
@@ -477,14 +477,14 @@ function Answer({ query }: { query: ParsedQuery }) {
   const lookup = byId(ledger.categories);
 
   return (
-    <div className="space-y-3 rounded-2xl border border-line bg-raised/70 p-4 shadow-card">
+    <div className="space-y-3 rounded-xl border border-line/60 bg-raised/50 p-3.5 shadow-2xs">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-xs font-bold text-muted uppercase tracking-wider">
+        <p className="text-xs font-semibold text-muted uppercase tracking-wider">
           {matched ? matched.name : subject || 'Everything'} · {query.rangeLabel}
         </p>
-        <Money value={total} className="text-lg font-black text-ink" />
+        <Money value={total} className="text-base font-bold text-ink tnum" />
       </div>
-      <p className="text-xs text-faint">
+      <p className="text-xs text-muted">
         {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
       </p>
 
