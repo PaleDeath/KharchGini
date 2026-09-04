@@ -145,8 +145,22 @@ export interface LedgerValue {
 const LedgerContext = createContext<LedgerValue | null>(null);
 
 /* -------------------------------------------------------------------------- */
-/* Provider                                                                    */
-/* -------------------------------------------------------------------------- */
+function getStoredPrefs(uid: string): Partial<UserPrefs> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(`kharchgini_prefs_${uid}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setStoredPrefs(uid: string, prefs: Partial<UserPrefs>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(`kharchgini_prefs_${uid}`, JSON.stringify(prefs));
+  } catch {}
+}
 
 export function LedgerProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -224,10 +238,16 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       subscribePrefs(
         activeUid,
         (next) => {
-          setPrefs(next);
+          const local = getStoredPrefs(activeUid);
+          setPrefs({ ...next, ...local });
           arrived('prefs');
         },
-        fail,
+        (err) => {
+          console.warn('Prefs subscription issue, loading locally:', err);
+          const local = getStoredPrefs(activeUid);
+          setPrefs((prev) => ({ ...prev, ...local }));
+          arrived('prefs');
+        },
       ),
     ];
 
@@ -646,13 +666,32 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const updatePrefs = useCallback(
     async (changes: Partial<UserPrefs>) => {
-      await savePrefs(requireUid(), changes);
+      const id = requireUid();
+      // 1. Instantly update React state & localStorage for immediate, flicker-free feedback
+      setPrefs((prev) => {
+        const next = { ...prev, ...changes };
+        setStoredPrefs(id, next);
+        return next;
+      });
+
+      // 2. Persist to Firestore; catch permissions or network hiccups gracefully so user experience is uninterrupted
+      try {
+        await savePrefs(id, changes);
+      } catch (err) {
+        console.warn('Preferences saved locally, Firestore sync deferred or blocked by rules:', err);
+      }
     },
     [requireUid],
   );
 
   const deleteEverything = useCallback(async () => {
-    await wipeUser(requireUid());
+    const id = requireUid();
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(`kharchgini_prefs_${id}`);
+      } catch {}
+    }
+    await wipeUser(id);
   }, [requireUid]);
 
   const restoreLedger = useCallback(

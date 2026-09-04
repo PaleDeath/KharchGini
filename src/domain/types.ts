@@ -373,6 +373,10 @@ export interface SafeToSpend {
   goalFunding: Paise;
   /** Money set aside to pay off outstanding credit card debt. */
   reservedCardBills: Paise;
+  /** Optional specific account backing the credit card bill reserve. */
+  reserveAccountId?: string;
+  /** If a specific account is designated and its balance is less than card debt. */
+  reserveAccountShortfall?: Paise;
   /** The date the runway is measured to — next payday, or end of month. */
   until: ISODate;
   daysLeft: number;
@@ -448,6 +452,8 @@ export interface UserPrefs {
    * against liquid cash, deducting it from Safe to Spend so money is kept aside for bills.
    */
   reserveCreditCardBills?: boolean;
+  /** Optional specific liquid account ID dedicated to holding the credit card bill reserve. */
+  reserveAccountId?: string;
   privacyMode?: boolean;
   onboardedAt?: string;
   createdAt?: string;

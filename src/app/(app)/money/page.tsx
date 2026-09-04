@@ -353,6 +353,20 @@ export default function MoneyPage() {
                       className="mt-0.5 block text-lg font-bold text-ink"
                       tone={balance < 0 && !owed ? 'bad' : 'plain'}
                     />
+                    {ledger.prefs.reserveAccountId === account.id && ledger.prefs.reserveCreditCardBills && totalCardDebt > 0 ? (
+                      <div className="mt-2 pt-2 border-t border-line/40 space-y-0.5">
+                        <div className="flex items-center justify-between text-[10px] font-semibold text-accent">
+                          <span className="flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> CC Reserve</span>
+                          <span>-<Money value={totalCardDebt} tone="plain" /></span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-muted">
+                          <span>Spendable:</span>
+                          <span className={cn('font-semibold', balance - totalCardDebt < 0 ? 'text-bad' : 'text-ink')}>
+                            <Money value={balance - totalCardDebt} tone="plain" />
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </button>
               </div>
@@ -502,7 +516,7 @@ export default function MoneyPage() {
                 type="button"
                 onClick={() => void toggleCCReserve(!ledger.prefs.reserveCreditCardBills)}
                 className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-95 shadow-2xs',
+                  'rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0',
                   ledger.prefs.reserveCreditCardBills
                     ? 'border border-good/40 bg-good/15 text-good hover:bg-good/25'
                     : 'border border-accent/40 bg-accent text-accent-ink hover:bg-accent/90',
@@ -511,6 +525,55 @@ export default function MoneyPage() {
                 {ledger.prefs.reserveCreditCardBills ? 'Reserve Active (Tap to disable)' : 'Reserve Money for Bills'}
               </button>
             </div>
+
+            {/* Account Specificity Selector */}
+            {ledger.prefs.reserveCreditCardBills ? (
+              <div className="mt-3 pt-3 border-t border-line/50 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-muted">Set money aside from:</span>
+                  <select
+                    value={ledger.prefs.reserveAccountId ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value || undefined;
+                      void updatePrefs({ reserveAccountId: val });
+                      const accName = val ? accounts.get(val)?.name : 'all liquid accounts';
+                      toast(`Reserve assigned to ${accName}.`, { tone: 'info' });
+                    }}
+                    className="rounded-lg border border-line/70 bg-surface px-2.5 py-1 text-xs font-semibold text-ink shadow-2xs focus:outline-none focus:ring-1 focus:ring-accent"
+                  >
+                    <option value="">All Spendable Accounts (Combined pool)</option>
+                    {liquidAccounts.map((acc) => {
+                      const bal = balances.get(acc.id) ?? 0;
+                      return (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name} ({formatMoney(bal)})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {ledger.prefs.reserveAccountId ? (
+                  (() => {
+                    const resAcc = accounts.get(ledger.prefs.reserveAccountId);
+                    const resBal = balances.get(ledger.prefs.reserveAccountId) ?? 0;
+                    const shortfall = totalCardDebt > resBal ? totalCardDebt - resBal : 0;
+                    if (shortfall > 0) {
+                      return (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-bad bg-bad/10 border border-bad/20 rounded-md px-2 py-0.5">
+                          ⚠️ {resAcc?.name ?? 'Account'} is short by <Money value={shortfall} tone="plain" />
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-good bg-good/10 border border-good/20 rounded-md px-2 py-0.5">
+                        <Check className="h-3 w-3 stroke-[3]" /> Covered in {resAcc?.name ?? 'account'} (leaves <Money value={resBal - totalCardDebt} tone="plain" />)
+                      </span>
+                    );
+                  })()
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {/* Credit Cards Grid */}

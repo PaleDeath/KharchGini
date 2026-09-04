@@ -49,7 +49,7 @@ service cloud.firestore {
                    && data().keys().hasOnly([
                         'displayName', 'currency', 'weekStartsOn', 'payday',
                         'createdAt', 'updatedAt', 'onboardedAt', 'privacyMode',
-                        'salaryFundsNextMonth'
+                        'salaryFundsNextMonth', 'reserveCreditCardBills', 'reserveAccountId'
                       ]);
 
       match /accounts/{accountId} {

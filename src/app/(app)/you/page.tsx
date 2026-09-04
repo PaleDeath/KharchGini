@@ -491,13 +491,35 @@ export default function YouPage() {
             />
           </div>
 
-          <div className="border-t border-line/50 pt-3.5">
+          <div className="border-t border-line/50 pt-3.5 space-y-2.5">
             <Switch
               checked={ledger.prefs.reserveCreditCardBills === true}
               onChange={(next) => void savePrefs({ reserveCreditCardBills: next })}
               label="Block budget for credit card bills"
               hint="Earmarks outstanding credit card debt from Safe to Spend, keeping cash set aside in your bank balance so you never overspend bill money."
             />
+            {ledger.prefs.reserveCreditCardBills ? (
+              <div className="pt-1.5 space-y-1 animate-in fade-in duration-150">
+                <label className="text-[11px] font-semibold text-muted">Dedicated reserve account</label>
+                <select
+                  value={ledger.prefs.reserveAccountId ?? ''}
+                  onChange={(e) => void savePrefs({ reserveAccountId: e.target.value || undefined })}
+                  className="w-full rounded-lg border border-line/70 bg-surface px-3 py-1.5 text-xs font-semibold text-ink shadow-2xs focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="">All Spendable Accounts (Combined pool)</option>
+                  {ledger.accounts
+                    .filter((a) => a.type !== 'card' && !a.archived)
+                    .map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[11px] text-muted">
+                  Choose which specific bank or liquid account holds your credit card payoff reserve.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">

@@ -341,9 +341,21 @@ export function safeToSpend(ledger: Ledger, today: ISODate = todayISO()): SafeTo
   // Credit card bill payoff reserve:
   // If the user has chosen to block their budget for credit card debt,
   // money owed across all active credit cards is kept aside from liquid cash.
-  const reservedCardBills = ledger.prefs.reserveCreditCardBills
-    ? totalCreditCardDebt(ledger.accounts, ledger.entries)
-    : 0;
+  let reservedCardBills = 0;
+  let reserveAccountShortfall: Paise | undefined = undefined;
+  const reserveAccountId = ledger.prefs.reserveAccountId;
+
+  if (ledger.prefs.reserveCreditCardBills) {
+    reservedCardBills = totalCreditCardDebt(ledger.accounts, ledger.entries);
+
+    if (reserveAccountId) {
+      const balances = accountBalances(ledger.accounts, ledger.entries);
+      const accBal = balances.get(reserveAccountId) ?? 0;
+      if (accBal < reservedCardBills) {
+        reserveAccountShortfall = reservedCardBills - Math.max(0, accBal);
+      }
+    }
+  }
 
   const amount = liquid - committedBills - reservedNeeds - goalFunding - reservedCardBills;
   const daysLeft = Math.max(1, daysBetween(today, until) + 1);
@@ -355,6 +367,8 @@ export function safeToSpend(ledger: Ledger, today: ISODate = todayISO()): SafeTo
     reservedNeeds,
     goalFunding,
     reservedCardBills,
+    reserveAccountId,
+    reserveAccountShortfall,
     until,
     daysLeft,
     perDay: amount > 0 ? Math.floor(amount / daysLeft) : 0,
