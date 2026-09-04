@@ -8,6 +8,8 @@ import {
   Pencil,
   Plus,
   Search,
+  ShieldAlert,
+  ShieldCheck,
   Trash2,
   Wallet,
   X,
@@ -35,7 +37,7 @@ import { EntrySheet } from '@/components/entry/entry-sheet';
 import { Button } from '@/components/ui/button';
 import { Card, Empty, Section } from '@/components/ui/card';
 import { Input, Segmented } from '@/components/ui/input';
-import { Money } from '@/components/ui/money';
+import { Badge, Money } from '@/components/ui/money';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
 import { cn, download, toCSV } from '@/lib/utils';
@@ -44,7 +46,7 @@ type Range = 'this' | 'last' | 'all';
 type Filter = 'all' | Direction;
 
 export default function MoneyPage() {
-  const { ledger, deleteEntries, addEntries } = useLedger();
+  const { ledger, deleteEntries, addEntries, updatePrefs } = useLedger();
   const toast = useToast();
 
   const [editing, setEditing] = useState<Entry | null>(null);
@@ -218,6 +220,20 @@ export default function MoneyPage() {
       );
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Could not delete entries', { tone: 'bad' });
+    }
+  };
+
+  const toggleCCReserve = async (next: boolean) => {
+    try {
+      await updatePrefs({ reserveCreditCardBills: next });
+      toast(
+        next
+          ? `Credit card bill reserve enabled. ${formatMoney(totalCardDebt)} kept aside in Safe to Spend.`
+          : 'Credit card bill reserve disabled. Debt is no longer blocked from Safe to Spend.',
+        { tone: next ? 'good' : 'info' },
+      );
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not update preference', { tone: 'bad' });
     }
   };
 
@@ -432,6 +448,71 @@ export default function MoneyPage() {
             </div>
           ) : null}
 
+          {/* Bill Reserve & Budget Protection Banner */}
+          <div
+            className={cn(
+              'rounded-xl border p-3.5 transition-all duration-200 shadow-2xs',
+              ledger.prefs.reserveCreditCardBills
+                ? 'border-good/40 bg-good/5'
+                : 'border-line/60 bg-raised/30',
+            )}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <span
+                  className={cn(
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-2xs mt-0.5',
+                    ledger.prefs.reserveCreditCardBills
+                      ? 'bg-good/15 text-good'
+                      : 'bg-raised text-muted border border-line/60',
+                  )}
+                >
+                  {ledger.prefs.reserveCreditCardBills ? (
+                    <ShieldCheck className="h-4 w-4" />
+                  ) : (
+                    <ShieldAlert className="h-4 w-4" />
+                  )}
+                </span>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-ink">
+                      {ledger.prefs.reserveCreditCardBills
+                        ? 'Safe to Spend Reserve: Active'
+                        : 'Block Budget for CC Bills'}
+                    </span>
+                    <Badge tone={ledger.prefs.reserveCreditCardBills ? 'good' : 'neutral'}>
+                      {ledger.prefs.reserveCreditCardBills ? 'Protected' : 'Off'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted leading-relaxed">
+                    {ledger.prefs.reserveCreditCardBills ? (
+                      <>
+                        <Money value={totalCardDebt} tone="plain" className="font-semibold text-ink" /> is locked in your bank balance so you never accidentally spend credit card bill money.
+                      </>
+                    ) : (
+                      <>
+                        Keep <Money value={totalCardDebt} tone="plain" className="font-medium text-ink" /> aside from Safe to Spend so your daily runway guarantees 100% statement pay-off.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void toggleCCReserve(!ledger.prefs.reserveCreditCardBills)}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-95 shadow-2xs',
+                  ledger.prefs.reserveCreditCardBills
+                    ? 'border border-good/40 bg-good/15 text-good hover:bg-good/25'
+                    : 'border border-accent/40 bg-accent text-accent-ink hover:bg-accent/90',
+                )}
+              >
+                {ledger.prefs.reserveCreditCardBills ? 'Reserve Active (Tap to disable)' : 'Reserve Money for Bills'}
+              </button>
+            </div>
+          </div>
+
           {/* Credit Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {creditCards.map((card) => {
@@ -482,11 +563,19 @@ export default function MoneyPage() {
                   <div className="mt-4 space-y-2">
                     <div className="flex items-baseline justify-between">
                       <span className="text-xs font-semibold text-faint uppercase tracking-wider">Current Owed</span>
-                      <Money
-                        value={owed}
-                        className={cn('text-lg font-bold tnum', owed > 0 ? 'text-bad' : 'text-good')}
-                        tone="plain"
-                      />
+                      <div className="text-right">
+                        <Money
+                          value={owed}
+                          className={cn('text-lg font-bold tnum', owed > 0 ? 'text-bad' : 'text-good')}
+                          tone="plain"
+                        />
+                        {owed > 0 && ledger.prefs.reserveCreditCardBills ? (
+                          <span className="flex items-center justify-end gap-1 text-[10px] font-semibold text-good mt-0.5">
+                            <ShieldCheck className="h-3 w-3" />
+                            Protected in Safe to Spend
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
                     {limit > 0 ? (

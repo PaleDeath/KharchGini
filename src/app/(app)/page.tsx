@@ -3,6 +3,7 @@
 import {
   ArrowUpRight,
   ChevronDown,
+  CreditCard,
   Flame,
   HelpCircle,
   ListChecks,
@@ -36,6 +37,7 @@ import {
   reviewDue,
   reviewItems,
   safeToSpend,
+  totalCreditCardDebt,
   totalOut,
 } from '@/domain/derive';
 import { upcoming } from '@/domain/recurring';
@@ -54,7 +56,7 @@ import { useLedger } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 export default function TodayPage() {
-  const { ledger, postRecurring } = useLedger();
+  const { ledger, postRecurring, updatePrefs } = useLedger();
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editingRecurring, setEditingRecurring] = useState<Recurring | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -68,6 +70,10 @@ export default function TodayPage() {
   const sts = useMemo(() => safeToSpend(ledger, day), [ledger, day]);
   const categories = useMemo(() => byId(ledger.categories), [ledger.categories]);
   const accounts = useMemo(() => byId(ledger.accounts), [ledger.accounts]);
+  const cardDebt = useMemo(
+    () => totalCreditCardDebt(ledger.accounts, ledger.entries),
+    [ledger.accounts, ledger.entries],
+  );
 
   const spentToday = useMemo(
     () => totalOut(entriesBetween(ledger.entries, day, day)),
@@ -243,11 +249,33 @@ export default function TodayPage() {
               <MathRow label="Bills due before then" value={-sts.committedBills} />
               <MathRow label="Reserved for needs you budgeted" value={-sts.reservedNeeds} />
               <MathRow label="Going to savings goals" value={-sts.goalFunding} />
+              {sts.reservedCardBills > 0 ? (
+                <MathRow label="Set aside for credit card bills" value={-sts.reservedCardBills} />
+              ) : null}
               <Divider className="my-2" />
               <MathRow label="Safe to spend" value={sts.amount} strong />
               <p className="pt-1 text-[11px] leading-relaxed text-muted font-normal">
-                Savings accounts and reserved funds are excluded to protect your daily runway pace.
+                {sts.reservedCardBills > 0
+                  ? 'Savings funds and credit card bill reserves are set aside to protect your daily runway.'
+                  : 'Savings accounts and reserved funds are excluded to protect your daily runway pace.'}
               </p>
+              {!ledger.prefs.reserveCreditCardBills && cardDebt > 0 ? (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-accent/10 border border-accent/20 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-3.5 w-3.5 text-accent shrink-0" />
+                    <span className="text-ink">
+                      You owe <Money value={cardDebt} tone="plain" className="font-semibold" /> on credit cards.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void updatePrefs({ reserveCreditCardBills: true })}
+                    className="text-xs font-semibold text-accent hover:underline shrink-0"
+                  >
+                    Reserve in budget
+                  </button>
+                </div>
+              ) : null}
             </dl>
           ) : null}
         </div>

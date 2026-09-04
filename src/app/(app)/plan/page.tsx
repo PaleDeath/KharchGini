@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CopyPlus,
+  CreditCard,
   Plus,
   Repeat,
   Sparkles,
@@ -27,6 +28,7 @@ import {
   envelopeStatuses,
   goalProgresses,
   monthSummary,
+  totalCreditCardDebt,
   unbudgetedSpend,
 } from '@/domain/derive';
 import { formatMoney } from '@/domain/money';
@@ -74,6 +76,10 @@ export default function PlanPage() {
   const committedMonthly = ledger.recurring
     .filter((r) => r.isActive && r.direction === 'out')
     .reduce((total, r) => total + monthlyEquivalent(r), 0);
+  const cardDebt = useMemo(
+    () => totalCreditCardDebt(ledger.accounts, ledger.entries),
+    [ledger.accounts, ledger.entries],
+  );
 
   const isCurrent = month === monthOf(day);
   const previous = addMonthsToKey(month, -1);
@@ -162,6 +168,16 @@ export default function PlanPage() {
             </span>
           ) : null}
         </div>
+
+        {ledger.prefs.reserveCreditCardBills && cardDebt > 0 ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-raised/70 border border-line/60 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2 text-muted">
+              <CreditCard className="h-3.5 w-3.5 text-accent shrink-0" />
+              <span>CC Bill Reserve (blocked from spending):</span>
+            </div>
+            <Money value={cardDebt} tone="plain" className="font-semibold text-ink" />
+          </div>
+        ) : null}
       </Card>
 
       {/* ‘What-If’ Sandbox Simulator Banner */}

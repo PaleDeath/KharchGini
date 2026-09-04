@@ -371,6 +371,8 @@ export interface SafeToSpend {
   committedBills: Paise;
   reservedNeeds: Paise;
   goalFunding: Paise;
+  /** Money set aside to pay off outstanding credit card debt. */
+  reservedCardBills: Paise;
   /** The date the runway is measured to — next payday, or end of month. */
   until: ISODate;
   daysLeft: number;
@@ -441,6 +443,11 @@ export interface UserPrefs {
    * month's budget. Defaults to true when payday >= 20.
    */
   salaryFundsNextMonth?: boolean;
+  /**
+   * If true, outstanding credit card debt is treated as a reserved obligation
+   * against liquid cash, deducting it from Safe to Spend so money is kept aside for bills.
+   */
+  reserveCreditCardBills?: boolean;
   privacyMode?: boolean;
   onboardedAt?: string;
   createdAt?: string;

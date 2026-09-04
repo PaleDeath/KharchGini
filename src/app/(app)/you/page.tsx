@@ -491,6 +491,15 @@ export default function YouPage() {
             />
           </div>
 
+          <div className="border-t border-line/50 pt-3.5">
+            <Switch
+              checked={ledger.prefs.reserveCreditCardBills === true}
+              onChange={(next) => void savePrefs({ reserveCreditCardBills: next })}
+              label="Block budget for credit card bills"
+              hint="Earmarks outstanding credit card debt from Safe to Spend, keeping cash set aside in your bank balance so you never overspend bill money."
+            />
+          </div>
+
           <div className="space-y-1.5">
             <span className="block text-xs font-semibold uppercase tracking-wider text-muted">Appearance</span>
             <Segmented options={THEMES} value={theme} onChange={setTheme} />

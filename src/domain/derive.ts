@@ -277,11 +277,25 @@ export function nextPayday(
   return endOfMonth(monthOf(today));
 }
 
+/** Total debt owed across all active credit cards. */
+export function totalCreditCardDebt(accounts: Account[], entries: Entry[]): Paise {
+  const balances = accountBalances(accounts, entries);
+  let total = 0;
+  for (const a of accounts) {
+    if (a.type === 'card' && !a.archived) {
+      const bal = balances.get(a.id) ?? 0;
+      if (bal < 0) total += Math.abs(bal);
+    }
+  }
+  return total;
+}
+
 /**
  * Safe to Spend = liquid money
  *               − bills committed before the next payday
  *               − what is still earmarked for essentials this month
  *               − scheduled funding for goals
+ *               − reserved for credit card bills (when opted in)
  *
  * The breakdown travels with the number because an unexplained figure at the top
  * of a finance app is not trusted, and an untrusted number is not used.
@@ -324,7 +338,14 @@ export function safeToSpend(ledger: Ledger, today: ISODate = todayISO()): SafeTo
     );
   }
 
-  const amount = liquid - committedBills - reservedNeeds - goalFunding;
+  // Credit card bill payoff reserve:
+  // If the user has chosen to block their budget for credit card debt,
+  // money owed across all active credit cards is kept aside from liquid cash.
+  const reservedCardBills = ledger.prefs.reserveCreditCardBills
+    ? totalCreditCardDebt(ledger.accounts, ledger.entries)
+    : 0;
+
+  const amount = liquid - committedBills - reservedNeeds - goalFunding - reservedCardBills;
   const daysLeft = Math.max(1, daysBetween(today, until) + 1);
 
   return {
@@ -333,6 +354,7 @@ export function safeToSpend(ledger: Ledger, today: ISODate = todayISO()): SafeTo
     committedBills,
     reservedNeeds,
     goalFunding,
+    reservedCardBills,
     until,
     daysLeft,
     perDay: amount > 0 ? Math.floor(amount / daysLeft) : 0,
