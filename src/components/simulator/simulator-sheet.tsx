@@ -6,8 +6,11 @@ import {
   Calendar,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Flame,
   HelpCircle,
+  PiggyBank,
+  Plane,
   Plus,
   RefreshCw,
   Sliders,
@@ -21,10 +24,11 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { formatDay, today as todayISO } from '@/domain/dates';
+import { addMonths, formatDay, today as todayISO } from '@/domain/dates';
 import { formatMoney, parseAmount } from '@/domain/money';
 import {
   calculateMonthlyEMI,
+  getNovemberNextYear,
   runSimulation,
   type SimulationParams,
   type SimulationResult,
@@ -49,10 +53,23 @@ export interface SimulatorPreset {
   paymentMode?: 'upfront' | 'emi';
   emiMonths?: number;
   interestPct?: number;
+  targetDate?: string;
+  accumulationMode?: 'by_date' | 'by_monthly';
+  monthlyContribution?: number;
   icon: string;
 }
 
 const PRESETS: SimulatorPreset[] = [
+  {
+    id: 'trip_nov_next_year',
+    name: '🏖️ 3 Lakh Trip (Nov Next Year)',
+    type: 'target_accumulation',
+    title: 'Trip by November Next Year',
+    amountPaise: 3_00_000_00, // ₹3,00,000
+    targetDate: getNovemberNextYear(),
+    accumulationMode: 'by_date',
+    icon: '🏖️',
+  },
   {
     id: 'laptop_emi',
     name: '💻 Laptop / Phone',
@@ -63,6 +80,16 @@ const PRESETS: SimulatorPreset[] = [
     emiMonths: 12,
     interestPct: 0,
     icon: '💻',
+  },
+  {
+    id: 'emergency_corpus',
+    name: '🛡️ Emergency Fund',
+    type: 'target_accumulation',
+    title: '6-Month Emergency Corpus',
+    amountPaise: 2_00_000_00, // ₹2,00,000
+    targetDate: addMonths(todayISO(), 12),
+    accumulationMode: 'by_date',
+    icon: '🛡️',
   },
   {
     id: 'salary_hike',
@@ -81,29 +108,21 @@ const PRESETS: SimulatorPreset[] = [
     icon: '🏠',
   },
   {
-    id: 'vacation_trip',
-    name: '🏖️ Vacation Trip',
-    type: 'purchase',
-    title: 'Goa / International Trip',
-    amountPaise: 45_000_00, // ₹45,000
-    paymentMode: 'upfront',
-    icon: '🏖️',
-  },
-  {
     id: 'boost_emergency',
-    name: '🎯 Boost Savings',
+    name: '🚀 Boost Goal',
     type: 'goal_boost',
     title: 'Boost Goal Funding',
     amountPaise: 10_000_00, // +₹10,000/mo
-    icon: '🎯',
+    icon: '🚀',
   },
 ];
 
 const SIM_TYPES: { value: SimulationType; label: string }[] = [
-  { value: 'purchase', label: 'Big Purchase' },
-  { value: 'income_change', label: 'Income Change' },
-  { value: 'recurring_expense', label: 'New Bill / Rent' },
-  { value: 'goal_boost', label: 'Boost Goal' },
+  { value: 'target_accumulation', label: '🎯 Goal / Trip Target' },
+  { value: 'purchase', label: '🛍️ Big Purchase' },
+  { value: 'income_change', label: '💼 Income Change' },
+  { value: 'recurring_expense', label: '📄 Bill / Rent' },
+  { value: 'goal_boost', label: '🚀 Boost Existing' },
 ];
 
 export function SimulatorSheet({
@@ -113,20 +132,48 @@ export function SimulatorSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const { ledger, addEntry, addRecurring } = useLedger();
+  const { ledger, addEntry, addRecurring, addGoal, updateGoal, addAccount } = useLedger();
   const toast = useToast();
   const today = todayISO();
 
-  const [type, setType] = useState<SimulationType>('purchase');
-  const [title, setTitle] = useState('New Purchase');
-  const [amountInput, setAmountInput] = useState('50000');
+  const accountCandidates = useMemo(
+    () => ledger.accounts.filter((account) => !account.archived && account.type !== 'card'),
+    [ledger.accounts],
+  );
+
+  const defaultSourceAccount = useMemo(
+    () =>
+      accountCandidates.find((a) => !a.excludeFromSafeToSpend && a.type === 'bank') ??
+      accountCandidates[0],
+    [accountCandidates],
+  );
+
+  const savingsCandidates = useMemo(
+    () => accountCandidates.filter((a) => a.type === 'savings'),
+    [accountCandidates],
+  );
+
+  const [type, setType] = useState<SimulationType>('target_accumulation');
+  const [title, setTitle] = useState('Trip by November Next Year');
+  const [amountInput, setAmountInput] = useState('300000');
   const [paymentMode, setPaymentMode] = useState<'upfront' | 'emi'>('upfront');
   const [emiMonths, setEmiMonths] = useState(6);
   const [interestPct, setInterestPct] = useState(0);
+  const [targetDate, setTargetDate] = useState(getNovemberNextYear(today));
+  const [accumulationMode, setAccumulationMode] = useState<'by_date' | 'by_monthly'>('by_date');
+  const [customMonthlyInput, setCustomMonthlyInput] = useState('20000');
   const [goalId, setGoalId] = useState(ledger.goals[0]?.id ?? '');
+  const [sourceAccountId, setSourceAccountId] = useState('');
+  const [targetAccountId, setTargetAccountId] = useState<string>(() => {
+    return savingsCandidates[0]?.id ?? '__new_reserve__';
+  });
+  const [linkMode, setLinkMode] = useState<'new' | 'existing'>('new');
   const [busy, setBusy] = useState(false);
 
   const amountPaise = useMemo(() => parseAmount(amountInput) ?? 0, [amountInput]);
+  const customMonthlyPaise = useMemo(() => parseAmount(customMonthlyInput) ?? 0, [customMonthlyInput]);
+
+  const effectiveSourceAccountId = sourceAccountId || defaultSourceAccount?.id || 'acc_primary';
 
   const params: SimulationParams = useMemo(
     () => ({
@@ -136,9 +183,32 @@ export function SimulatorSheet({
       paymentMode,
       emiMonths,
       emiInterestRateAnnualPct: interestPct,
-      goalId,
+      accountId: effectiveSourceAccountId,
+      goalId:
+        type === 'goal_boost' || (type === 'target_accumulation' && linkMode === 'existing')
+          ? goalId
+          : undefined,
+      targetDate: type === 'target_accumulation' ? targetDate : undefined,
+      accumulationMode,
+      monthlyContribution: customMonthlyPaise,
+      targetAccountId:
+        targetAccountId && targetAccountId !== '__new_reserve__' ? targetAccountId : undefined,
     }),
-    [type, title, amountPaise, paymentMode, emiMonths, interestPct, goalId],
+    [
+      type,
+      title,
+      amountPaise,
+      paymentMode,
+      emiMonths,
+      interestPct,
+      effectiveSourceAccountId,
+      goalId,
+      linkMode,
+      targetDate,
+      accumulationMode,
+      customMonthlyPaise,
+      targetAccountId,
+    ],
   );
 
   const result: SimulationResult = useMemo(
@@ -153,16 +223,77 @@ export function SimulatorSheet({
     if (preset.paymentMode) setPaymentMode(preset.paymentMode);
     if (preset.emiMonths) setEmiMonths(preset.emiMonths);
     if (preset.interestPct !== undefined) setInterestPct(preset.interestPct);
+    if (preset.targetDate) setTargetDate(preset.targetDate);
+    if (preset.accumulationMode) setAccumulationMode(preset.accumulationMode);
+    if (preset.monthlyContribution) setCustomMonthlyInput(String(preset.monthlyContribution / 100));
   };
 
   const handleCommit = async () => {
     setBusy(true);
     try {
-      if (result.committableRecurring) {
-        await addRecurring(result.committableRecurring);
+      if (result.committableGoal) {
+        let accountId = result.committableGoal.accountId;
+        const accExists = ledger.accounts.some((a) => a.id === accountId);
+        let createdNewReserve = false;
+        if (!accExists || accountId === '__new_reserve__' || accountId === 'acc_savings_reserve') {
+          accountId = await addAccount({
+            name: `${result.params.title} Reserve`,
+            type: 'savings',
+            openingBalance: 0,
+            sortOrder: 100,
+            archived: false,
+          });
+          createdNewReserve = true;
+        }
+
+        await addGoal({
+          ...result.committableGoal,
+          accountId,
+        });
+
+        if (result.committableRecurring) {
+          await addRecurring({
+            ...result.committableRecurring,
+            accountId: effectiveSourceAccountId,
+            counterAccountId: accountId,
+          });
+        }
+        toast(
+          `Created goal "${result.params.title}"${
+            createdNewReserve ? ' with dedicated reserve account' : ''
+          } and scheduled ${formatMoney(
+            result.targetPlan?.actualMonthlySavings ?? result.committableRecurring?.amount ?? 0,
+          )}/mo savings!`,
+          { tone: 'good' },
+        );
+      } else if (result.params.type === 'target_accumulation' && result.params.goalId) {
+        await updateGoal(result.params.goalId, {
+          targetAmount: result.params.amount,
+          targetDate: result.params.targetDate,
+        });
+        if (result.committableRecurring) {
+          await addRecurring({
+            ...result.committableRecurring,
+            accountId: effectiveSourceAccountId,
+          });
+        }
+        toast(
+          `Updated goal "${result.params.title}" and scheduled ${formatMoney(
+            result.targetPlan?.actualMonthlySavings ?? result.committableRecurring?.amount ?? 0,
+          )}/mo savings!`,
+          { tone: 'good' },
+        );
+      } else if (result.committableRecurring) {
+        await addRecurring({
+          ...result.committableRecurring,
+          accountId: effectiveSourceAccountId,
+        });
         toast(`Added recurring commitment "${result.params.title}"!`, { tone: 'good' });
       } else if (result.committableEntry) {
-        await addEntry(result.committableEntry);
+        await addEntry({
+          ...result.committableEntry,
+          accountId: effectiveSourceAccountId,
+        });
         toast(`Recorded transaction "${result.params.title}"!`, { tone: 'good' });
       }
       onClose();
@@ -185,22 +316,33 @@ export function SimulatorSheet({
         if (!next) onClose();
       }}
       title="‘What-If’ Sandbox Simulator"
-      description="Simulate financial decisions in-memory to test their impact on your runway and goals."
+      description="Simulate financial decisions in-memory to test their impact on your runway, goals, and savings targets."
       wide
       footer={
         <div className="flex w-full items-center gap-2">
           <Button variant="ghost" onClick={onClose} className="flex-1 font-bold">
             Close
           </Button>
-          {(result.committableRecurring || result.committableEntry) && (
+          {(result.committableGoal ||
+            result.committableRecurring ||
+            result.committableEntry ||
+            (result.params.type === 'target_accumulation' && result.params.goalId)) && (
             <Button
               variant="primary"
               onClick={handleCommit}
               disabled={busy || amountPaise <= 0}
-              className="flex-[2] font-extrabold gap-1.5 shadow-sm"
+              className="flex-[2] font-extrabold gap-1.5 shadow-sm truncate"
             >
-              <Zap className="h-4 w-4" />
-              {result.committableRecurring
+              <Zap className="h-4 w-4 shrink-0" />
+              {result.committableGoal
+                ? `Save Goal & Setup ${formatMoney(
+                    result.targetPlan?.actualMonthlySavings ?? 0,
+                  )}/mo SIP`
+                : result.params.type === 'target_accumulation' && result.params.goalId
+                ? `Update Goal & Setup ${formatMoney(
+                    result.targetPlan?.actualMonthlySavings ?? 0,
+                  )}/mo SIP`
+                : result.committableRecurring
                 ? 'Save as Recurring Rule'
                 : 'Log as Real Transaction'}
             </Button>
@@ -235,26 +377,59 @@ export function SimulatorSheet({
             value={type}
             onChange={(val) => {
               setType(val);
-              if (val === 'income_change') setTitle('Salary Hike / Promotion');
-              else if (val === 'recurring_expense') setTitle('Rent Increase / New Bill');
-              else if (val === 'goal_boost') setTitle('Boost Goal Funding');
-              else if (val === 'purchase') setTitle('New Purchase');
+              const defaultTitles = [
+                'Trip by November Next Year',
+                'Salary Hike / Promotion',
+                'Rent Increase / New Bill',
+                'Boost Goal Funding',
+                'New Purchase',
+              ];
+              const isDefaultTitle = !title.trim() || defaultTitles.includes(title);
+              if (val === 'target_accumulation') {
+                if (isDefaultTitle) setTitle('Trip by November Next Year');
+                if (!amountInput || ['50000', '25000', '4000', '10000'].includes(amountInput)) {
+                  setAmountInput('300000');
+                }
+                if (!targetDate) setTargetDate(getNovemberNextYear(today));
+              } else if (val === 'income_change') {
+                if (isDefaultTitle) setTitle('Salary Hike / Promotion');
+                if (!amountInput || ['300000', '50000'].includes(amountInput)) {
+                  setAmountInput('25000');
+                }
+              } else if (val === 'recurring_expense') {
+                if (isDefaultTitle) setTitle('Rent Increase / New Bill');
+                if (!amountInput || ['300000', '50000'].includes(amountInput)) {
+                  setAmountInput('4000');
+                }
+              } else if (val === 'goal_boost') {
+                if (isDefaultTitle) setTitle('Boost Goal Funding');
+                if (!amountInput || ['300000', '50000'].includes(amountInput)) {
+                  setAmountInput('10000');
+                }
+              } else if (val === 'purchase') {
+                if (isDefaultTitle) setTitle('New Purchase');
+                if (!amountInput || ['300000', '25000'].includes(amountInput)) {
+                  setAmountInput('50000');
+                }
+              }
             }}
           />
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Description / Decision Name">
+            <Field label="Description / Goal Name">
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. MacBook Pro or Promotion"
+                placeholder="e.g. Vacation Trip to Bali"
                 className="font-medium"
               />
             </Field>
 
             <Field
               label={
-                type === 'purchase'
+                type === 'target_accumulation'
+                  ? 'Target Accumulation Goal (₹)'
+                  : type === 'purchase'
                   ? 'Total Purchase Price (₹)'
                   : type === 'income_change'
                   ? 'Monthly Income Increase / Delta (₹)'
@@ -269,13 +444,198 @@ export function SimulatorSheet({
                 step="100"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                placeholder="e.g. 50000"
+                placeholder="e.g. 300000"
                 className="font-mono font-bold"
               />
+              {type === 'target_accumulation' && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                  {[
+                    { label: '₹50k', value: '50000' },
+                    { label: '₹1 Lakh', value: '100000' },
+                    { label: '₹3 Lakh', value: '300000' },
+                    { label: '₹5 Lakh', value: '500000' },
+                    { label: '₹10 Lakh', value: '1000000' },
+                  ].map((chip) => (
+                    <button
+                      key={chip.value}
+                      type="button"
+                      onClick={() => setAmountInput(chip.value)}
+                      className={cn(
+                        'rounded-md px-2 py-0.5 text-[11px] font-semibold border transition-all active:scale-95',
+                        amountInput === chip.value
+                          ? 'border-accent bg-accent/15 text-accent shadow-2xs font-bold'
+                          : 'border-line bg-surface text-muted hover:border-accent hover:text-ink',
+                      )}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </Field>
           </div>
 
           {/* Type-Specific Options */}
+          {type === 'target_accumulation' && (
+            <div className="space-y-3.5 pt-2 border-t border-line/70">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Target Deadline Date">
+                  <Input
+                    type="date"
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    className="font-medium"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                    {[
+                      { label: '🏖️ Nov Next Year', value: getNovemberNextYear(today) },
+                      { label: '6 Mos', value: addMonths(today, 6) },
+                      { label: '1 Year', value: addMonths(today, 12) },
+                      { label: '2 Years', value: addMonths(today, 24) },
+                    ].map((chip) => (
+                      <button
+                        key={chip.label}
+                        type="button"
+                        onClick={() => setTargetDate(chip.value)}
+                        className={cn(
+                          'rounded-md px-2 py-0.5 text-[11px] font-semibold border transition-all active:scale-95',
+                          targetDate === chip.value
+                            ? 'border-accent bg-accent/15 text-accent shadow-2xs font-bold'
+                            : 'border-line bg-surface text-muted hover:border-accent hover:text-ink',
+                        )}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="Accumulation Mode">
+                  <Segmented
+                    options={[
+                      { value: 'by_date', label: '🎯 Target Date' },
+                      { value: 'by_monthly', label: '💵 Monthly Savings' },
+                    ]}
+                    value={accumulationMode}
+                    onChange={setAccumulationMode}
+                  />
+                  <span className="text-[11px] text-muted block mt-1.5">
+                    {accumulationMode === 'by_date'
+                      ? 'Auto-calculates monthly savings needed to hit deadline.'
+                      : 'Calculates projected reach date from your savings pace.'}
+                  </span>
+                </Field>
+              </div>
+
+              {accumulationMode === 'by_monthly' && (
+                <div className="rounded-xl bg-raised/50 p-3 border border-line/70 space-y-2">
+                  <Field label="Custom Monthly Savings Contribution (₹)">
+                    <Input
+                      type="number"
+                      min="100"
+                      step="500"
+                      value={customMonthlyInput}
+                      onChange={(e) => setCustomMonthlyInput(e.target.value)}
+                      placeholder="e.g. 20000"
+                      className="font-mono font-bold"
+                    />
+                  </Field>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[
+                      { label: '₹10,000/mo', value: '10000' },
+                      { label: '₹15,000/mo', value: '15000' },
+                      { label: '₹20,000/mo', value: '20000' },
+                      { label: '₹25,000/mo', value: '25000' },
+                      { label: '₹30,000/mo', value: '30000' },
+                    ].map((chip) => (
+                      <button
+                        key={chip.value}
+                        type="button"
+                        onClick={() => setCustomMonthlyInput(chip.value)}
+                        className={cn(
+                          'rounded-md px-2 py-0.5 text-[11px] font-semibold border transition-all active:scale-95',
+                          customMonthlyInput === chip.value
+                            ? 'border-accent bg-accent/15 text-accent shadow-2xs font-bold'
+                            : 'border-line bg-surface text-muted hover:border-accent hover:text-ink',
+                        )}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                {ledger.goals.length > 0 ? (
+                  <Field label="Goal Association">
+                    <Segmented
+                      options={[
+                        { value: 'new', label: 'Create New Goal' },
+                        { value: 'existing', label: 'Link Existing Goal' },
+                      ]}
+                      value={linkMode}
+                      onChange={setLinkMode}
+                    />
+                  </Field>
+                ) : null}
+
+                {linkMode === 'existing' && ledger.goals.length > 0 ? (
+                  <Field label="Select Existing Goal">
+                    <CustomSelect
+                      value={goalId}
+                      onChange={setGoalId}
+                      options={ledger.goals
+                        .filter((g) => !g.archived)
+                        .map((g) => ({
+                          value: g.id,
+                          label: `${g.name} (Target: ${formatMoney(g.targetAmount)})`,
+                        }))}
+                    />
+                  </Field>
+                ) : (
+                  <Field label="Destination Savings Reserve">
+                    <CustomSelect
+                      value={targetAccountId}
+                      onChange={setTargetAccountId}
+                      options={[
+                        {
+                          value: '__new_reserve__',
+                          label: '✨ + Create Dedicated Goal Savings Reserve',
+                        },
+                        ...accountCandidates.map((acc) => ({
+                          value: acc.id,
+                          label: `${acc.name} (${acc.type})`,
+                        })),
+                      ]}
+                    />
+                    <span className="text-[11px] text-muted block mt-1">
+                      {targetAccountId === '__new_reserve__'
+                        ? 'A separate savings reserve will be automatically created to isolate your trip money.'
+                        : 'Monthly savings will be transferred into this account.'}
+                    </span>
+                  </Field>
+                )}
+
+                {accountCandidates.length > 0 && (
+                  <Field label="Deduct Monthly SIP From">
+                    <CustomSelect
+                      value={sourceAccountId || defaultSourceAccount?.id || ''}
+                      onChange={setSourceAccountId}
+                      options={accountCandidates.map((acc) => ({
+                        value: acc.id,
+                        label: `${acc.name} (${acc.type})`,
+                      }))}
+                    />
+                    <span className="text-[11px] text-muted block mt-1">
+                      Checking / salary account from which monthly savings will be deducted.
+                    </span>
+                  </Field>
+                )}
+              </div>
+            </div>
+          )}
+
           {type === 'purchase' && (
             <div className="space-y-3 pt-2 border-t border-line/70">
               <div className="flex items-center justify-between">
@@ -352,6 +712,103 @@ export function SimulatorSheet({
             </Field>
           )}
         </div>
+
+        {/* Accumulation Blueprint Card */}
+        {result.targetPlan && type === 'target_accumulation' && (
+          <div className="rounded-2xl border border-accent/40 bg-accent/5 p-4 space-y-3.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
+                <Target className="h-4 w-4" />
+                Accumulation Blueprint ({result.params.title})
+              </span>
+              <Badge
+                tone={
+                  result.targetPlan.isOnTrack && result.targetPlan.feasibility === 'comfortable'
+                    ? 'good'
+                    : result.targetPlan.feasibility === 'unrealistic'
+                    ? 'bad'
+                    : 'warn'
+                }
+              >
+                {result.targetPlan.isOnTrack
+                  ? result.targetPlan.feasibility === 'comfortable'
+                    ? '✅ Fully Achievable'
+                    : '⚠️ Tight Runway'
+                  : '⏳ Deadline Missed'}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="rounded-xl bg-surface/90 border border-line/60 p-2.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
+                  Required Monthly
+                </span>
+                <Money
+                  value={result.targetPlan.actualMonthlySavings}
+                  className="font-extrabold text-base sm:text-lg text-ink tnum block mt-0.5"
+                  tone="plain"
+                />
+                <span className="text-[10px] text-faint block mt-0.5">
+                  {formatMoney(result.targetPlan.requiredWeeklySavings)} / week
+                </span>
+              </div>
+
+              <div className="rounded-xl bg-surface/90 border border-line/60 p-2.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
+                  Target Deadline
+                </span>
+                <span className="font-bold text-sm sm:text-base text-ink block mt-0.5">
+                  {formatDay(result.targetPlan.targetDate)}
+                </span>
+                <span className="text-[10px] text-muted block mt-0.5">
+                  {result.targetPlan.monthsRemaining} mos ({result.targetPlan.daysRemaining} days)
+                </span>
+              </div>
+
+              <div className="rounded-xl bg-surface/90 border border-line/60 p-2.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
+                  Projected Reach
+                </span>
+                <span className="font-bold text-sm sm:text-base text-ink block mt-0.5">
+                  {formatDay(result.targetPlan.projectedReachDate)}
+                </span>
+                <span
+                  className={cn(
+                    'text-[10px] font-semibold block mt-0.5',
+                    result.targetPlan.isOnTrack ? 'text-good' : 'text-warn',
+                  )}
+                >
+                  {result.targetPlan.isOnTrack
+                    ? '🎯 On Schedule'
+                    : `Delayed by ${Math.max(
+                        1,
+                        result.targetPlan.monthsToReach - result.targetPlan.monthsRemaining,
+                      )} ${
+                        result.targetPlan.monthsToReach - result.targetPlan.monthsRemaining === 1
+                          ? 'month'
+                          : 'months'
+                      }`}
+                </span>
+              </div>
+
+              <div className="rounded-xl bg-surface/90 border border-line/60 p-2.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
+                  Surplus Usage
+                </span>
+                <span className="font-bold text-sm sm:text-base text-ink block mt-0.5">
+                  {result.targetPlan.percentOfSurplus > 0
+                    ? `${result.targetPlan.percentOfSurplus}%`
+                    : 'N/A'}
+                </span>
+                <span className="text-[10px] text-faint block mt-0.5">
+                  {result.targetPlan.monthlyFreeCashFlow > 0
+                    ? `of ~${formatMoney(result.targetPlan.monthlyFreeCashFlow)}/mo surplus`
+                    : 'Discretionary runway basis'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Simulation Verdict Card */}
         <div
