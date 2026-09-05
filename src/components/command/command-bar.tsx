@@ -55,9 +55,11 @@ const DIRECTIONS: { value: Direction; label: string }[] = [
 export function CommandBar({
   open,
   onOpenChange,
+  initialText = '',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialText?: string;
 }) {
   const { ledger, addEntry, deleteEntry, learnMerchant } = useLedger();
   const toast = useToast();
@@ -95,8 +97,17 @@ export function CommandBar({
       setText('');
       setOverrides({});
       setBusy(false);
+    } else if (initialText) {
+      setText(initialText);
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const len = initialText.length;
+          inputRef.current.setSelectionRange(len, len);
+        }
+      });
     }
-  }, [open]);
+  }, [open, initialText]);
 
   const entry: ParsedEntry | null =
     result.kind === 'entry' ? { ...result.entry, ...overrides } : null;

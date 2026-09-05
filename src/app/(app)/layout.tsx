@@ -24,6 +24,7 @@ function isTyping(target: EventTarget | null): boolean {
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { ledger, updatePrefs } = useLedger();
   const [adding, setAdding] = useState(false);
+  const [initialCommandText, setInitialCommandText] = useState('');
   const [calcOpen, setCalcOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const pathname = usePathname();
@@ -46,13 +47,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         return;
       }
       if (event.key === '/' && !isTyping(event.target) && !event.metaKey && !event.ctrlKey) {
+        if (calcOpen) return;
         event.preventDefault();
         setAdding(true);
         return;
       }
       if ((event.key === 'c' || event.key === 'C') && !isTyping(event.target) && !event.metaKey && !event.ctrlKey) {
+        if (calcOpen) return;
         event.preventDefault();
-        setCalcOpen((prev) => !prev);
+        setCalcOpen(true);
         return;
       }
       if ((event.key === 'P' || event.key === 'p') && event.shiftKey && !isTyping(event.target)) {
@@ -63,7 +66,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [ledger.prefs.privacyMode, updatePrefs]);
+  }, [ledger.prefs.privacyMode, updatePrefs, calcOpen]);
 
   return (
     <Gate>
@@ -86,11 +89,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      <CommandBar open={adding} onOpenChange={setAdding} />
+      <CommandBar
+        open={adding}
+        onOpenChange={(next) => {
+          setAdding(next);
+          if (!next) setInitialCommandText('');
+        }}
+        initialText={initialCommandText}
+      />
       <CalculatorSheet
         open={calcOpen}
         onClose={() => setCalcOpen(false)}
         onLogSpend={(rupees) => {
+          setInitialCommandText(String(rupees) + ' ');
           setCalcOpen(false);
           setAdding(true);
         }}

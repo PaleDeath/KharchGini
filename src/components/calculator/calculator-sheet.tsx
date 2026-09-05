@@ -2,22 +2,21 @@
 
 import {
   Calculator as CalcIcon,
-  Check,
-  Coins,
   Copy,
   Delete,
-  Equal,
   Landmark,
-  Percent,
   Plus,
-  RefreshCw,
-  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { formatMoney, parseAmount, rupeesToPaise } from '@/domain/money';
-import { Button } from '@/components/ui/button';
+import { formatMoney, rupeesToPaise } from '@/domain/money';
+import {
+  calculateEmi,
+  calculateSip,
+  evaluateExpression,
+  safeCalculate,
+} from '@/domain/calculator';
 import { Field, Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
@@ -26,23 +25,36 @@ import { cn } from '@/lib/utils';
 type CalcTab = 'standard' | 'emi' | 'sip';
 
 /**
- * Safe expression evaluator for basic arithmetic (+, -, *, /, %).
- * Avoids eval() and handles floating-point rounding gracefully.
+ * Format calculator display string to Indian currency style
+ * while preserving decimals and trailing dots while typing.
  */
-function safeCalculate(expression: string): number | null {
-  try {
-    const sanitized = expression.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
-    // Only allow digits, operators, decimal point, parentheses
-    if (!/^[0-9+\-*/.()%\s]+$/.test(sanitized)) return null;
+function formatCalculatorDisplay(display: string): string {
+  if (!display || display === '0' || display === '-0') return '₹0';
+  if (display.endsWith('%')) return display;
+  if (display === 'Error' || display === 'Cannot divide by zero') return display;
 
-    // Evaluate basic math tokens safely
-    const func = new Function(`"use strict"; return (${sanitized})`);
-    const res = Number(func());
-    if (!Number.isFinite(res) || Number.isNaN(res)) return null;
-    return Math.round(res * 100) / 100;
-  } catch {
-    return null;
+  const isNegative = display.startsWith('-');
+  const clean = isNegative ? display.slice(1) : display;
+
+  // Handle scientific notation or non-numeric tokens cleanly
+  if (/[eE]/.test(clean)) {
+    const n = Number(display);
+    if (!Number.isFinite(n)) return 'Error';
+    return `${isNegative ? '−' : ''}₹${clean}`;
   }
+
+  const parts = clean.split('.');
+  const intPart = parts[0] || '0';
+  const decPart = parts.length > 1 ? parts[1] : null;
+
+  const num = parseInt(intPart, 10);
+  const formattedInt = Number.isNaN(num) ? '0' : num.toLocaleString('en-IN');
+  const sign = isNegative ? '−' : '';
+
+  if (decPart !== null) {
+    return `${sign}₹${formattedInt}.${decPart}`;
+  }
+  return `${sign}₹${formattedInt}`;
 }
 
 export function CalculatorSheet({
@@ -62,6 +74,7 @@ export function CalculatorSheet({
   const [display, setDisplay] = useState('0');
   const [equation, setEquation] = useState('');
   const [hasCalculated, setHasCalculated] = useState(false);
+  const [waitingForOperand, setWaitingForOperand] = useState(false);
 
   // --- EMI Calculator State ---
   const [loanPrincipal, setLoanPrincipal] = useState('1000000'); // ₹10,00,000
@@ -69,195 +82,390 @@ export function CalculatorSheet({
   const [loanTenureYears, setLoanTenureYears] = useState('5'); // 5 years
 
   // --- SIP Calculator State ---
-  const [sipMonthly, setSipMonthly] = useState('10000'); // ₹10,000/mo
+  const [sipMonthly, setSipMonthly] = useState('10000'); // ₹10,00,000/mo
   const [sipReturnRate, setSipReturnRate] = useState('12'); // 12%
   const [sipYears, setSipYears] = useState('10'); // 10 years
 
-  // Handle number and operator input
-  const handleInput = useCallback(
-    (val: string) => {
-      if (hasCalculated) {
-        if (['+', '−', '×', '÷'].includes(val)) {
-          setEquation(display + ' ' + val + ' ');
-          setDisplay('0');
-          setHasCalculated(false);
-          return;
-        } else {
-          setEquation('');
-          setDisplay(val === '.' ? '0.' : val);
-          setHasCalculated(false);
-          return;
-        }
+  const copyToClipboard = useCallback(
+    (textToCopy: string, label = 'Copied to clipboard') => {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard
+          .writeText(textToCopy)
+          .then(() => toast(label, { tone: 'good' }))
+          .catch(() => toast('Could not copy to clipboard', { tone: 'bad' }));
+      } else {
+        toast('Clipboard not available', { tone: 'bad' });
       }
-
-      if (val === '.') {
-        if (!display.includes('.')) {
-          setDisplay((prev) => prev + '.');
-        }
-        return;
-      }
-
-      if (['+', '−', '×', '÷'].includes(val)) {
-        setEquation((prev) => prev + display + ' ' + val + ' ');
-        setDisplay('0');
-        return;
-      }
-
-      setDisplay((prev) => (prev === '0' ? val : prev + val));
     },
-    [display, hasCalculated],
+    [toast],
   );
 
+  // Handle digit inputs ('0'-'9', '00')
+  const handleDigit = useCallback(
+    (digit: string) => {
+      if (hasCalculated || waitingForOperand) {
+        if (hasCalculated) {
+          setEquation('');
+        }
+        setDisplay(digit === '00' ? '0' : digit);
+        setHasCalculated(false);
+        setWaitingForOperand(false);
+        return;
+      }
+
+      setDisplay((prev) => {
+        if (prev === '0' || prev === '-0' || prev === 'Cannot divide by zero' || prev === 'Error') {
+          return digit === '00' ? '0' : digit;
+        }
+        // Limit digit input length to avoid layout overflow
+        if (prev.length >= 15) return prev;
+        return prev + digit;
+      });
+    },
+    [hasCalculated, waitingForOperand],
+  );
+
+  // Handle decimal point input
+  const handleDecimal = useCallback(() => {
+    if (hasCalculated || waitingForOperand) {
+      if (hasCalculated) {
+        setEquation('');
+      }
+      setDisplay('0.');
+      setHasCalculated(false);
+      setWaitingForOperand(false);
+      return;
+    }
+
+    setDisplay((prev) => {
+      if (prev === 'Cannot divide by zero' || prev === 'Error') return '0.';
+      return prev.includes('.') ? prev : prev + '.';
+    });
+  }, [hasCalculated, waitingForOperand]);
+
+  // Handle operators (+, −, ×, ÷)
+  const handleOperator = useCallback(
+    (op: string) => {
+      if (display === 'Cannot divide by zero' || display === 'Error') {
+        setDisplay('0');
+        setEquation('');
+        setHasCalculated(false);
+        setWaitingForOperand(false);
+        return;
+      }
+
+      if (hasCalculated || equation.includes('=')) {
+        setEquation(`${display} ${op} `);
+        setHasCalculated(false);
+        setWaitingForOperand(true);
+        return;
+      }
+
+      if (waitingForOperand) {
+        // User is replacing the operator (e.g. + changed to ×)
+        setEquation((prev) => prev.replace(/[\+\-\−\×\÷\*/]\s*$/, `${op} `));
+        return;
+      }
+
+      if (equation) {
+        // Evaluate running intermediate calculation
+        const fullExpr = equation + display;
+        const evalRes = evaluateExpression(fullExpr);
+        if (evalRes.ok) {
+          setDisplay(String(evalRes.value));
+          setEquation(`${evalRes.value} ${op} `);
+        } else {
+          setEquation(`${equation}${display} ${op} `);
+        }
+      } else {
+        setEquation(`${display} ${op} `);
+      }
+
+      setWaitingForOperand(true);
+    },
+    [display, equation, hasCalculated, waitingForOperand],
+  );
+
+  // Handle percentage calculation
+  const handlePercent = useCallback(() => {
+    if (waitingForOperand) return;
+
+    if (display === 'Cannot divide by zero' || display === 'Error') return;
+
+    // If already calculated, has '=', or equation is empty: calculate standalone percent
+    if (hasCalculated || equation.includes('=') || !equation) {
+      const val = parseFloat(display) || 0;
+      const res = Math.round((val / 100) * 100000000) / 100000000;
+      setEquation(`${display}% =`);
+      setDisplay(String(res));
+      setHasCalculated(true);
+      setWaitingForOperand(false);
+      return;
+    }
+
+    // Contextual percentage calculation within pending expression (e.g. 1000 + 18%)
+    const fullExpr = `${equation}${display}%`;
+    const evalRes = evaluateExpression(fullExpr);
+    if (evalRes.ok) {
+      setEquation(`${fullExpr} =`);
+      setDisplay(String(evalRes.value));
+      setHasCalculated(true);
+      setWaitingForOperand(false);
+    } else {
+      if (evalRes.error === 'DIV_ZERO') {
+        toast('Cannot divide by zero', { tone: 'bad' });
+        setDisplay('Cannot divide by zero');
+        setHasCalculated(true);
+        setWaitingForOperand(false);
+      } else {
+        toast('Invalid calculation', { tone: 'bad' });
+      }
+    }
+  }, [display, equation, hasCalculated, toast, waitingForOperand]);
+
+  // Handle clear (AC)
   const handleClear = useCallback(() => {
     setDisplay('0');
     setEquation('');
     setHasCalculated(false);
+    setWaitingForOperand(false);
   }, []);
 
+  // Handle delete (Backspace)
   const handleDelete = useCallback(() => {
     if (hasCalculated) {
       handleClear();
       return;
     }
-    setDisplay((prev) => (prev.length <= 1 ? '0' : prev.slice(0, -1)));
-  }, [hasCalculated, handleClear]);
 
-  const handleEqual = useCallback(() => {
-    const fullExpr = equation + display;
-    const result = safeCalculate(fullExpr);
-    if (result !== null) {
-      setEquation(fullExpr + ' =');
-      setDisplay(String(result));
-      setHasCalculated(true);
-    } else {
-      toast('Invalid calculation', { tone: 'bad' });
+    if (waitingForOperand) {
+      // User entered an operator and wants to undo it
+      setEquation('');
+      setWaitingForOperand(false);
+      return;
     }
-  }, [equation, display, toast]);
+
+    setDisplay((prev) => {
+      if (prev === 'Cannot divide by zero' || prev === 'Error') {
+        return '0';
+      }
+      if (prev.length <= 1 || prev === '-0' || (prev.length === 2 && prev.startsWith('-'))) {
+        if (equation && prev === '0') {
+          const trimmed = equation.replace(/[\+\-\−\×\÷\*/]\s*$/, '').trim();
+          setEquation('');
+          return trimmed || '0';
+        }
+        return '0';
+      }
+      return prev.slice(0, -1);
+    });
+  }, [hasCalculated, handleClear, waitingForOperand, equation]);
+
+  // Handle equal (=)
+  const handleEqual = useCallback(() => {
+    // Avoid re-calculating if already completed
+    if (hasCalculated) return;
+
+    if (display === 'Cannot divide by zero' || display === 'Error') {
+      handleClear();
+      return;
+    }
+
+    let fullExpr: string;
+    if (waitingForOperand) {
+      // Trailing operator before '=': evaluate expression up to the operator
+      fullExpr = equation.replace(/[\+\-\−\×\÷\*/]\s*$/, '');
+    } else if (equation.includes('=')) {
+      fullExpr = display;
+    } else {
+      fullExpr = equation ? `${equation}${display}` : display;
+    }
+
+    const evalRes = evaluateExpression(fullExpr);
+    if (evalRes.ok) {
+      setEquation(`${fullExpr} =`);
+      setDisplay(String(evalRes.value));
+      setHasCalculated(true);
+      setWaitingForOperand(false);
+    } else {
+      if (evalRes.error === 'DIV_ZERO') {
+        toast('Cannot divide by zero', { tone: 'bad' });
+        setDisplay('Cannot divide by zero');
+        setHasCalculated(true);
+        setWaitingForOperand(false);
+      } else {
+        toast('Invalid calculation', { tone: 'bad' });
+      }
+    }
+  }, [display, equation, hasCalculated, handleClear, toast, waitingForOperand]);
 
   // Quick Multipliers
   const handleMultiplyAnnual = useCallback(() => {
     const current = parseFloat(display) || 0;
     const res = Math.round(current * 12);
-    setEquation(`${current} × 12 (Annual) =`);
+    setEquation(`${current} × 12 =`);
     setDisplay(String(res));
     setHasCalculated(true);
+    setWaitingForOperand(false);
   }, [display]);
 
   const handleDivideDaily = useCallback(() => {
     const current = parseFloat(display) || 0;
-    const res = Math.round(current / 30);
-    setEquation(`${current} ÷ 30 (Daily) =`);
+    const res = Math.round((current / 30) * 100) / 100;
+    setEquation(`${current} ÷ 30 =`);
     setDisplay(String(res));
     setHasCalculated(true);
+    setWaitingForOperand(false);
   }, [display]);
 
   const handleAddAmount = useCallback((addVal: number) => {
+    if (hasCalculated || equation.includes('=')) {
+      setEquation('');
+      setDisplay((prev) => {
+        const cur = parseFloat(prev) || 0;
+        return String(cur + addVal);
+      });
+      setHasCalculated(false);
+      setWaitingForOperand(false);
+      return;
+    }
+
+    if (waitingForOperand) {
+      setDisplay(String(addVal));
+      setWaitingForOperand(false);
+      return;
+    }
+
     setDisplay((prev) => {
       const current = parseFloat(prev) || 0;
       return String(current + addVal);
     });
-  }, []);
+    setHasCalculated(false);
+    setWaitingForOperand(false);
+  }, [equation, hasCalculated, waitingForOperand]);
 
   // Keyboard shortcut listener for active calculator
   useEffect(() => {
     if (!open || activeTab !== 'standard') return;
 
     const onKey = (e: KeyboardEvent) => {
+      // Don't intercept when typing in form inputs
+      if (
+        e.target instanceof HTMLElement &&
+        (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')
+      ) {
+        return;
+      }
+
       if (e.key >= '0' && e.key <= '9') {
         e.preventDefault();
-        handleInput(e.key);
+        e.stopPropagation();
+        handleDigit(e.key);
       } else if (e.key === '.') {
         e.preventDefault();
-        handleInput('.');
+        e.stopPropagation();
+        handleDecimal();
       } else if (e.key === '+') {
         e.preventDefault();
-        handleInput('+');
+        e.stopPropagation();
+        handleOperator('+');
       } else if (e.key === '-') {
         e.preventDefault();
-        handleInput('−');
-      } else if (e.key === '*' || e.key === 'x') {
+        e.stopPropagation();
+        handleOperator('−');
+      } else if (e.key === '*' || e.key === 'x' || e.key === 'X') {
         e.preventDefault();
-        handleInput('×');
+        e.stopPropagation();
+        handleOperator('×');
       } else if (e.key === '/') {
         e.preventDefault();
-        handleInput('÷');
+        e.stopPropagation();
+        handleOperator('÷');
+      } else if (e.key === '%') {
+        e.preventDefault();
+        e.stopPropagation();
+        handlePercent();
       } else if (e.key === 'Enter' || e.key === '=') {
         e.preventDefault();
+        e.stopPropagation();
         handleEqual();
-      } else if (e.key === 'Backspace') {
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
+        e.stopPropagation();
         handleDelete();
-      } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
+      } else if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      } else if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
         handleClear();
+      } else if ((e.key === 'c' || e.key === 'C') && (e.metaKey || e.ctrlKey)) {
+        // If no text is selected by user, copy the display amount
+        if (!window.getSelection()?.toString()) {
+          copyToClipboard(display, 'Amount copied!');
+        }
+      }
+    };
+
+    const onPaste = (e: ClipboardEvent) => {
+      if (
+        e.target instanceof HTMLElement &&
+        (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')
+      ) {
+        return;
+      }
+
+      const pastedText = e.clipboardData?.getData('text')?.trim();
+      if (!pastedText) return;
+
+      const evalRes = evaluateExpression(pastedText);
+      if (evalRes.ok) {
+        e.preventDefault();
+        setEquation(`${pastedText} =`);
+        setDisplay(String(evalRes.value));
+        setHasCalculated(true);
+        setWaitingForOperand(false);
       }
     };
 
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, activeTab, handleInput, handleEqual, handleDelete, handleClear]);
+    window.addEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('paste', onPaste);
+    };
+  }, [
+    open,
+    activeTab,
+    display,
+    onClose,
+    copyToClipboard,
+    handleDigit,
+    handleDecimal,
+    handleOperator,
+    handlePercent,
+    handleEqual,
+    handleDelete,
+    handleClear,
+  ]);
 
   // --- EMI Calculation Logic ---
   const emiResults = useMemo(() => {
-    const p = parseFloat(loanPrincipal) || 0;
-    const annualRate = parseFloat(loanInterestRate) || 0;
-    const years = parseFloat(loanTenureYears) || 0;
-
-    if (p <= 0 || annualRate <= 0 || years <= 0) {
-      return { emi: 0, totalInterest: 0, totalAmount: 0, principalPct: 100, interestPct: 0 };
-    }
-
-    const r = annualRate / 12 / 100;
-    const n = years * 12;
-    const emi = (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-    const totalAmount = emi * n;
-    const totalInterest = totalAmount - p;
-
-    const principalPct = Math.round((p / totalAmount) * 100);
-    const interestPct = 100 - principalPct;
-
-    return {
-      emi: Math.round(emi),
-      totalInterest: Math.round(totalInterest),
-      totalAmount: Math.round(totalAmount),
-      principalPct,
-      interestPct,
-    };
+    const cleanPrincipal = parseFloat(loanPrincipal.replace(/,/g, '')) || 0;
+    const cleanRate = parseFloat(loanInterestRate.replace(/,/g, '')) || 0;
+    const cleanTenure = parseFloat(loanTenureYears.replace(/,/g, '')) || 0;
+    return calculateEmi(cleanPrincipal, cleanRate, cleanTenure);
   }, [loanPrincipal, loanInterestRate, loanTenureYears]);
 
   // --- SIP Calculation Logic ---
   const sipResults = useMemo(() => {
-    const p = parseFloat(sipMonthly) || 0;
-    const annualRate = parseFloat(sipReturnRate) || 0;
-    const years = parseFloat(sipYears) || 0;
-
-    if (p <= 0 || annualRate <= 0 || years <= 0) {
-      return { totalInvested: 0, wealthGain: 0, totalValue: 0, investedPct: 100, gainPct: 0 };
-    }
-
-    const i = annualRate / 12 / 100;
-    const n = years * 12;
-    // FV = P * [((1 + i)^n - 1) / i] * (1 + i)
-    const totalValue = p * ((Math.pow(1 + i, n) - 1) / i) * (1 + i);
-    const totalInvested = p * n;
-    const wealthGain = totalValue - totalInvested;
-
-    const investedPct = Math.round((totalInvested / totalValue) * 100);
-    const gainPct = 100 - investedPct;
-
-    return {
-      totalInvested: Math.round(totalInvested),
-      wealthGain: Math.round(wealthGain),
-      totalValue: Math.round(totalValue),
-      investedPct,
-      gainPct,
-    };
+    const cleanMonthly = parseFloat(sipMonthly.replace(/,/g, '')) || 0;
+    const cleanRate = parseFloat(sipReturnRate.replace(/,/g, '')) || 0;
+    const cleanYears = parseFloat(sipYears.replace(/,/g, '')) || 0;
+    return calculateSip(cleanMonthly, cleanRate, cleanYears);
   }, [sipMonthly, sipReturnRate, sipYears]);
-
-  const copyToClipboard = (textToCopy: string, label = 'Copied to clipboard') => {
-    void navigator.clipboard.writeText(textToCopy);
-    toast(label, { tone: 'good' });
-  };
 
   const currentDisplayNumber = parseFloat(display) || 0;
 
@@ -323,14 +531,16 @@ export function CalculatorSheet({
                 {equation || '0'}
               </div>
               <div className="text-3xl sm:text-4xl font-mono font-bold text-ink tracking-tight truncate select-all">
-                {formatMoney(rupeesToPaise(currentDisplayNumber))}
+                {formatCalculatorDisplay(display)}
               </div>
 
               {/* Copy / Quick Actions */}
               <div className="flex items-center justify-between pt-1 border-t border-line/40">
                 <span className="text-[10px] text-faint font-mono">
-                  {currentDisplayNumber > 0
-                    ? `₹${currentDisplayNumber.toLocaleString('en-IN')}`
+                  {currentDisplayNumber !== 0
+                    ? currentDisplayNumber < 0
+                      ? `-₹${Math.abs(currentDisplayNumber).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+                      : `₹${currentDisplayNumber.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
                     : 'Ready'}
                 </span>
                 <div className="flex items-center gap-1">
@@ -419,14 +629,14 @@ export function CalculatorSheet({
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('%')}
+                onClick={handlePercent}
                 className="rounded-xl border border-line/70 bg-raised/60 text-muted font-bold text-sm py-3 hover:bg-raised hover:text-ink active:scale-95 transition-all shadow-2xs"
               >
                 %
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('÷')}
+                onClick={() => handleOperator('÷')}
                 className="rounded-xl border border-accent/40 bg-accent/15 text-accent font-bold text-base py-3 hover:bg-accent/25 active:scale-95 transition-all shadow-2xs"
               >
                 ÷
@@ -435,28 +645,28 @@ export function CalculatorSheet({
               {/* Row 2 */}
               <button
                 type="button"
-                onClick={() => handleInput('7')}
+                onClick={() => handleDigit('7')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 7
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('8')}
+                onClick={() => handleDigit('8')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 8
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('9')}
+                onClick={() => handleDigit('9')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 9
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('×')}
+                onClick={() => handleOperator('×')}
                 className="rounded-xl border border-accent/40 bg-accent/15 text-accent font-bold text-base py-3 hover:bg-accent/25 active:scale-95 transition-all shadow-2xs"
               >
                 ×
@@ -465,28 +675,28 @@ export function CalculatorSheet({
               {/* Row 3 */}
               <button
                 type="button"
-                onClick={() => handleInput('4')}
+                onClick={() => handleDigit('4')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 4
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('5')}
+                onClick={() => handleDigit('5')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 5
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('6')}
+                onClick={() => handleDigit('6')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 6
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('−')}
+                onClick={() => handleOperator('−')}
                 className="rounded-xl border border-accent/40 bg-accent/15 text-accent font-bold text-base py-3 hover:bg-accent/25 active:scale-95 transition-all shadow-2xs"
               >
                 −
@@ -495,28 +705,28 @@ export function CalculatorSheet({
               {/* Row 4 */}
               <button
                 type="button"
-                onClick={() => handleInput('1')}
+                onClick={() => handleDigit('1')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 1
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('2')}
+                onClick={() => handleDigit('2')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 2
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('3')}
+                onClick={() => handleDigit('3')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 3
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('+')}
+                onClick={() => handleOperator('+')}
                 className="rounded-xl border border-accent/40 bg-accent/15 text-accent font-bold text-base py-3 hover:bg-accent/25 active:scale-95 transition-all shadow-2xs"
               >
                 +
@@ -525,21 +735,21 @@ export function CalculatorSheet({
               {/* Row 5 */}
               <button
                 type="button"
-                onClick={() => handleInput('0')}
+                onClick={() => handleDigit('0')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 0
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('.')}
+                onClick={handleDecimal}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-bold text-base py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 .
               </button>
               <button
                 type="button"
-                onClick={() => handleInput('00')}
+                onClick={() => handleDigit('00')}
                 className="rounded-xl border border-line/70 bg-surface text-ink font-semibold text-sm py-3 hover:bg-raised active:scale-95 transition-all shadow-2xs font-mono"
               >
                 00
@@ -559,9 +769,34 @@ export function CalculatorSheet({
         {activeTab === 'emi' ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-line/70 bg-surface/95 p-4 space-y-3 shadow-inner">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted block">
-                Monthly Repayment (EMI)
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted block">
+                  Monthly Repayment (EMI)
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(String(emiResults.emi), 'EMI amount copied!')}
+                    className="p-1 text-muted hover:text-ink rounded hover:bg-raised transition-colors"
+                    title="Copy EMI"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                  {onLogSpend && emiResults.emi > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onLogSpend(emiResults.emi);
+                        onClose();
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:bg-accent/15 rounded px-2 py-0.5 transition-colors"
+                    >
+                      <Plus className="h-3 w-3" />
+                      <span>Log as spend</span>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
               <div className="text-3xl font-bold text-orange-500 font-mono tracking-tight">
                 {formatMoney(rupeesToPaise(emiResults.emi))}
                 <span className="text-xs text-muted font-normal ml-1">/ month</span>
@@ -584,7 +819,7 @@ export function CalculatorSheet({
                 <div className="flex items-center justify-between text-[11px] text-muted font-medium">
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-accent" />
-                    Principal: {formatMoney(rupeesToPaise(parseFloat(loanPrincipal) || 0))}
+                    Principal: {formatMoney(rupeesToPaise(parseFloat(loanPrincipal.replace(/,/g, '')) || 0))}
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-orange-500" />
@@ -637,9 +872,19 @@ export function CalculatorSheet({
         {activeTab === 'sip' ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-line/70 bg-surface/95 p-4 space-y-3 shadow-inner">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted block">
-                Estimated Future Value
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted block">
+                  Estimated Future Value
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(String(sipResults.totalValue), 'Future value copied!')}
+                  className="p-1 text-muted hover:text-ink rounded hover:bg-raised transition-colors"
+                  title="Copy future value"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              </div>
               <div className="text-3xl font-bold text-teal-500 font-mono tracking-tight">
                 {formatMoney(rupeesToPaise(sipResults.totalValue))}
               </div>
