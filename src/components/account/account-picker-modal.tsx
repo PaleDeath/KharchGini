@@ -5,6 +5,7 @@ import { Banknote, Check, ChevronRight, CircleDashed, CreditCard, Landmark, Wall
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import type { Account, AccountType } from '@/domain/types';
+import { isAddOnCard } from '@/domain/types';
 
 export function getAccountIcon(type: AccountType) {
   switch (type) {
@@ -97,7 +98,9 @@ export function AccountPicker({
                 </span>
                 <span className="block text-[11px] font-medium uppercase tracking-wider text-faint">
                   {selectedAccount.type === 'card'
-                    ? 'Credit Card'
+                    ? isAddOnCard(selectedAccount)
+                      ? selectedAccount.last4 ? `Add-on Card (•••• ${selectedAccount.last4})` : 'Add-on Card'
+                      : selectedAccount.last4 ? `Credit Card (•••• ${selectedAccount.last4})` : 'Credit Card'
                     : selectedAccount.type === 'cash'
                     ? 'Cash'
                     : selectedAccount.type === 'wallet'
@@ -162,7 +165,9 @@ export function AccountPicker({
                   <span className="block truncate text-sm font-semibold text-ink">{account.name}</span>
                   <span className="block text-[11px] text-faint uppercase tracking-wider">
                     {account.type === 'card'
-                      ? 'Credit Card'
+                      ? isAddOnCard(account)
+                        ? account.last4 ? `Add-on Card (•••• ${account.last4})` : 'Add-on Card'
+                        : account.last4 ? `Credit Card (•••• ${account.last4})` : 'Credit Card'
                       : account.type === 'cash'
                       ? 'Cash'
                       : account.type === 'wallet'

@@ -38,6 +38,8 @@ import {
   upcoming,
 } from './recurring';
 import {
+  isAddOnCard,
+  isPrimaryCard,
   LIQUID_ACCOUNT_TYPES,
   type Account,
   type Anomaly,
@@ -277,17 +279,122 @@ export function nextPayday(
   return endOfMonth(monthOf(today));
 }
 
-/** Total debt owed across all active credit cards. */
-export function totalCreditCardDebt(accounts: Account[], entries: Entry[]): Paise {
+/**
+ * Returns all active primary credit cards.
+ * Excludes add-on cards as they do not constitute separate primary credit lines.
+ */
+export function primaryCreditCards(accounts: Account[]): Account[] {
+  return accounts.filter((a) => a.type === 'card' && !a.archived && isPrimaryCard(a));
+}
+
+/**
+ * Returns all active add-on cards, optionally filtered to those linked to a specific primary card.
+ */
+export function addOnCards(accounts: Account[], primaryCardId?: string): Account[] {
+  return accounts.filter((a) => {
+    if (a.type !== 'card' || a.archived || !isAddOnCard(a)) return false;
+    if (primaryCardId !== undefined) return a.primaryCardId === primaryCardId;
+    return true;
+  });
+}
+
+/**
+ * Total credit limit across all active PRIMARY credit card accounts.
+ *
+ * Add-on cards share the credit line and limit of their primary card and
+ * are NOT recognized as primary credit lines or limits to prevent double counting.
+ */
+export function totalCreditLimit(accounts: Account[]): Paise {
+  return primaryCreditCards(accounts).reduce(
+    (sum, card) => sum + (card.creditLimit ?? 0),
+    0,
+  );
+}
+
+/**
+ * Returns the combined debt attributed to a primary credit line.
+ * This combines the balance on the primary card itself PLUS the balances
+ * on any active add-on cards linked to it.
+ *
+ * In credit card banking, bill payments for the entire facility are typically made
+ * to the primary card account. Therefore, net line balance is computed by pooling
+ * the primary card balance with linked add-on cards, so that payments made on the primary
+ * card properly net against add-on card spends.
+ */
+export function creditLineDebt(
+  primaryCardId: string,
+  accounts: Account[],
+  entries: Entry[],
+): Paise {
   const balances = accountBalances(accounts, entries);
-  let total = 0;
+  const primary = accounts.find((a) => a.id === primaryCardId);
+  if (!primary || primary.archived) return 0;
+
+  let netBalance = balances.get(primary.id) ?? 0;
   for (const a of accounts) {
-    if (a.type === 'card' && !a.archived) {
-      const bal = balances.get(a.id) ?? 0;
-      if (bal < 0) total += Math.abs(bal);
+    if (a.type === 'card' && !a.archived && a.primaryCardId === primaryCardId) {
+      netBalance += balances.get(a.id) ?? 0;
     }
   }
-  return total;
+
+  return netBalance < 0 ? Math.abs(netBalance) : 0;
+}
+
+/**
+ * Calculates the available credit on a primary card's credit line,
+ * taking into account both the primary card's debt and any linked add-on cards' debt.
+ */
+export function creditLineAvailable(
+  primaryCard: Account,
+  accounts: Account[],
+  entries: Entry[],
+): Paise {
+  const limit = primaryCard.creditLimit ?? 0;
+  if (limit <= 0) return 0;
+  const debt = creditLineDebt(primaryCard.id, accounts, entries);
+  return Math.max(0, limit - debt);
+}
+
+/**
+ * Total debt owed across all credit card lines (both primary and add-on cards).
+ *
+ * Each active primary credit line pools its balance with its linked add-on cards.
+ * Any standalone or unlinked add-on cards (e.g., parent archived or untracked)
+ * are accounted for individually.
+ */
+export function totalCreditCardDebt(accounts: Account[], entries: Entry[]): Paise {
+  const balances = accountBalances(accounts, entries);
+  const activePrimaries = primaryCreditCards(accounts);
+  const activePrimaryIds = new Set(activePrimaries.map((a) => a.id));
+
+  let totalDebt = 0;
+  for (const primary of activePrimaries) {
+    totalDebt += creditLineDebt(primary.id, accounts, entries);
+  }
+
+  // Standalone or unlinked add-on cards (parent missing or archived)
+  for (const a of accounts) {
+    if (a.type === 'card' && !a.archived && isAddOnCard(a)) {
+      if (!a.primaryCardId || !activePrimaryIds.has(a.primaryCardId)) {
+        const bal = balances.get(a.id) ?? 0;
+        if (bal < 0) totalDebt += Math.abs(bal);
+      }
+    }
+  }
+
+  return totalDebt;
+}
+
+/**
+ * Overall credit utilization percentage (0-100) across all primary credit lines.
+ * Debt across all active cards (including add-on cards) is divided by the
+ * total primary credit limit.
+ */
+export function creditUtilization(accounts: Account[], entries: Entry[]): number {
+  const limit = totalCreditLimit(accounts);
+  if (limit <= 0) return 0;
+  const debt = totalCreditCardDebt(accounts, entries);
+  return Math.min(100, Math.round((debt / limit) * 100));
 }
 
 /**

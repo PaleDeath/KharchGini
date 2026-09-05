@@ -53,6 +53,16 @@ export interface Account {
   billingDueDay?: number;
   /** Optional last 4 digits of the card. */
   last4?: string;
+  /**
+   * If true, this is an add-on (supplementary) credit card.
+   * Add-on cards share the credit line with their primary card and are NOT
+   * recognized as a primary credit line or limit.
+   */
+  isAddOn?: boolean;
+  /**
+   * Optional account ID of the primary credit card this add-on card is attached to.
+   */
+  primaryCardId?: string;
   archived?: boolean;
   sortOrder: number;
   createdAt: string;
@@ -64,6 +74,22 @@ export const LIABILITY_ACCOUNT_TYPES: readonly AccountType[] = ['card'];
 
 export function isLiability(account: Account): boolean {
   return LIABILITY_ACCOUNT_TYPES.includes(account.type);
+}
+
+/**
+ * Returns true if the account is an add-on (supplementary) credit card.
+ * Add-on cards share their credit facility with a primary card and do not
+ * establish a separate primary credit line or credit limit.
+ */
+export function isAddOnCard(account: Account): boolean {
+  return account.type === 'card' && Boolean(account.isAddOn || account.primaryCardId);
+}
+
+/**
+ * Returns true if the account is a primary credit card (not an add-on card).
+ */
+export function isPrimaryCard(account: Account): boolean {
+  return account.type === 'card' && !isAddOnCard(account);
 }
 
 /** Cash, bank and wallet money is spendable today. Savings is not, by default. */

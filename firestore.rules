@@ -66,7 +66,9 @@ service cloud.firestore {
           && (!('last4' in data()) || shortText(data().last4, 4))
           && (!('sortOrder' in data()) || data().sortOrder is int)
           && (!('archived' in data()) || data().archived is bool)
-          && (!('excludeFromSafeToSpend' in data()) || data().excludeFromSafeToSpend is bool);
+          && (!('excludeFromSafeToSpend' in data()) || data().excludeFromSafeToSpend is bool)
+          && (!('isAddOn' in data()) || data().isAddOn is bool)
+          && (!('primaryCardId' in data()) || shortText(data().primaryCardId, 64));
       }
 
       match /entries/{entryId} {

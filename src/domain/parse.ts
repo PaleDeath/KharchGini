@@ -32,7 +32,7 @@ import {
   type ISODate,
 } from './dates';
 import { guessCategory, type GuessContext } from './categorize';
-import type { Account, CategorySource, Direction } from './types';
+import { isPrimaryCard, type Account, type CategorySource, type Direction } from './types';
 
 /* -------------------------------------------------------------------------- */
 /* Result shapes                                                               */
@@ -413,8 +413,19 @@ export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | nul
       'canara', 'union', 'rbl', 'federal', 'amex', 'citi', 'hsbc', 'scb', 'dbs',
       'yesbank', 'jupiter', 'slice', 'onecard', 'amazon pay', 'paytm',
     ];
+    const isCreditMentioned = /(?:credit\s+card|card\s*(?:ending|xx))/i.test(text);
     for (const bank of BANK_NAMES) {
       if (lower.includes(bank)) {
+        if (isCreditMentioned) {
+          // When credit card is mentioned, prefer primary card accounts under this bank first
+          const cardFound =
+            ctx.accounts.find((a) => !a.archived && isPrimaryCard(a) && normalise(a.name).includes(normalise(bank))) ??
+            ctx.accounts.find((a) => !a.archived && a.type === 'card' && normalise(a.name).includes(normalise(bank)));
+          if (cardFound) {
+            matchedAccount = cardFound;
+            break;
+          }
+        }
         const found = ctx.accounts.find(
           (a) => !a.archived && normalise(a.name).includes(normalise(bank)),
         );
@@ -426,9 +437,11 @@ export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | nul
     }
   }
 
-  // 5c. If credit card mentioned and no account matched yet, prefer card account
+  // 5c. If credit card mentioned and no account matched yet, prefer primary card account
   if (!matchedAccount && /(?:credit\s+card|card\s*(?:ending|xx))/i.test(text)) {
-    matchedAccount = ctx.accounts.find((a) => !a.archived && a.type === 'card');
+    matchedAccount =
+      ctx.accounts.find((a) => !a.archived && isPrimaryCard(a)) ??
+      ctx.accounts.find((a) => !a.archived && a.type === 'card');
   }
 
   // 5d. Match non-generic account names

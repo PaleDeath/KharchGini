@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start -p 9002",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.4",

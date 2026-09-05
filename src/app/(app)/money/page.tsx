@@ -26,9 +26,31 @@ import {
   startOfMonth,
   today as todayISO,
 } from '@/domain/dates';
-import { accountBalances, byId, entriesBetween, entriesInMonth, totalIn, totalOut } from '@/domain/derive';
+import {
+  accountBalances,
+  byId,
+  entriesBetween,
+  entriesInMonth,
+  primaryCreditCards,
+  addOnCards,
+  totalCreditLimit,
+  creditLineDebt,
+  creditLineAvailable,
+  totalCreditCardDebt,
+  creditUtilization as calcCreditUtilization,
+  totalIn,
+  totalOut,
+} from '@/domain/derive';
 import { formatAmount, formatMoney } from '@/domain/money';
-import { ACCOUNT_TYPE_LABEL, isLiability, type Account, type Direction, type Entry } from '@/domain/types';
+import {
+  ACCOUNT_TYPE_LABEL,
+  isAddOnCard,
+  isLiability,
+  isPrimaryCard,
+  type Account,
+  type Direction,
+  type Entry,
+} from '@/domain/types';
 import { getAccountBadgeColor, getAccountIcon } from '@/components/account/account-picker-modal';
 import { AccountSheet } from '@/components/account/account-sheet';
 import { PayBillSheet } from '@/components/account/pay-bill-sheet';
@@ -70,32 +92,63 @@ export default function MoneyPage() {
     [ledger.accounts, ledger.entries],
   );
 
-  const creditCards = useMemo(
-    () => ledger.accounts.filter((a) => a.type === 'card' && !a.archived),
-    [ledger.accounts],
-  );
-
   const liquidAccounts = useMemo(
     () => ledger.accounts.filter((a) => a.type !== 'card' && !a.archived),
     [ledger.accounts],
   );
 
+  const primaryCards = useMemo(
+    () => primaryCreditCards(ledger.accounts),
+    [ledger.accounts],
+  );
+
+  const addOnCardList = useMemo(
+    () => addOnCards(ledger.accounts),
+    [ledger.accounts],
+  );
+
+  // Group active cards by credit line so each primary card is followed by its linked add-on cards
+  const creditCards = useMemo(() => {
+    const activeCards = ledger.accounts.filter((a) => a.type === 'card' && !a.archived);
+    const primaries = activeCards.filter((c) => isPrimaryCard(c));
+    const result: Account[] = [];
+    const addedIds = new Set<string>();
+
+    for (const p of primaries) {
+      result.push(p);
+      addedIds.add(p.id);
+      // Append linked add-ons directly under their primary card
+      const linked = activeCards.filter((c) => isAddOnCard(c) && c.primaryCardId === p.id);
+      for (const a of linked) {
+        result.push(a);
+        addedIds.add(a.id);
+      }
+    }
+
+    // Append any remaining unlinked or standalone add-on cards
+    for (const c of activeCards) {
+      if (!addedIds.has(c.id)) {
+        result.push(c);
+      }
+    }
+
+    return result;
+  }, [ledger.accounts]);
+
   // Credit Card Metrics
   const totalCardDebt = useMemo(() => {
-    return creditCards.reduce((acc, card) => {
-      const bal = balances.get(card.id) ?? 0;
-      return acc + (bal < 0 ? Math.abs(bal) : 0);
-    }, 0);
-  }, [creditCards, balances]);
+    return totalCreditCardDebt(ledger.accounts, ledger.entries);
+  }, [ledger.accounts, ledger.entries]);
 
-  const totalCreditLimit = useMemo(() => {
-    return creditCards.reduce((acc, card) => acc + (card.creditLimit ?? 0), 0);
-  }, [creditCards]);
+  // Primary credit limit: add-on cards share their credit facility and are not
+  // recognized as primary credit lines or limits.
+  const totalCreditLimitVal = useMemo(() => {
+    return totalCreditLimit(ledger.accounts);
+  }, [ledger.accounts]);
 
   const creditUtilization = useMemo(() => {
-    if (totalCreditLimit <= 0) return 0;
-    return Math.min(100, Math.round((totalCardDebt / totalCreditLimit) * 100));
-  }, [totalCardDebt, totalCreditLimit]);
+    return calcCreditUtilization(ledger.accounts, ledger.entries);
+  }, [ledger.accounts, ledger.entries]);
 
   const cardSpendsThisMonth = useMemo(() => {
     const cardIds = new Set(creditCards.map((c) => c.id));
@@ -424,7 +477,7 @@ export default function MoneyPage() {
           </div>
 
           {/* Utilization Header Banner */}
-          {totalCreditLimit > 0 ? (
+          {totalCreditLimitVal > 0 ? (
             <div className="rounded-lg border border-line/50 bg-raised/40 p-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
@@ -442,9 +495,16 @@ export default function MoneyPage() {
                     {creditUtilization}% · {creditUtilization <= 30 ? 'Healthy (<30%)' : creditUtilization <= 50 ? 'Moderate' : 'High'}
                   </span>
                 </div>
-                <span className="text-muted font-medium text-xs">
-                  <Money value={totalCardDebt} tone="plain" className="font-semibold text-ink" /> / <Money value={totalCreditLimit} tone="plain" />
-                </span>
+                <div className="text-right">
+                  <span className="text-muted font-medium text-xs">
+                    <Money value={totalCardDebt} tone="plain" className="font-semibold text-ink" /> / <Money value={totalCreditLimitVal} tone="plain" />
+                  </span>
+                  {addOnCardList.length > 0 ? (
+                    <div className="text-[10px] text-faint">
+                      Primary limit ({primaryCards.length} {primaryCards.length === 1 ? 'line' : 'lines'}) · {addOnCardList.length} add-on sharing
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-raised">
                 <div
@@ -581,10 +641,28 @@ export default function MoneyPage() {
             {creditCards.map((card) => {
               const bal = balances.get(card.id) ?? 0;
               const owed = bal < 0 ? Math.abs(bal) : 0;
-              const limit = card.creditLimit ?? 0;
-              const available = limit > 0 ? Math.max(0, limit - owed) : 0;
-              const cardUtil = limit > 0 ? Math.min(100, Math.round((owed / limit) * 100)) : 0;
+              const isAddOn = isAddOnCard(card);
+              const parentCard = card.primaryCardId ? accounts.get(card.primaryCardId) : undefined;
+              const isParentActive = Boolean(parentCard && !parentCard.archived);
               const active = accountId === card.id;
+
+              // Primary card line calculations
+              const linkedAddOns = creditCards.filter((c) => isAddOnCard(c) && c.primaryCardId === card.id);
+              const lineDebt = !isAddOn ? creditLineDebt(card.id, ledger.accounts, ledger.entries) : 0;
+              const primaryLimit = card.creditLimit ?? 0;
+              const lineAvailable = !isAddOn ? creditLineAvailable(card, ledger.accounts, ledger.entries) : 0;
+              const lineUtil = primaryLimit > 0 ? Math.min(100, Math.round((lineDebt / primaryLimit) * 100)) : 0;
+
+              // Add-on card sub-limit calculations
+              const parentLineAvail = isParentActive ? creditLineAvailable(parentCard!, ledger.accounts, ledger.entries) : undefined;
+              const subLimit = card.creditLimit ?? 0;
+              const subAvailable = subLimit > 0
+                ? (parentLineAvail !== undefined ? Math.min(Math.max(0, subLimit - owed), parentLineAvail) : Math.max(0, subLimit - owed))
+                : 0;
+              const subUtil = subLimit > 0 ? Math.min(100, Math.round((owed / subLimit) * 100)) : 0;
+
+              // Bill amount to pay (for primary card with add-on cards, pays line debt)
+              const billToPay = isAddOn ? owed : (lineDebt > 0 ? lineDebt : owed);
 
               return (
                 <div
@@ -598,14 +676,39 @@ export default function MoneyPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-sm text-ink">{card.name}</span>
                         {card.last4 ? (
                           <span className="rounded-md bg-raised px-1.5 py-0.5 text-[10px] font-mono font-bold text-faint">
                             •••• {card.last4}
                           </span>
                         ) : null}
+                        {isAddOn ? (
+                          <span className="rounded-md border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                            Add-on Card
+                          </span>
+                        ) : (
+                          <span className="rounded-md border border-line/60 bg-raised px-1.5 py-0.5 text-[10px] font-semibold text-muted">
+                            Primary
+                          </span>
+                        )}
+                        {!isAddOn && linkedAddOns.length > 0 ? (
+                          <span className="rounded-md bg-raised border border-line/60 px-1.5 py-0.5 text-[10px] font-medium text-muted">
+                            +{linkedAddOns.length} Add-on {linkedAddOns.length === 1 ? 'card' : 'cards'}
+                          </span>
+                        ) : null}
                       </div>
+
+                      {isAddOn ? (
+                        <p className="text-[11px] text-muted mt-0.5">
+                          {isParentActive
+                            ? `Shares line with ${parentCard!.name}`
+                            : parentCard
+                            ? 'Primary card inactive · Standalone add-on'
+                            : 'Shares primary credit line'}
+                        </p>
+                      ) : null}
+
                       {card.billingDueDay ? (
                         <p className="text-[11px] text-faint mt-0.5">
                           Bill Due: {card.billingDueDay}th of every month
@@ -625,14 +728,26 @@ export default function MoneyPage() {
 
                   <div className="mt-4 space-y-2">
                     <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-semibold text-faint uppercase tracking-wider">Current Owed</span>
+                      <div>
+                        <span className="text-xs font-semibold text-faint uppercase tracking-wider block">
+                          {!isAddOn && linkedAddOns.length > 0 ? 'Line Balance Due' : 'Current Owed'}
+                        </span>
+                        {!isAddOn && linkedAddOns.length > 0 && lineDebt > 0 ? (
+                          <span className="text-[10px] text-muted block mt-0.5">
+                            Card: {formatMoney(owed)} · Add-ons: {formatMoney(linkedAddOns.reduce((acc, c) => acc + Math.max(0, -(balances.get(c.id) ?? 0)), 0))}
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="text-right">
                         <Money
-                          value={owed}
-                          className={cn('text-lg font-bold tnum', owed > 0 ? 'text-bad' : 'text-good')}
+                          value={!isAddOn && linkedAddOns.length > 0 ? lineDebt : owed}
+                          className={cn(
+                            'text-lg font-bold tnum',
+                            (!isAddOn && linkedAddOns.length > 0 ? lineDebt : owed) > 0 ? 'text-bad' : 'text-good',
+                          )}
                           tone="plain"
                         />
-                        {owed > 0 && ledger.prefs.reserveCreditCardBills ? (
+                        {((!isAddOn && linkedAddOns.length > 0 ? lineDebt : owed) > 0) && ledger.prefs.reserveCreditCardBills ? (
                           <span className="flex items-center justify-end gap-1 text-[10px] font-semibold text-good mt-0.5">
                             <ShieldCheck className="h-3 w-3" />
                             Protected in Safe to Spend
@@ -641,23 +756,56 @@ export default function MoneyPage() {
                       </div>
                     </div>
 
-                    {limit > 0 ? (
+                    {!isAddOn ? (
+                      primaryLimit > 0 ? (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] text-faint">
+                            <span>Line Avail: {formatMoney(lineAvailable)}</span>
+                            <span>Limit: {formatMoney(primaryLimit)}</span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-raised">
+                            <div
+                              className={cn(
+                                'h-full rounded-full transition-all',
+                                lineUtil <= 30 ? 'bg-good' : lineUtil <= 50 ? 'bg-warn' : 'bg-bad',
+                              )}
+                              style={{ width: `${lineUtil}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : null
+                    ) : subLimit > 0 ? (
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-[11px] text-faint">
-                          <span>Avail: {formatMoney(available)}</span>
-                          <span>Limit: {formatMoney(limit)}</span>
+                          <span>Card Avail: {formatMoney(subAvailable)}</span>
+                          <span>Sub-limit: {formatMoney(subLimit)}</span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-raised">
                           <div
                             className={cn(
                               'h-full rounded-full transition-all',
-                              cardUtil <= 30 ? 'bg-good' : cardUtil <= 50 ? 'bg-warn' : 'bg-bad',
+                              subUtil <= 30 ? 'bg-good' : subUtil <= 50 ? 'bg-warn' : 'bg-bad',
                             )}
-                            style={{ width: `${cardUtil}%` }}
+                            style={{ width: `${subUtil}%` }}
                           />
                         </div>
+                        <p className="text-[10px] text-muted italic">
+                          Individual spend cap · Not a primary credit line
+                          {parentLineAvail !== undefined && subAvailable < Math.max(0, subLimit - owed) ? ' (capped by line availability)' : ''}
+                        </p>
                       </div>
-                    ) : null}
+                    ) : isParentActive ? (
+                      <div className="rounded-lg bg-raised/50 border border-line/40 px-2.5 py-1.5 text-[11px] text-muted flex items-center justify-between">
+                        <span>Shared Primary Line:</span>
+                        <span className="font-semibold text-ink">
+                          Avail {formatMoney(parentLineAvail ?? 0)} / Limit {formatMoney(parentCard!.creditLimit ?? 0)} ({parentCard!.name})
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted italic">
+                        {parentCard ? 'Primary card inactive · Standalone add-on card' : 'Shared credit line · Not recognized as primary credit line'}
+                      </p>
+                    )}
                   </div>
 
                   <div className="mt-4 flex items-center gap-2 pt-3 border-t border-line/70">
@@ -674,10 +822,10 @@ export default function MoneyPage() {
                       {active ? 'Viewing Spends' : 'Filter Card Spends'}
                     </button>
 
-                    {owed > 0 ? (
+                    {billToPay > 0 ? (
                       <button
                         type="button"
-                        onClick={() => setPayingCard({ card, owed })}
+                        onClick={() => setPayingCard({ card, owed: billToPay })}
                         className="rounded-xl border border-good/40 bg-good/15 hover:bg-good/25 text-good px-3 py-1.5 text-xs font-bold transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
                       >
                         <Check className="h-3.5 w-3.5 stroke-[3]" />
