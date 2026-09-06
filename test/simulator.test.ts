@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  analyzeMonthlyCashFlow,
   calculateMonthlyEMI,
   calculateTargetAccumulation,
   estimateMonthlyFreeCashFlow,
+  getDefaultTargetHorizon,
   getNovemberNextYear,
   runSimulation,
   type SimulationParams,
@@ -468,3 +470,237 @@ test('dedicated savings reserve account created when ledger has only checking ac
   assert.equal(result.committableRecurring.counterAccountId, 'acc_savings_reserve');
   assert.notEqual(result.committableRecurring.accountId, result.committableRecurring.counterAccountId);
 });
+
+test('getDefaultTargetHorizon calculates generic future dates accurately', () => {
+  const today = '2026-09-06';
+  assert.equal(getDefaultTargetHorizon(today, 12), '2027-09-06');
+  assert.equal(getDefaultTargetHorizon(today, 6), '2027-03-06');
+  assert.equal(getDefaultTargetHorizon(today, 3), '2026-12-06');
+  assert.equal(getDefaultTargetHorizon(today, 24), '2028-09-06');
+});
+
+test('analyzeMonthlyCashFlow detects active recurring salary and calculates monthly surplus', () => {
+  const ledger = createSampleLedger();
+  const cf = analyzeMonthlyCashFlow(ledger, undefined, '2026-09-05');
+
+  assert.equal(cf.isSalaryActive, true);
+  assert.equal(cf.incomeSource, 'recurring_salary');
+  assert.equal(cf.monthlyIncome, 100_000_00); // ₹1,00,000 salary
+  assert.equal(cf.monthlyCommittedBills, 30_000_00); // ₹30,000 rent
+  assert.equal(cf.monthlyTotalOutflows, 30_000_00);
+  assert.equal(cf.monthlyNetSurplus, 70_000_00); // ₹70,000 surplus
+  assert.ok(cf.incomeDetails.includes('Monthly Salary'));
+});
+
+test('analyzeMonthlyCashFlow respects customMonthlyIncome override', () => {
+  const ledger = createSampleLedger();
+  // Override salary to ₹1,50,000
+  const cf = analyzeMonthlyCashFlow(ledger, 150_000_00, '2026-09-05');
+
+  assert.equal(cf.incomeSource, 'user_specified');
+  assert.equal(cf.monthlyIncome, 150_000_00);
+  assert.equal(cf.monthlyNetSurplus, 120_000_00); // 1,50,000 - 30,000 = ₹1,20,000
+});
+
+test('calculateTargetAccumulation builds detailed month-by-month accumulation schedule', () => {
+  const today = '2026-09-05';
+  const targetDate = '2027-11-30'; // ~15 months
+  const targetAmount = 300_000_00; // ₹3,00,000
+
+  const ledger = createSampleLedger();
+  const cf = analyzeMonthlyCashFlow(ledger, undefined, today);
+
+  const plan = calculateTargetAccumulation({
+    targetAmount,
+    currentSaved: 0,
+    today,
+    targetDate,
+    accumulationMode: 'by_date',
+    cashFlow: cf,
+  });
+
+  assert.ok(plan.schedule.length > 0);
+  assert.equal(plan.schedule.length, 15);
+
+  // Check first month
+  const month1 = plan.schedule[0]!;
+  assert.equal(month1.monthKey, '2026-09');
+  assert.equal(month1.expectedIncome, 100_000_00);
+  assert.equal(month1.expectedOutflows, 30_000_00);
+  assert.equal(month1.monthlySavings, 20_000_00);
+  assert.equal(month1.cumulativeSaved, 20_000_00);
+  assert.equal(month1.netCashFlowRemaining, 50_000_00); // 100k - 30k - 20k = 50k buffer
+  assert.equal(month1.isTargetMet, false);
+
+  // Check last month (month 15)
+  const lastMonth = plan.schedule[14]!;
+  assert.equal(lastMonth.monthKey, '2027-11');
+  assert.equal(lastMonth.cumulativeSaved, 300_000_00);
+  assert.equal(lastMonth.percentCompleted, 100);
+  assert.equal(lastMonth.isTargetMet, true);
+
+  // Total salary incoming over the full accumulation horizon
+  assert.equal(plan.totalExpectedSalaryOverTimeline, 15 * 100_000_00); // ₹15,00,000 total salary!
+  assert.equal(plan.totalExpectedSavingsOverTimeline, 300_000_00); // ₹3,00,000 saved
+  assert.equal(plan.totalExpectedOutflowsOverTimeline, 15 * 30_000_00); // ₹4,50,000 living/bills
+});
+
+test('runSimulation with custom salary override accounts for salary in takeaways and runway', () => {
+  const bankAcc = makeAccount({ id: 'acc_bank', name: 'Bank', openingBalance: 20_000_00 });
+  const ledger: Ledger = {
+    ...EMPTY_LEDGER,
+    accounts: [bankAcc],
+    recurring: [], // No recurring salary in ledger
+  };
+
+  const params: SimulationParams = {
+    type: 'target_accumulation',
+    title: 'New Emergency Fund',
+    amount: 120_000_00, // ₹1,20,000
+    targetDate: '2027-09-05', // 12 months
+    customMonthlyIncome: 80_000_00, // User inputs ₹80,000/mo salary in simulator
+  };
+
+  const result = runSimulation(ledger, params, '2026-09-05');
+
+  assert.equal(result.cashFlowBreakdown.incomeSource, 'user_specified');
+  assert.equal(result.cashFlowBreakdown.monthlyIncome, 80_000_00);
+  assert.ok(result.targetPlan);
+  assert.equal(result.targetPlan.actualMonthlySavings, 10_000_00); // 1,20,000 / 12 = ₹10,000/mo
+  assert.equal(result.targetPlan.feasibility, 'comfortable');
+
+  // Verify key takeaways explicitly confirm monthly paycheck is accounted for
+  const salaryTakeaway = result.keyTakeaways.find((t) => t.includes('Monthly Paycheck Accounted For'));
+  assert.ok(salaryTakeaway);
+  assert.ok(salaryTakeaway.includes('80,000'));
+});
+
+test('analyzeMonthlyCashFlow supports explicit 0 custom income to simulate career break / job loss', () => {
+  const ledger = createSampleLedger(); // has ₹1,00,000 salary rule
+  const cf = analyzeMonthlyCashFlow(ledger, 0, '2026-09-05');
+
+  assert.equal(cf.incomeSource, 'user_specified');
+  assert.equal(cf.monthlyIncome, 0);
+  assert.equal(cf.isSalaryActive, false);
+  // Rent is ₹30,000, so net surplus is -₹30,000 (honest deficit, not clamped to 0)
+  assert.equal(cf.monthlyCommittedBills, 30_000_00);
+  assert.equal(cf.monthlyNetSurplus, -30_000_00);
+});
+
+test('analyzeMonthlyCashFlow deduplicates recurring bills already assigned to need categories', () => {
+  const ledger = createSampleLedger();
+  // Add category 'cat_rent' of kind 'need'
+  ledger.categories = [
+    { id: 'cat_rent', name: 'Rent', kind: 'need', icon: 'home', color: '#6366f1', sortOrder: 1, archived: false },
+    { id: 'cat_groceries', name: 'Groceries', kind: 'need', icon: 'shopping-cart', color: '#22c55e', sortOrder: 2, archived: false },
+  ];
+  // Assign rent recurring bill to 'cat_rent'
+  ledger.recurring = ledger.recurring.map((r) =>
+    r.id === 'rec_rent' ? { ...r, categoryId: 'cat_rent' } : r,
+  );
+  // Add envelopes for current month: Rent ₹30,000 (already covered by bill) + Groceries ₹15,000 (pure need)
+  ledger.envelopes = [
+    { id: 'env_rent', month: '2026-09', categoryId: 'cat_rent', allocated: 30_000_00, rollover: false, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+    { id: 'env_groceries', month: '2026-09', categoryId: 'cat_groceries', allocated: 15_000_00, rollover: false, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+  ];
+
+  const cf = analyzeMonthlyCashFlow(ledger, undefined, '2026-09-05');
+
+  assert.equal(cf.monthlyIncome, 100_000_00);
+  assert.equal(cf.monthlyCommittedBills, 30_000_00); // House Rent
+  // Groceries is ₹15,000; Rent envelope is NOT double-counted because it's already billed under committed bills
+  assert.equal(cf.monthlyBudgetedNeeds, 15_000_00);
+  assert.equal(cf.monthlyTotalOutflows, 45_000_00); // 30k rent + 15k groceries = 45k (NOT 75k!)
+  assert.equal(cf.monthlyNetSurplus, 55_000_00); // 100k - 45k = 55k surplus
+});
+
+test('calculateTargetAccumulation honestly reports negative cash flow and unrealistic feasibility', () => {
+  const ledger = createSampleLedger();
+  // Expenses = 30k rent. Override income to ₹20,000 -> deficit of -₹10,000/mo
+  const cf = analyzeMonthlyCashFlow(ledger, 20_000_00, '2026-09-05');
+  assert.equal(cf.monthlyNetSurplus, -10_000_00);
+
+  const plan = calculateTargetAccumulation({
+    targetAmount: 120_000_00, // ₹1,20,000
+    currentSaved: 0,
+    today: '2026-09-05',
+    targetDate: '2027-09-05', // 12 months -> requires ₹10,000/mo
+    cashFlow: cf,
+  });
+
+  // Because user has negative surplus (-₹10,000/mo), saving ₹10,000/mo is unrealistic
+  assert.equal(plan.feasibility, 'unrealistic');
+  assert.equal(plan.percentOfSurplus, 0);
+
+  // Month-by-month schedule shows negative buffer (-₹20,000: 20k income - 30k bills - 10k sip)
+  assert.equal(plan.schedule[0]!.netCashFlowRemaining, -20_000_00);
+});
+
+test('runSimulation with custom salary override replaces existing recurring salary in projection', () => {
+  const ledger = createSampleLedger(); // has ₹1,00,000 recurring salary
+  const params: SimulationParams = {
+    type: 'target_accumulation',
+    title: 'Custom Salary Simulation',
+    amount: 240_000_00, // ₹2,40,000
+    targetDate: '2027-09-05', // 12 months -> ₹20,000/mo
+    customMonthlyIncome: 180_000_00, // User overrides salary to ₹1,80,000
+  };
+
+  const result = runSimulation(ledger, params, '2026-09-05');
+
+  assert.equal(result.cashFlowBreakdown.incomeSource, 'user_specified');
+  assert.equal(result.cashFlowBreakdown.monthlyIncome, 180_000_00);
+  assert.ok(result.targetPlan);
+  assert.equal(result.targetPlan.actualMonthlySavings, 20_000_00);
+  assert.equal(result.targetPlan.feasibility, 'comfortable');
+
+  // Key takeaways explicitly reflect new salary of ₹1,80,000
+  const salaryTakeaway = result.keyTakeaways.find((t) => t.includes('Monthly Paycheck Accounted For'));
+  assert.ok(salaryTakeaway);
+  assert.ok(salaryTakeaway.includes('1,80,000'));
+});
+
+test('runSimulation injects detected historical average salary into synthetic recurring when ledger has no recurring rule', () => {
+  const bankAcc = makeAccount({ id: 'acc_bank', name: 'Checking', openingBalance: 10_000_00 });
+  // Add salary entry for previous month '2026-08'
+  const salaryEntry: Entry = {
+    id: 'ent_salary_aug',
+    date: '2026-08-01',
+    amount: 85_000_00, // ₹85,000 salary
+    direction: 'in',
+    accountId: 'acc_bank',
+    description: 'Salary Credit from Tech Corp',
+    tags: ['salary'],
+    source: 'import',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-01T00:00:00.000Z',
+  };
+
+  const ledger: Ledger = {
+    ...EMPTY_LEDGER,
+    accounts: [bankAcc],
+    entries: [salaryEntry],
+    recurring: [], // No recurring salary configured in settings
+  };
+
+  const params: SimulationParams = {
+    type: 'target_accumulation',
+    title: 'Vehicle Savings',
+    amount: 120_000_00,
+    targetDate: '2027-09-05',
+  };
+
+  const result = runSimulation(ledger, params, '2026-09-05');
+
+  // Detected from historical entries
+  assert.equal(result.cashFlowBreakdown.incomeSource, 'historical_average');
+  assert.equal(result.cashFlowBreakdown.monthlyIncome, 85_000_00);
+  assert.equal(result.cashFlowBreakdown.isSalaryActive, true);
+
+  // Takeaways confirm the detected salary
+  const salaryTakeaway = result.keyTakeaways.find((t) => t.includes('Monthly Paycheck Accounted For'));
+  assert.ok(salaryTakeaway);
+  assert.ok(salaryTakeaway.includes('85,000'));
+});
+
+

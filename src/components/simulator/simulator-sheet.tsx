@@ -2,13 +2,19 @@
 
 import {
   ArrowRight,
+  Briefcase,
   Calculator,
   Calendar,
+  CalendarDays,
+  Check,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   Clock,
   Flame,
   HelpCircle,
+  Info,
+  Layers,
   PiggyBank,
   Plane,
   Plus,
@@ -28,7 +34,7 @@ import { addMonths, formatDay, today as todayISO } from '@/domain/dates';
 import { formatMoney, parseAmount } from '@/domain/money';
 import {
   calculateMonthlyEMI,
-  getNovemberNextYear,
+  getDefaultTargetHorizon,
   runSimulation,
   type SimulationParams,
   type SimulationResult,
@@ -61,55 +67,55 @@ export interface SimulatorPreset {
 
 const PRESETS: SimulatorPreset[] = [
   {
-    id: 'trip_nov_next_year',
-    name: '🏖️ 3 Lakh Trip (Nov Next Year)',
+    id: 'savings_target',
+    name: '🎯 Savings Target (1 Year)',
     type: 'target_accumulation',
-    title: 'Trip by November Next Year',
-    amountPaise: 3_00_000_00, // ₹3,00,000
-    targetDate: getNovemberNextYear(),
+    title: '1-Year Savings Target',
+    amountPaise: 1_00_000_00, // ₹1,00,000
+    targetDate: addMonths(todayISO(), 12),
     accumulationMode: 'by_date',
-    icon: '🏖️',
-  },
-  {
-    id: 'laptop_emi',
-    name: '💻 Laptop / Phone',
-    type: 'purchase',
-    title: 'New MacBook Pro',
-    amountPaise: 1_20_000_00, // ₹1,20,000
-    paymentMode: 'emi',
-    emiMonths: 12,
-    interestPct: 0,
-    icon: '💻',
+    icon: '🎯',
   },
   {
     id: 'emergency_corpus',
-    name: '🛡️ Emergency Fund',
+    name: '🛡️ Emergency Fund (6 Mos)',
     type: 'target_accumulation',
     title: '6-Month Emergency Corpus',
-    amountPaise: 2_00_000_00, // ₹2,00,000
-    targetDate: addMonths(todayISO(), 12),
+    amountPaise: 1_50_000_00, // ₹1,50,000
+    targetDate: addMonths(todayISO(), 6),
     accumulationMode: 'by_date',
     icon: '🛡️',
   },
   {
+    id: 'gadget_emi',
+    name: '💻 Tech / Appliance (EMI)',
+    type: 'purchase',
+    title: 'Laptop / Appliance',
+    amountPaise: 60_000_00, // ₹60,000
+    paymentMode: 'emi',
+    emiMonths: 6,
+    interestPct: 0,
+    icon: '💻',
+  },
+  {
     id: 'salary_hike',
-    name: '💼 Salary Hike',
+    name: '💼 Salary Hike / Raise',
     type: 'income_change',
-    title: 'Promotion / Raise',
-    amountPaise: 25_000_00, // +₹25,000/mo
+    title: 'Salary Hike / Promotion',
+    amountPaise: 20_000_00, // +₹20,000/mo
     icon: '💼',
   },
   {
     id: 'rent_hike',
-    name: '🏠 Rent Hike',
+    name: '🏠 Rent / Expense Increase',
     type: 'recurring_expense',
-    title: 'Apartment Rent Increment',
-    amountPaise: 4_000_00, // +₹4,000/mo
+    title: 'Rent / Expense Increment',
+    amountPaise: 3_000_00, // +₹3,000/mo
     icon: '🏠',
   },
   {
-    id: 'boost_emergency',
-    name: '🚀 Boost Goal',
+    id: 'boost_existing',
+    name: '🚀 Boost Existing Goal',
     type: 'goal_boost',
     title: 'Boost Goal Funding',
     amountPaise: 10_000_00, // +₹10,000/mo
@@ -118,7 +124,7 @@ const PRESETS: SimulatorPreset[] = [
 ];
 
 const SIM_TYPES: { value: SimulationType; label: string }[] = [
-  { value: 'target_accumulation', label: '🎯 Goal / Trip Target' },
+  { value: 'target_accumulation', label: '🎯 Savings Target' },
   { value: 'purchase', label: '🛍️ Big Purchase' },
   { value: 'income_change', label: '💼 Income Change' },
   { value: 'recurring_expense', label: '📄 Bill / Rent' },
@@ -154,24 +160,31 @@ export function SimulatorSheet({
   );
 
   const [type, setType] = useState<SimulationType>('target_accumulation');
-  const [title, setTitle] = useState('Trip by November Next Year');
-  const [amountInput, setAmountInput] = useState('300000');
+  const [title, setTitle] = useState('Savings Target');
+  const [amountInput, setAmountInput] = useState('100000');
   const [paymentMode, setPaymentMode] = useState<'upfront' | 'emi'>('upfront');
   const [emiMonths, setEmiMonths] = useState(6);
   const [interestPct, setInterestPct] = useState(0);
-  const [targetDate, setTargetDate] = useState(getNovemberNextYear(today));
+  const [targetDate, setTargetDate] = useState(getDefaultTargetHorizon(today, 12));
   const [accumulationMode, setAccumulationMode] = useState<'by_date' | 'by_monthly'>('by_date');
-  const [customMonthlyInput, setCustomMonthlyInput] = useState('20000');
+  const [customMonthlyInput, setCustomMonthlyInput] = useState('10000');
   const [goalId, setGoalId] = useState(ledger.goals[0]?.id ?? '');
   const [sourceAccountId, setSourceAccountId] = useState('');
   const [targetAccountId, setTargetAccountId] = useState<string>(() => {
     return savingsCandidates[0]?.id ?? '__new_reserve__';
   });
   const [linkMode, setLinkMode] = useState<'new' | 'existing'>('new');
+  const [customSalaryInput, setCustomSalaryInput] = useState<string>('');
+  const [showSalaryAdjust, setShowSalaryAdjust] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const amountPaise = useMemo(() => parseAmount(amountInput) ?? 0, [amountInput]);
   const customMonthlyPaise = useMemo(() => parseAmount(customMonthlyInput) ?? 0, [customMonthlyInput]);
+  const customSalaryPaise = useMemo(
+    () => (customSalaryInput.trim() ? parseAmount(customSalaryInput) ?? undefined : undefined),
+    [customSalaryInput],
+  );
 
   const effectiveSourceAccountId = sourceAccountId || defaultSourceAccount?.id || 'acc_primary';
 
@@ -193,6 +206,7 @@ export function SimulatorSheet({
       monthlyContribution: customMonthlyPaise,
       targetAccountId:
         targetAccountId && targetAccountId !== '__new_reserve__' ? targetAccountId : undefined,
+      customMonthlyIncome: customSalaryPaise,
     }),
     [
       type,
@@ -208,6 +222,7 @@ export function SimulatorSheet({
       accumulationMode,
       customMonthlyPaise,
       targetAccountId,
+      customSalaryPaise,
     ],
   );
 
@@ -223,7 +238,13 @@ export function SimulatorSheet({
     if (preset.paymentMode) setPaymentMode(preset.paymentMode);
     if (preset.emiMonths) setEmiMonths(preset.emiMonths);
     if (preset.interestPct !== undefined) setInterestPct(preset.interestPct);
-    if (preset.targetDate) setTargetDate(preset.targetDate);
+    if (preset.id === 'savings_target') {
+      setTargetDate(getDefaultTargetHorizon(today, 12));
+    } else if (preset.id === 'emergency_corpus') {
+      setTargetDate(getDefaultTargetHorizon(today, 6));
+    } else if (preset.targetDate) {
+      setTargetDate(preset.targetDate);
+    }
     if (preset.accumulationMode) setAccumulationMode(preset.accumulationMode);
     if (preset.monthlyContribution) setCustomMonthlyInput(String(preset.monthlyContribution / 100));
   };
@@ -378,7 +399,7 @@ export function SimulatorSheet({
             onChange={(val) => {
               setType(val);
               const defaultTitles = [
-                'Trip by November Next Year',
+                'Savings Target',
                 'Salary Hike / Promotion',
                 'Rent Increase / New Bill',
                 'Boost Goal Funding',
@@ -386,29 +407,29 @@ export function SimulatorSheet({
               ];
               const isDefaultTitle = !title.trim() || defaultTitles.includes(title);
               if (val === 'target_accumulation') {
-                if (isDefaultTitle) setTitle('Trip by November Next Year');
-                if (!amountInput || ['50000', '25000', '4000', '10000'].includes(amountInput)) {
-                  setAmountInput('300000');
+                if (isDefaultTitle) setTitle('Savings Target');
+                if (!amountInput || ['50000', '25000', '4000', '10000', '300000'].includes(amountInput)) {
+                  setAmountInput('100000');
                 }
-                if (!targetDate) setTargetDate(getNovemberNextYear(today));
+                if (!targetDate) setTargetDate(getDefaultTargetHorizon(today, 12));
               } else if (val === 'income_change') {
                 if (isDefaultTitle) setTitle('Salary Hike / Promotion');
-                if (!amountInput || ['300000', '50000'].includes(amountInput)) {
-                  setAmountInput('25000');
+                if (!amountInput || ['300000', '100000', '50000'].includes(amountInput)) {
+                  setAmountInput('20000');
                 }
               } else if (val === 'recurring_expense') {
                 if (isDefaultTitle) setTitle('Rent Increase / New Bill');
-                if (!amountInput || ['300000', '50000'].includes(amountInput)) {
-                  setAmountInput('4000');
+                if (!amountInput || ['300000', '100000', '50000'].includes(amountInput)) {
+                  setAmountInput('3000');
                 }
               } else if (val === 'goal_boost') {
                 if (isDefaultTitle) setTitle('Boost Goal Funding');
-                if (!amountInput || ['300000', '50000'].includes(amountInput)) {
+                if (!amountInput || ['300000', '100000', '50000'].includes(amountInput)) {
                   setAmountInput('10000');
                 }
               } else if (val === 'purchase') {
                 if (isDefaultTitle) setTitle('New Purchase');
-                if (!amountInput || ['300000', '25000'].includes(amountInput)) {
+                if (!amountInput || ['300000', '100000', '25000'].includes(amountInput)) {
                   setAmountInput('50000');
                 }
               }
@@ -420,7 +441,7 @@ export function SimulatorSheet({
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Vacation Trip to Bali"
+                placeholder="e.g. Emergency Corpus, Vacation, Down Payment"
                 className="font-medium"
               />
             </Field>
@@ -444,17 +465,17 @@ export function SimulatorSheet({
                 step="100"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                placeholder="e.g. 300000"
+                placeholder="e.g. 100000"
                 className="font-mono font-bold"
               />
               {type === 'target_accumulation' && (
                 <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
                   {[
+                    { label: '₹25k', value: '25000' },
                     { label: '₹50k', value: '50000' },
                     { label: '₹1 Lakh', value: '100000' },
-                    { label: '₹3 Lakh', value: '300000' },
+                    { label: '₹2 Lakh', value: '200000' },
                     { label: '₹5 Lakh', value: '500000' },
-                    { label: '₹10 Lakh', value: '1000000' },
                   ].map((chip) => (
                     <button
                       key={chip.value}
@@ -488,7 +509,7 @@ export function SimulatorSheet({
                   />
                   <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
                     {[
-                      { label: '🏖️ Nov Next Year', value: getNovemberNextYear(today) },
+                      { label: '3 Mos', value: addMonths(today, 3) },
                       { label: '6 Mos', value: addMonths(today, 6) },
                       { label: '1 Year', value: addMonths(today, 12) },
                       { label: '2 Years', value: addMonths(today, 24) },
@@ -536,17 +557,17 @@ export function SimulatorSheet({
                       step="500"
                       value={customMonthlyInput}
                       onChange={(e) => setCustomMonthlyInput(e.target.value)}
-                      placeholder="e.g. 20000"
+                      placeholder="e.g. 10000"
                       className="font-mono font-bold"
                     />
                   </Field>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {[
+                      { label: '₹5,000/mo', value: '5000' },
                       { label: '₹10,000/mo', value: '10000' },
                       { label: '₹15,000/mo', value: '15000' },
                       { label: '₹20,000/mo', value: '20000' },
                       { label: '₹25,000/mo', value: '25000' },
-                      { label: '₹30,000/mo', value: '30000' },
                     ].map((chip) => (
                       <button
                         key={chip.value}
@@ -611,7 +632,7 @@ export function SimulatorSheet({
                     />
                     <span className="text-[11px] text-muted block mt-1">
                       {targetAccountId === '__new_reserve__'
-                        ? 'A separate savings reserve will be automatically created to isolate your trip money.'
+                        ? 'A separate savings reserve will be automatically created to isolate your goal savings.'
                         : 'Monthly savings will be transferred into this account.'}
                     </span>
                   </Field>
@@ -713,6 +734,179 @@ export function SimulatorSheet({
           )}
         </div>
 
+        {/* Monthly Cash Flow & Salary Transparency Card */}
+        <div className="rounded-xl border border-line/70 bg-raised/40 p-4 space-y-3 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                <Briefcase className="h-4 w-4" />
+              </span>
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-ink block">
+                  Monthly Cash Flow & Salary Accounting
+                </span>
+                <span className="text-[11px] text-muted">
+                  How KharchGini factors recurring income and expenses into this simulation
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Badge tone={result.cashFlowBreakdown.isSalaryActive ? 'good' : 'warn'}>
+                {result.cashFlowBreakdown.isSalaryActive ? '✓ Salary Accounted For' : 'Estimated Cash Flow'}
+              </Badge>
+              <button
+                type="button"
+                onClick={() => setShowSalaryAdjust(!showSalaryAdjust)}
+                className="rounded-md border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-accent hover:bg-raised transition-colors shadow-2xs active:scale-95"
+              >
+                {showSalaryAdjust ? 'Hide Adjuster' : '⚙️ Adjust Assumed Salary'}
+              </button>
+            </div>
+          </div>
+
+          {/* 4-Part Cash Flow Equation Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
+            <div className="rounded-lg bg-surface/90 border border-line/60 p-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-good block">
+                + Monthly Salary / Income
+              </span>
+              <Money
+                value={result.cashFlowBreakdown.monthlyIncome}
+                className="font-extrabold text-sm sm:text-base text-good tnum block mt-0.5"
+                tone="plain"
+              />
+              <span className="text-[10px] text-muted truncate block mt-0.5" title={result.cashFlowBreakdown.incomeDetails}>
+                {result.cashFlowBreakdown.incomeSource === 'user_specified'
+                  ? 'Custom specified'
+                  : result.cashFlowBreakdown.incomeSource === 'recurring_salary'
+                  ? 'Active recurring salary'
+                  : result.cashFlowBreakdown.incomeSource === 'historical_average'
+                  ? 'Historical average'
+                  : 'Runway estimated'}
+              </span>
+            </div>
+
+            <div className="rounded-lg bg-surface/90 border border-line/60 p-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
+                − Fixed Recurring Bills
+              </span>
+              <Money
+                value={result.cashFlowBreakdown.monthlyCommittedBills}
+                className="font-extrabold text-sm sm:text-base text-ink tnum block mt-0.5"
+                tone="plain"
+              />
+              <span className="text-[10px] text-muted block mt-0.5">Rent, EMIs & utilities</span>
+            </div>
+
+            <div className="rounded-lg bg-surface/90 border border-line/60 p-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted block">
+                − Budgeted Living Needs
+              </span>
+              <Money
+                value={result.cashFlowBreakdown.monthlyBudgetedNeeds}
+                className="font-extrabold text-sm sm:text-base text-ink tnum block mt-0.5"
+                tone="plain"
+              />
+              <span className="text-[10px] text-muted block mt-0.5">Envelopes for essentials</span>
+            </div>
+
+            <div
+              className={cn(
+                'rounded-lg border p-2.5',
+                result.cashFlowBreakdown.monthlyNetSurplus < 0
+                  ? 'border-bad/40 bg-bad/10'
+                  : 'border-accent/40 bg-accent/10',
+              )}
+            >
+              <span
+                className={cn(
+                  'text-[10px] font-semibold uppercase tracking-wider block',
+                  result.cashFlowBreakdown.monthlyNetSurplus < 0 ? 'text-bad' : 'text-accent',
+                )}
+              >
+                = Net Monthly Free Cash Flow
+              </span>
+              <Money
+                value={result.cashFlowBreakdown.monthlyNetSurplus}
+                className={cn(
+                  'font-extrabold text-sm sm:text-base tnum block mt-0.5',
+                  result.cashFlowBreakdown.monthlyNetSurplus < 0 ? 'text-bad' : 'text-accent',
+                )}
+                tone="plain"
+              />
+              <span
+                className={cn(
+                  'text-[10px] block mt-0.5',
+                  result.cashFlowBreakdown.monthlyNetSurplus < 0 ? 'text-bad font-medium' : 'text-accent/80',
+                )}
+              >
+                {result.cashFlowBreakdown.monthlyNetSurplus < 0
+                  ? '⚠️ Monthly deficit / burn'
+                  : 'Discretionary surplus/mo'}
+              </span>
+            </div>
+          </div>
+
+          {/* Salary Adjustment Drawer */}
+          {showSalaryAdjust && (
+            <div className="rounded-xl border border-accent/30 bg-surface p-3.5 space-y-2.5 text-xs animate-in fade-in-50">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-ink flex items-center gap-1.5">
+                  <Sliders className="h-3.5 w-3.5 text-accent" />
+                  Assumed Monthly Salary / Take-Home Paycheck (₹)
+                </span>
+                {customSalaryInput && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomSalaryInput('')}
+                    className="text-[11px] font-semibold text-accent hover:underline"
+                  >
+                    Reset to Ledger Detected
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed">
+                Verify or test how your savings timeline responds if your salary changes or if your paycheck is not yet recorded as a recurring rule.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={customSalaryInput}
+                  onChange={(e) => setCustomSalaryInput(e.target.value)}
+                  placeholder={String(result.cashFlowBreakdown.monthlyIncome / 100 || 100000)}
+                  className="font-mono font-bold"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { label: '₹0 (Break)', value: '0' },
+                  { label: '₹50k/mo', value: '50000' },
+                  { label: '₹75k/mo', value: '75000' },
+                  { label: '₹1 Lakh/mo', value: '100000' },
+                  { label: '₹1.5 Lakh/mo', value: '150000' },
+                  { label: '₹2 Lakh/mo', value: '200000' },
+                ].map((chip) => (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    onClick={() => setCustomSalaryInput(chip.value)}
+                    className={cn(
+                      'rounded-md px-2 py-0.5 text-[11px] font-semibold border transition-all active:scale-95',
+                      customSalaryInput === chip.value
+                        ? 'border-accent bg-accent/15 text-accent shadow-2xs font-bold'
+                        : 'border-line bg-surface text-muted hover:border-accent hover:text-ink',
+                    )}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Accumulation Blueprint Card */}
         {result.targetPlan && type === 'target_accumulation' && (
           <div className="rounded-2xl border border-accent/40 bg-accent/5 p-4 space-y-3.5 shadow-xs">
@@ -807,6 +1001,134 @@ export function SimulatorSheet({
                 </span>
               </div>
             </div>
+
+            {/* Total Salary & Savings Overview Bar */}
+            {result.targetPlan.totalExpectedSalaryOverTimeline > 0 && (
+              <div className="rounded-xl bg-surface/90 border border-line/60 p-3 text-xs flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-good/15 text-good shrink-0">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  <div>
+                    <span className="font-bold text-ink block">
+                      ~{formatMoney(result.targetPlan.totalExpectedSalaryOverTimeline)} total salary incoming
+                    </span>
+                    <span className="text-[11px] text-muted">
+                      Across {result.targetPlan.monthsRemaining} monthly paychecks until your target deadline
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-muted text-[11px] block">Discretionary buffer remaining:</span>
+                  <span
+                    className={cn(
+                      'font-bold tnum',
+                      result.targetPlan.monthlyFreeCashFlow - result.targetPlan.actualMonthlySavings >= 0
+                        ? 'text-good'
+                        : 'text-bad',
+                    )}
+                  >
+                    ~{formatMoney(
+                      result.targetPlan.monthlyFreeCashFlow - result.targetPlan.actualMonthlySavings,
+                    )}/mo
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Multi-Month Salary & Savings Schedule Accordion */}
+            {result.targetPlan.schedule.length > 0 && (
+              <div className="pt-2 border-t border-accent/20 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSchedule(!showSchedule)}
+                  className="flex w-full items-center justify-between rounded-xl bg-surface/80 border border-line/60 px-3.5 py-2 text-xs font-bold text-ink hover:bg-surface transition-colors shadow-2xs active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-2">
+                    <CalendarDays className="h-3.5 w-3.5 text-accent" />
+                    <span>Month-by-Month Salary & Savings Timeline ({result.targetPlan.schedule.length} Months)</span>
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px] text-accent font-semibold">
+                    {showSchedule ? 'Collapse' : 'Expand Timeline'}
+                    {showSchedule ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </span>
+                </button>
+
+                {showSchedule && (
+                  <div className="rounded-xl border border-line/60 bg-surface/95 overflow-hidden shadow-xs animate-in fade-in-50">
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[560px] max-h-72 overflow-y-auto divide-y divide-line/40 text-xs">
+                        <div className="grid grid-cols-6 bg-raised/70 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted sticky top-0 backdrop-blur-xs z-10">
+                          <span>Month</span>
+                          <span className="text-right">Salary In</span>
+                          <span className="text-right">Outflows</span>
+                          <span className="text-right">Goal SIP</span>
+                          <span className="text-right">Buffer Left</span>
+                          <span className="text-right">Total Saved</span>
+                        </div>
+                        {result.targetPlan.schedule.map((row) => (
+                          <div
+                            key={row.monthKey}
+                            className={cn(
+                              'grid grid-cols-6 items-center px-3 py-2 transition-colors',
+                              row.isTargetMet
+                                ? 'bg-good/10 font-semibold'
+                                : 'hover:bg-raised/40',
+                            )}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-semibold text-ink">{row.monthLabel}</span>
+                              {row.isTargetMet && (
+                                <span className="rounded bg-good/20 text-good px-1 py-0.2 text-[9px] font-bold shrink-0">
+                                  🎯 Met
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-right font-medium text-good tnum">
+                              +{formatMoney(row.expectedIncome)}
+                            </span>
+                            <span className="text-right text-muted tnum">
+                              -{formatMoney(row.expectedOutflows)}
+                            </span>
+                            <span className="text-right font-bold text-accent tnum">
+                              {formatMoney(row.monthlySavings)}
+                            </span>
+                            <span
+                              className={cn(
+                                'text-right font-semibold tnum',
+                                row.netCashFlowRemaining >= 0 ? 'text-good' : 'text-bad',
+                              )}
+                            >
+                              {row.netCashFlowRemaining >= 0 ? '+' : ''}{formatMoney(row.netCashFlowRemaining)}
+                            </span>
+                            <div className="text-right">
+                              <span className="font-bold text-ink tnum block">
+                                {formatMoney(row.cumulativeSaved)}
+                              </span>
+                              <span className="text-[9px] text-muted block">
+                                {row.percentCompleted}% of target
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-raised/60 p-2.5 border-t border-line/60 text-[11px] flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-muted">
+                        Total Salary: <span className="font-bold text-ink">{formatMoney(result.targetPlan.totalExpectedSalaryOverTimeline)}</span>
+                      </span>
+                      <span className="text-muted">
+                        Total Living & Bills: <span className="font-bold text-ink">{formatMoney(result.targetPlan.totalExpectedOutflowsOverTimeline)}</span>
+                      </span>
+                      <span className="text-muted">
+                        Total Target Accumulated: <span className="font-bold text-accent">{formatMoney(result.targetPlan.totalExpectedSavingsOverTimeline)}</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -16,19 +16,23 @@ import {
   startOfMonth,
   today as todayISO,
   type ISODate,
+  type MonthKey,
 } from './dates';
 import {
   accountBalance,
   accountBalances,
+  byId,
   goalProgress,
   goalProgresses,
   liquidBalance,
   lowestPoint,
   monthSummary,
   netWorth,
+  nextPayday,
   projectBalance,
   safeToSpend,
 } from './derive';
+import { monthlyEquivalent } from './recurring';
 
 function sum(values: number[]): number {
   return values.reduce((acc, v) => acc + v, 0);
@@ -69,6 +73,32 @@ export interface SimulationParams {
   monthlyContribution?: Paise; // Custom monthly savings amount if accumulationMode === 'by_monthly'
   targetAccountId?: string; // Backing account for the goal
   initialSavedPaise?: Paise; // Starting savings balance if new goal (default: 0)
+  // Optional monthly income / salary override:
+  customMonthlyIncome?: Paise; // If user wants to simulate with a specific monthly salary
+}
+
+export interface CashFlowBreakdown {
+  monthlyIncome: Paise;
+  incomeSource: 'recurring_salary' | 'historical_average' | 'user_specified' | 'sts_projection' | 'none';
+  incomeDetails: string;
+  monthlyCommittedBills: Paise;
+  monthlyBudgetedNeeds: Paise;
+  monthlyTotalOutflows: Paise;
+  monthlyNetSurplus: Paise;
+  isSalaryActive: boolean;
+}
+
+export interface AccumulationMonthSchedule {
+  monthKey: MonthKey;
+  monthLabel: string;
+  expectedIncome: Paise;
+  expectedOutflows: Paise;
+  monthlySavings: Paise;
+  cumulativeSaved: Paise;
+  targetAmount: Paise;
+  percentCompleted: number;
+  netCashFlowRemaining: Paise;
+  isTargetMet: boolean;
 }
 
 export interface GoalImpact {
@@ -98,6 +128,11 @@ export interface TargetAccumulationPlan {
   feasibility: 'comfortable' | 'tight' | 'unrealistic';
   monthlyFreeCashFlow: Paise;
   percentOfSurplus: number;
+  cashFlowBreakdown: CashFlowBreakdown;
+  schedule: AccumulationMonthSchedule[];
+  totalExpectedSalaryOverTimeline: Paise;
+  totalExpectedSavingsOverTimeline: Paise;
+  totalExpectedOutflowsOverTimeline: Paise;
 }
 
 export interface SimulationResult {
@@ -111,6 +146,7 @@ export interface SimulationResult {
   // Monthly cash flow impact
   monthlyNetDelta: Paise;
   monthlyOutDelta: Paise;
+  cashFlowBreakdown: CashFlowBreakdown;
   // Runway & Deficit Risk
   baselineLowestPoint?: DayBalance;
   simulatedLowestPoint?: DayBalance;
@@ -158,7 +194,15 @@ export function calculateMonthlyEMI(
 }
 
 /**
+ * Returns default target date for a generic 1-year horizon (or optional custom months ahead).
+ */
+export function getDefaultTargetHorizon(from: ISODate = todayISO(), months = 12): ISODate {
+  return addMonths(from, months);
+}
+
+/**
  * Returns default target date for "November Next Year" (e.g. '2027-11-30').
+ * Kept for backwards compatibility.
  */
 export function getNovemberNextYear(from: ISODate = todayISO()): ISODate {
   const currentYear = Number(from.slice(0, 4));
@@ -167,54 +211,138 @@ export function getNovemberNextYear(from: ISODate = todayISO()): ISODate {
 }
 
 /**
- * Robustly estimates average monthly net free cash flow (surplus) from the ledger.
+ * Rigorously analyzes monthly cash flow: monthly recurring salary / income,
+ * committed recurring bills, and budgeted living needs to determine true
+ * monthly free cash flow (surplus).
  */
-export function estimateMonthlyFreeCashFlow(ledger: Ledger, today: ISODate = todayISO()): Paise {
+export function analyzeMonthlyCashFlow(
+  ledger: Ledger,
+  customMonthlyIncome?: Paise,
+  today: ISODate = todayISO(),
+): CashFlowBreakdown {
+  const recurringIncomeRules = ledger.recurring.filter((r) => r.isActive && r.direction === 'in');
+  const recurringInMonthly = sum(recurringIncomeRules.map((r) => monthlyEquivalent(r)));
+
+  let monthlyIncome = 0;
+  let incomeSource: CashFlowBreakdown['incomeSource'] = 'none';
+  let incomeDetails = 'No recurring salary or recorded income found.';
+  let isSalaryActive = false;
+
+  if (customMonthlyIncome !== undefined && customMonthlyIncome >= 0) {
+    monthlyIncome = customMonthlyIncome;
+    incomeSource = 'user_specified';
+    incomeDetails =
+      customMonthlyIncome === 0
+        ? 'Simulated ₹0/mo income (zero paycheck / career break)'
+        : `Custom simulated salary: ${formatMoney(customMonthlyIncome)}/mo`;
+    isSalaryActive = customMonthlyIncome > 0;
+  } else if (recurringInMonthly > 0) {
+    monthlyIncome = recurringInMonthly;
+    incomeSource = 'recurring_salary';
+    const names = recurringIncomeRules.map((r) => r.description).join(', ');
+    incomeDetails = `Active recurring rule (${names}): ${formatMoney(recurringInMonthly)}/mo`;
+    isSalaryActive = true;
+  } else {
+    // Check recent months' income from entries (past 2 completed months, then current month)
+    const currentMonthKey = monthOf(today);
+    const prevMonthKey1 = addMonthsToKey(currentMonthKey, -1);
+    const prevMonthKey2 = addMonthsToKey(currentMonthKey, -2);
+    const pastSummaries = [prevMonthKey2, prevMonthKey1]
+      .map((m) => monthSummary(ledger, m))
+      .filter((s) => s.income > 0);
+
+    if (pastSummaries.length > 0) {
+      const avgIncome = sum(pastSummaries.map((s) => s.income)) / pastSummaries.length;
+      monthlyIncome = Math.round(avgIncome);
+      incomeSource = 'historical_average';
+      incomeDetails = `Historical average income: ${formatMoney(monthlyIncome)}/mo`;
+      isSalaryActive = true;
+    } else {
+      const curSummary = monthSummary(ledger, currentMonthKey);
+      if (curSummary.income > 0) {
+        monthlyIncome = curSummary.income;
+        incomeSource = 'historical_average';
+        incomeDetails = `Current month salary deposit: ${formatMoney(monthlyIncome)}/mo`;
+        isSalaryActive = true;
+      } else {
+        const sts = safeToSpend(ledger, today);
+        if (sts.perDay > 0) {
+          monthlyIncome = Math.round(sts.perDay * 30.4375);
+          incomeSource = 'sts_projection';
+          incomeDetails = `Estimated from daily discretionary runway (~${formatMoney(monthlyIncome)}/mo)`;
+          isSalaryActive = false;
+        } else {
+          monthlyIncome = 0;
+          incomeSource = 'none';
+          incomeDetails = 'No regular salary or income recorded in ledger';
+          isSalaryActive = false;
+        }
+      }
+    }
+  }
+
+  // Active recurring bills (rent, utilities, subscriptions, EMIs)
+  const recurringOutRules = ledger.recurring.filter((r) => r.isActive && r.direction === 'out');
+  const monthlyCommittedBills = sum(recurringOutRules.map((r) => monthlyEquivalent(r)));
+
+  // Map committed recurring bills by category to avoid double-counting with envelopes
+  const billedByCategory = new Map<string, number>();
+  for (const r of recurringOutRules) {
+    if (r.categoryId) {
+      billedByCategory.set(
+        r.categoryId,
+        (billedByCategory.get(r.categoryId) ?? 0) + monthlyEquivalent(r),
+      );
+    }
+  }
+
+  // Budgeted needs (envelopes for groceries, essentials, etc.)
   const currentMonthKey = monthOf(today);
-  const prevMonthKey1 = addMonthsToKey(currentMonthKey, -1);
-  const prevMonthKey2 = addMonthsToKey(currentMonthKey, -2);
-  const pastSummaries = [prevMonthKey2, prevMonthKey1]
-    .map((m) => monthSummary(ledger, m))
-    .filter((s) => s.income > 0);
-
-  if (pastSummaries.length > 0) {
-    const avgSurplus = sum(pastSummaries.map((s) => s.saved)) / pastSummaries.length;
-    return Math.max(0, Math.round(avgSurplus));
+  const categoriesMap = byId(ledger.categories);
+  let currentEnvelopes = ledger.envelopes.filter((e) => e.month === currentMonthKey);
+  if (currentEnvelopes.length === 0) {
+    const prevMonthKey = addMonthsToKey(currentMonthKey, -1);
+    currentEnvelopes = ledger.envelopes.filter((e) => e.month === prevMonthKey);
   }
 
-  // Fallback to active recurring income minus active recurring out
-  const recurringIn = sum(
-    ledger.recurring
-      .filter((r) => r.isActive && r.direction === 'in')
-      .map((r) => {
-        if (r.frequency === 'yearly') return Math.round(r.amount / 12);
-        if (r.frequency === 'weekly') return Math.round((r.amount * 52) / 12);
-        return r.amount;
-      }),
-  );
-  const recurringOut = sum(
-    ledger.recurring
-      .filter((r) => r.isActive && r.direction === 'out')
-      .map((r) => {
-        if (r.frequency === 'yearly') return Math.round(r.amount / 12);
-        if (r.frequency === 'weekly') return Math.round((r.amount * 52) / 12);
-        return r.amount;
-      }),
-  );
-
-  if (recurringIn > 0) {
-    return Math.max(0, recurringIn - recurringOut);
+  let monthlyBudgetedNeeds = 0;
+  for (const env of currentEnvelopes) {
+    const cat = categoriesMap.get(env.categoryId);
+    if (cat && cat.kind === 'need') {
+      const alreadyBilled = billedByCategory.get(env.categoryId) ?? 0;
+      monthlyBudgetedNeeds += Math.max(0, env.allocated - alreadyBilled);
+    }
   }
 
-  const sts = safeToSpend(ledger, today);
-  if (sts.perDay > 0) {
-    return Math.round(sts.perDay * 30.4375);
-  }
-  return Math.max(0, sts.amount);
+  const monthlyTotalOutflows = monthlyCommittedBills + monthlyBudgetedNeeds;
+  const monthlyNetSurplus = monthlyIncome - monthlyTotalOutflows;
+
+  return {
+    monthlyIncome,
+    incomeSource,
+    incomeDetails,
+    monthlyCommittedBills,
+    monthlyBudgetedNeeds,
+    monthlyTotalOutflows,
+    monthlyNetSurplus,
+    isSalaryActive,
+  };
 }
 
 /**
- * Calculates target accumulation plan metrics: required savings, projected reach, and feasibility.
+ * Robustly estimates average monthly net free cash flow (surplus) from the ledger.
+ */
+export function estimateMonthlyFreeCashFlow(
+  ledger: Ledger,
+  today: ISODate = todayISO(),
+  customMonthlyIncome?: Paise,
+): Paise {
+  return analyzeMonthlyCashFlow(ledger, customMonthlyIncome, today).monthlyNetSurplus;
+}
+
+/**
+ * Calculates target accumulation plan metrics: required savings, projected reach,
+ * cash flow feasibility, and month-by-month salary & savings schedule.
  */
 export function calculateTargetAccumulation({
   targetAmount,
@@ -224,6 +352,7 @@ export function calculateTargetAccumulation({
   accumulationMode = 'by_date',
   customMonthlySavings,
   monthlyFreeCashFlow = 0,
+  cashFlow,
 }: {
   targetAmount: Paise;
   currentSaved?: Paise;
@@ -232,11 +361,25 @@ export function calculateTargetAccumulation({
   accumulationMode?: 'by_date' | 'by_monthly';
   customMonthlySavings?: Paise;
   monthlyFreeCashFlow?: Paise;
+  cashFlow?: CashFlowBreakdown;
 }): TargetAccumulationPlan {
-  const effectiveTargetDate = targetDate || getNovemberNextYear(today);
+  const effectiveTargetDate = targetDate || getDefaultTargetHorizon(today, 12);
   const remainingAmount = Math.max(0, targetAmount - currentSaved);
   const rawDays = daysBetween(today, effectiveTargetDate);
   const daysRemaining = Math.max(0, rawDays);
+
+  const effectiveCashFlow: CashFlowBreakdown = cashFlow ?? {
+    monthlyIncome: monthlyFreeCashFlow || 0,
+    incomeSource: 'sts_projection',
+    incomeDetails: 'Estimated monthly cash surplus',
+    monthlyCommittedBills: 0,
+    monthlyBudgetedNeeds: 0,
+    monthlyTotalOutflows: 0,
+    monthlyNetSurplus: monthlyFreeCashFlow || 0,
+    isSalaryActive: (monthlyFreeCashFlow || 0) > 0,
+  };
+
+  const freeCashFlow = effectiveCashFlow.monthlyNetSurplus;
 
   // Measure months accurately from calendar days (30.4375 average days per month)
   const monthsRemaining = daysRemaining > 0 ? Math.max(1, Math.round(daysRemaining / 30.4375)) : 1;
@@ -257,8 +400,13 @@ export function calculateTargetAccumulation({
       monthsToReach: 0,
       isOnTrack: true,
       feasibility: 'comfortable',
-      monthlyFreeCashFlow,
+      monthlyFreeCashFlow: freeCashFlow,
       percentOfSurplus: 0,
+      cashFlowBreakdown: effectiveCashFlow,
+      schedule: [],
+      totalExpectedSalaryOverTimeline: 0,
+      totalExpectedSavingsOverTimeline: 0,
+      totalExpectedOutflowsOverTimeline: 0,
     };
   }
 
@@ -293,9 +441,9 @@ export function calculateTargetAccumulation({
   if (actualMonthlySavings === 0) {
     feasibility = 'comfortable';
     percentOfSurplus = 0;
-  } else if (monthlyFreeCashFlow > 0) {
-    percentOfSurplus = Math.round((actualMonthlySavings / monthlyFreeCashFlow) * 100);
-    if (actualMonthlySavings > monthlyFreeCashFlow) {
+  } else if (freeCashFlow > 0) {
+    percentOfSurplus = Math.round((actualMonthlySavings / freeCashFlow) * 100);
+    if (actualMonthlySavings > freeCashFlow) {
       feasibility = 'unrealistic';
     } else if (percentOfSurplus > 70) {
       feasibility = 'tight';
@@ -303,8 +451,56 @@ export function calculateTargetAccumulation({
       feasibility = 'comfortable';
     }
   } else {
-    feasibility = actualMonthlySavings > 50_000_00 ? 'unrealistic' : 'tight';
+    feasibility = actualMonthlySavings > 0 ? 'unrealistic' : 'comfortable';
   }
+
+  // Generate month-by-month accumulation schedule over the horizon
+  const schedule: AccumulationMonthSchedule[] = [];
+  const scheduleMonths = Math.min(60, Math.max(1, monthsToReach));
+  let accumulated = currentSaved;
+
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  for (let m = 0; m < scheduleMonths; m++) {
+    const monthDate = addMonths(today, m);
+    const monthKey = monthOf(monthDate);
+    const year = monthKey.slice(0, 4);
+    const monthNum = Number(monthKey.slice(5, 7));
+    const monthLabel = `${monthNames[monthNum - 1]} ${year}`;
+
+    const savingsThisMonth = Math.min(
+      actualMonthlySavings,
+      Math.max(0, targetAmount - accumulated),
+    );
+    accumulated += savingsThisMonth;
+    const isTargetMet = accumulated >= targetAmount;
+    const percentCompleted = targetAmount > 0
+      ? Math.min(100, Math.round((accumulated / targetAmount) * 100))
+      : 100;
+
+    const netRemaining =
+      effectiveCashFlow.monthlyIncome - effectiveCashFlow.monthlyTotalOutflows - savingsThisMonth;
+
+    schedule.push({
+      monthKey,
+      monthLabel,
+      expectedIncome: effectiveCashFlow.monthlyIncome,
+      expectedOutflows: effectiveCashFlow.monthlyTotalOutflows,
+      monthlySavings: savingsThisMonth,
+      cumulativeSaved: accumulated,
+      targetAmount,
+      percentCompleted,
+      netCashFlowRemaining: netRemaining,
+      isTargetMet,
+    });
+  }
+
+  const totalExpectedSalaryOverTimeline = effectiveCashFlow.monthlyIncome * scheduleMonths;
+  const totalExpectedSavingsOverTimeline = Math.min(remainingAmount, actualMonthlySavings * scheduleMonths);
+  const totalExpectedOutflowsOverTimeline = effectiveCashFlow.monthlyTotalOutflows * scheduleMonths;
 
   return {
     targetAmount,
@@ -321,8 +517,13 @@ export function calculateTargetAccumulation({
     monthsToReach,
     isOnTrack,
     feasibility,
-    monthlyFreeCashFlow,
+    monthlyFreeCashFlow: freeCashFlow,
     percentOfSurplus,
+    cashFlowBreakdown: effectiveCashFlow,
+    schedule,
+    totalExpectedSalaryOverTimeline,
+    totalExpectedSavingsOverTimeline,
+    totalExpectedOutflowsOverTimeline,
   };
 }
 
@@ -334,6 +535,7 @@ export function runSimulation(
   params: SimulationParams,
   today: ISODate = todayISO(),
 ): SimulationResult {
+  const cashFlowBreakdown = analyzeMonthlyCashFlow(ledger, params.customMonthlyIncome, today);
   const baselineSTS = safeToSpend(ledger, today);
   const baselineGoals = goalProgresses(ledger, today);
   const baselineProjection = projectBalance(ledger, today, 60);
@@ -355,6 +557,59 @@ export function runSimulation(
     ledger.accounts[0];
 
   const primaryAccountId = params.accountId || defaultAccount?.id || 'acc_primary';
+  const payday = nextPayday(ledger.prefs, ledger, today);
+
+  // Synchronize monthly salary in synthetic recurring rules
+  if (params.customMonthlyIncome !== undefined && params.customMonthlyIncome >= 0) {
+    // User explicitly customized or tested an assumed salary
+    const existingSalary = syntheticRecurring.find((r) => r.isActive && r.direction === 'in');
+    const salaryDueDate = existingSalary?.nextDueDate || payday;
+    const salaryAccId = existingSalary?.accountId || primaryAccountId;
+
+    // Remove old recurring income rules so old salary doesn't linger
+    for (let i = syntheticRecurring.length - 1; i >= 0; i--) {
+      if (syntheticRecurring[i]!.isActive && syntheticRecurring[i]!.direction === 'in') {
+        syntheticRecurring.splice(i, 1);
+      }
+    }
+
+    if (params.customMonthlyIncome > 0) {
+      syntheticRecurring.push({
+        id: 'sim_assumed_salary',
+        description: 'Assumed Monthly Salary',
+        amount: params.customMonthlyIncome,
+        direction: 'in',
+        accountId: salaryAccId,
+        frequency: 'monthly',
+        startDate: today,
+        nextDueDate: salaryDueDate,
+        isActive: true,
+        autoPost: false,
+        variableAmount: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  } else if (!ledger.recurring.some((r) => r.isActive && r.direction === 'in')) {
+    // No recurring salary rule in ledger, but historical average income was detected
+    if (cashFlowBreakdown.incomeSource === 'historical_average' && cashFlowBreakdown.monthlyIncome > 0) {
+      syntheticRecurring.push({
+        id: 'sim_detected_salary',
+        description: 'Detected Monthly Salary',
+        amount: cashFlowBreakdown.monthlyIncome,
+        direction: 'in',
+        accountId: primaryAccountId,
+        frequency: 'monthly',
+        startDate: today,
+        nextDueDate: payday,
+        isActive: true,
+        autoPost: false,
+        variableAmount: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }
 
   let simulatedMonthlyNetDelta = 0;
   let simulatedMonthlyOutDelta = 0;
@@ -476,8 +731,7 @@ export function runSimulation(
       });
     }
   } else if (params.type === 'target_accumulation') {
-    const freeCashFlow = estimateMonthlyFreeCashFlow(ledger, today);
-    const targetDate = params.targetDate || getNovemberNextYear(today);
+    const targetDate = params.targetDate || getDefaultTargetHorizon(today, 12);
     const existingGoal = params.goalId
       ? ledger.goals.find((g) => g.id === params.goalId)
       : undefined;
@@ -493,7 +747,7 @@ export function runSimulation(
       targetDate,
       accumulationMode: params.accumulationMode,
       customMonthlySavings: params.monthlyContribution,
-      monthlyFreeCashFlow: freeCashFlow,
+      cashFlow: cashFlowBreakdown,
     });
     targetPlan = plan;
 
@@ -563,7 +817,7 @@ export function runSimulation(
       counterAccountId: destAccountId,
       frequency: 'monthly',
       startDate: today,
-      nextDueDate: today,
+      nextDueDate: payday,
       isActive: true,
       autoPost: false,
       variableAmount: false,
@@ -720,9 +974,9 @@ export function runSimulation(
       verdictTitle = 'Goal is On Track & Achievable';
       verdictDetail = `Saving ${formatMoney(
         targetPlan.actualMonthlySavings,
-      )}/mo easily hits your ${formatMoney(params.amount)} target by ${
+      )}/mo from your monthly paycheck easily hits your ${formatMoney(params.amount)} target by ${
         targetPlan.targetDate
-      } without compromising runway.`;
+      } while leaving a comfortable cash buffer.`;
     }
   } else if (simulatedSTS.perDay < 30_000 || simulatedDeficitDate !== null) {
     verdict = 'tight';
@@ -731,6 +985,16 @@ export function runSimulation(
   }
 
   // Generate Key Takeaways
+  if (cashFlowBreakdown.monthlyIncome > 0) {
+    keyTakeaways.push(
+      `💼 Monthly Paycheck Accounted For: ~${formatMoney(cashFlowBreakdown.monthlyIncome)}/mo incoming (${cashFlowBreakdown.incomeDetails}). Over the full accumulation timeline, ~${formatMoney(targetPlan?.totalExpectedSalaryOverTimeline ?? cashFlowBreakdown.monthlyIncome * 12)} in total salary is projected to arrive.`,
+    );
+  } else {
+    keyTakeaways.push(
+      '⚠️ No regular monthly salary or recurring income detected. Calculations rely solely on existing cash reserves.',
+    );
+  }
+
   if (params.type === 'target_accumulation' && targetPlan) {
     if (targetPlan.remainingAmount === 0) {
       keyTakeaways.push(
@@ -762,10 +1026,26 @@ export function runSimulation(
         );
       }
       if (targetPlan.monthlyFreeCashFlow > 0) {
+        const remainingBuffer =
+          targetPlan.monthlyFreeCashFlow - targetPlan.actualMonthlySavings;
+        if (remainingBuffer >= 0) {
+          keyTakeaways.push(
+            `📊 Uses ${targetPlan.percentOfSurplus}% of your ~${formatMoney(
+              targetPlan.monthlyFreeCashFlow,
+            )}/mo monthly cash surplus, leaving ~${formatMoney(remainingBuffer)}/mo uncommitted discretionary buffer.`,
+          );
+        } else {
+          keyTakeaways.push(
+            `⚠️ Monthly savings pace exceeds your surplus by ~${formatMoney(
+              Math.abs(remainingBuffer),
+            )}/mo. Consider extending the horizon or adjusting your savings amount.`,
+          );
+        }
+      } else {
         keyTakeaways.push(
-          `📊 Uses ${targetPlan.percentOfSurplus}% of your ~${formatMoney(
-            targetPlan.monthlyFreeCashFlow,
-          )}/mo monthly cash surplus.`,
+          `⚠️ Monthly net cash flow is in deficit by ~${formatMoney(
+            Math.abs(targetPlan.monthlyFreeCashFlow),
+          )}/mo. Any savings commitment will deplete existing cash reserves.`,
         );
       }
     }
@@ -819,6 +1099,7 @@ export function runSimulation(
     dailyAllowanceDelta,
     monthlyNetDelta: simulatedMonthlyNetDelta,
     monthlyOutDelta: simulatedMonthlyOutDelta,
+    cashFlowBreakdown,
     baselineLowestPoint: baselineLowest,
     simulatedLowestPoint: simulatedLowest,
     simulatedDeficitDate,

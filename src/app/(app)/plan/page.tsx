@@ -195,20 +195,12 @@ export default function PlanPage() {
                 <Badge tone="good">In-Memory</Badge>
               </div>
               <p className="text-xs text-muted mt-0.5 max-w-md leading-relaxed">
-                Test major life decisions (vacation trip accumulation, gadgets, EMI plans, salary hikes, rent changes) and instantly see how your Safe to Spend runway & goal timelines adapt.
+                Test major life decisions (savings targets, big purchases, EMI plans, salary changes, rent hikes) and instantly see how your Safe to Spend runway & goal timelines adapt.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setSimulatorOpen(true)}
-              className="font-semibold gap-1.5 shadow-2xs active:scale-95 text-xs h-8"
-            >
-              <span>🏖️ 3L Trip by Nov</span>
-            </Button>
             <Button
               size="sm"
               variant="primary"
