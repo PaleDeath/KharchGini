@@ -1,11 +1,12 @@
 'use client';
 
-import { Banknote, CreditCard, Landmark, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { addMonths, today as todayISO, type ISODate } from '@/domain/dates';
+import { today as todayISO, type ISODate } from '@/domain/dates';
 import { formatAmount, parseAmount } from '@/domain/money';
-import { FREQUENCY_LABEL, type Direction, type Frequency, type Recurring } from '@/domain/types';
+import { occurrenceAt } from '@/domain/recurring';
+import type { Direction, Frequency, Recurring } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 import { AccountPicker } from '@/components/account/account-picker-modal';
 import { CategoryPicker } from '@/components/category/category-picker-modal';
@@ -14,8 +15,6 @@ import { Field, Input, Segmented, Switch } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
-
-const FREQUENCIES = Object.keys(FREQUENCY_LABEL) as Frequency[];
 
 const FREQUENCY_OPTIONS: Option<Frequency>[] = [
   { value: 'daily', label: 'Every day' },
@@ -74,42 +73,6 @@ export function RecurringSheet({
   const accounts = useMemo(
     () => ledger.accounts.filter((a) => !a.archived || a.id === recurring?.accountId),
     [ledger.accounts, recurring?.accountId],
-  );
-
-  const accountOptions = useMemo(
-    () =>
-      accounts.map((acc) => ({
-        value: acc.id,
-        label: acc.name,
-        icon:
-          acc.type === 'card' ? (
-            <CreditCard className="h-4 w-4 text-orange-500" />
-          ) : acc.type === 'cash' ? (
-            <Banknote className="h-4 w-4 text-emerald-500" />
-          ) : (
-            <Landmark className="h-4 w-4 text-accent" />
-          ),
-      })),
-    [accounts],
-  );
-
-  const counterAccountOptions = useMemo(
-    () =>
-      accounts
-        .filter((a) => a.id !== accountId)
-        .map((acc) => ({
-          value: acc.id,
-          label: acc.name,
-          icon:
-            acc.type === 'card' ? (
-              <CreditCard className="h-4 w-4 text-orange-500" />
-            ) : acc.type === 'cash' ? (
-              <Banknote className="h-4 w-4 text-emerald-500" />
-            ) : (
-              <Landmark className="h-4 w-4 text-accent" />
-            ),
-        })),
-    [accounts, accountId],
   );
 
   const categories = useMemo(() => {
@@ -183,7 +146,9 @@ export function RecurringSheet({
       } else if (endMode === 'months') {
         const count = parseInt(installments, 10);
         if (!isNaN(count) && count > 0) {
-          finalEndDate = addMonths(startDate, count);
+          // The end date is inclusive, so N installments end ON the Nth
+          // occurrence (index N − 1) — at whatever frequency was chosen.
+          finalEndDate = occurrenceAt({ startDate, frequency }, count - 1);
         }
       }
 

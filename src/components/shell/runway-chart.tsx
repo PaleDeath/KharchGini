@@ -3,19 +3,14 @@
 import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
   Calendar,
-  CheckCircle2,
-  HelpCircle,
   ShieldCheck,
   TrendingDown,
-  TrendingUp,
   Wallet,
 } from 'lucide-react';
 
 import { formatDay, formatDayFull, type ISODate } from '@/domain/dates';
-import { formatMoney, formatSigned, type Paise } from '@/domain/money';
+import { formatMoney, formatSigned } from '@/domain/money';
 import type { DayBalance } from '@/domain/types';
 import { Card } from '@/components/ui/card';
 import { Money } from '@/components/ui/money';
@@ -85,18 +80,16 @@ export function RunwayChart({
   }, [windowDays]);
 
   // Upcoming bills & income in window
-  const { upcomingOutflow, upcomingInflow, upcomingCount } = useMemo(() => {
+  const { upcomingOutflow, upcomingCount } = useMemo(() => {
     let outSum = 0;
-    let inSum = 0;
     let count = 0;
     for (const d of windowDays) {
       for (const e of d.events) {
         count++;
-        if (e.direction === 'in') inSum += e.amount;
-        else outSum += e.amount;
+        if (e.direction !== 'in') outSum += e.amount;
       }
     }
-    return { upcomingOutflow: outSum, upcomingInflow: inSum, upcomingCount: count };
+    return { upcomingOutflow: outSum, upcomingCount: count };
   }, [windowDays]);
 
   // Payday balance

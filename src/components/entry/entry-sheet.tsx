@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, CreditCard, Landmark, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { addMonthsToKey, formatMonthShort, monthOf, today as todayISO } from '@/domain/dates';
@@ -36,7 +36,7 @@ export function EntrySheet({
   entry: Entry | null;
   onClose: () => void;
 }) {
-  const { ledger, updateEntry, deleteEntry, recategorise, addEntry } = useLedger();
+  const { ledger, updateEntry, deleteEntry, learnMerchant, addEntry } = useLedger();
   const toast = useToast();
 
   const [amount, setAmount] = useState('');
@@ -70,42 +70,6 @@ export function EntrySheet({
   const accounts = useMemo(
     () => ledger.accounts.filter((a) => !a.archived || a.id === entry?.accountId),
     [ledger.accounts, entry?.accountId],
-  );
-
-  const accountOptions = useMemo(
-    () =>
-      accounts.map((acc) => ({
-        value: acc.id,
-        label: acc.name,
-        icon:
-          acc.type === 'card' ? (
-            <CreditCard className="h-4 w-4 text-orange-500" />
-          ) : acc.type === 'cash' ? (
-            <Banknote className="h-4 w-4 text-emerald-500" />
-          ) : (
-            <Landmark className="h-4 w-4 text-accent" />
-          ),
-      })),
-    [accounts],
-  );
-
-  const counterAccountOptions = useMemo(
-    () =>
-      accounts
-        .filter((a) => a.id !== accountId)
-        .map((acc) => ({
-          value: acc.id,
-          label: acc.name,
-          icon:
-            acc.type === 'card' ? (
-              <CreditCard className="h-4 w-4 text-orange-500" />
-            ) : acc.type === 'cash' ? (
-              <Banknote className="h-4 w-4 text-emerald-500" />
-            ) : (
-              <Landmark className="h-4 w-4 text-accent" />
-            ),
-        })),
-    [accounts, accountId],
   );
 
   const categories = useMemo(() => {
@@ -161,9 +125,10 @@ export function EntrySheet({
         reimbursable: reimbursable || undefined,
       });
 
-      // The category changed by hand: teach the categoriser.
-      if (nextCategory && nextCategory !== entry.categoryId) {
-        await recategorise({ ...entry, categoryId: nextCategory }, nextCategory);
+      // The category changed by hand: teach the categoriser. (The entry itself
+      // was already saved above, so only the merchant memory is written here.)
+      if (nextCategory && nextCategory !== entry.categoryId && entry.merchant) {
+        await learnMerchant(entry.merchant, nextCategory);
       }
 
       onClose();

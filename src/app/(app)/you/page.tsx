@@ -8,7 +8,6 @@ import {
   LogOut,
   Plus,
   Shapes,
-  Sparkles,
   Trash2,
   TrendingUp,
   Wand2,
@@ -316,7 +315,7 @@ export default function YouPage() {
                   )}
                 >
                   {observation.changePct > 0 ? '+' : ''}
-                  {Math.round(observation.changePct * 100)}%
+                  {Math.round(observation.changePct)}%
                 </span>
               </div>
             ))}

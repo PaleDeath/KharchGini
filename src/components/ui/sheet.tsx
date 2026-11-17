@@ -82,5 +82,3 @@ export function Sheet({
     </Dialog.Root>
   );
 }
-
-export const SheetClose = Dialog.Close;

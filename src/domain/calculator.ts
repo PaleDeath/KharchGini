@@ -207,7 +207,7 @@ class ExpressionEvaluator {
     if (this.pos < this.tokens.length) {
       return { ok: false, error: 'INVALID_SYNTAX' };
     }
-    if (!Number.isFinite(result.value) || Number.isNaN(result.value)) {
+    if (!Number.isFinite(result.value)) {
       return { ok: false, error: 'INVALID_SYNTAX' };
     }
 
@@ -305,10 +305,13 @@ class ExpressionEvaluator {
       this.consume();
       const operand = this.parseUnary();
       if (operand === null) return null;
+      const negate = op === '-';
       return {
-        value: op === '-' ? -operand.value : operand.value,
+        value: negate ? -operand.value : operand.value,
         isPercent: operand.isPercent,
-        percentRate: operand.percentRate,
+        // The rate carries the sign too, or "100 + -10%" would add 10.
+        percentRate:
+          negate && operand.percentRate !== undefined ? -operand.percentRate : operand.percentRate,
       };
     }
 

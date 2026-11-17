@@ -9,7 +9,7 @@
     "start": "next start -p 9002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts && tsx scripts/test-calculator.ts && tsx scripts/test-calculator-ui.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.4",
@@ -32,6 +32,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.3"
   }
 }

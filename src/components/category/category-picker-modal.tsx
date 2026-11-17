@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, ChevronRight, CircleDashed, Plus, Search, Sparkles, X } from 'lucide-react';
+import { Check, ChevronRight, CircleDashed, Search, X } from 'lucide-react';
 import { CategoryChip } from '@/components/category/category-icon';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';

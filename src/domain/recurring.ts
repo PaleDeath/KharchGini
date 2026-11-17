@@ -25,7 +25,7 @@ import {
   dayOfWeek,
   daysBetween,
   endOfMonth,
-  monthOf,
+  ordinal,
   today as todayISO,
   type ISODate,
   type MonthKey,
@@ -47,7 +47,10 @@ const MAX_STEPS = 500;
 /* -------------------------------------------------------------------------- */
 
 /** The nth occurrence, counted from `startDate` as n = 0. */
-export function occurrenceAt(recurring: Recurring, n: number): ISODate {
+export function occurrenceAt(
+  recurring: Pick<Recurring, 'frequency' | 'startDate'>,
+  n: number,
+): ISODate {
   switch (recurring.frequency) {
     case 'daily':
       return addDays(recurring.startDate, n);
@@ -152,6 +155,23 @@ export interface DuePosting {
 }
 
 /**
+ * Where the search for unposted occurrences begins.
+ *
+ * `nextDueDate` is the cursor: it is set to the first occurrence on or after
+ * the day a rule is created (see `initialNextDue`) and moved on every time an
+ * occurrence is posted or skipped. A rule that has never been posted therefore
+ * starts at `nextDueDate`, NOT at `startDate` — otherwise a schedule entered
+ * with its real, months-old start date would backfill entries the user never
+ * asked for, and "Paid" (which posts `nextDueDate`) would record a different
+ * day from the overdue row it was tapped on.
+ */
+function firstUnposted(rule: Recurring): ISODate {
+  if (!rule.lastPostedDate) return rule.nextDueDate;
+  const afterLast = addDays(rule.lastPostedDate, 1);
+  return afterLast < rule.nextDueDate ? afterLast : rule.nextDueDate;
+}
+
+/**
  * Occurrences that have come due and should be written without asking. Only
  * `autoPost` rules with a fixed amount qualify; everything else surfaces as a
  * confirmation instead.
@@ -169,9 +189,7 @@ export function duePostings(
   for (const rule of recurring) {
     if (!rule.isActive || !rule.autoPost || rule.variableAmount) continue;
 
-    const from = rule.lastPostedDate
-      ? addDays(rule.lastPostedDate, 1)
-      : rule.startDate;
+    const from = firstUnposted(rule);
 
     for (const date of occurrencesBetween(rule, from > floor ? from : floor, today)) {
       out.push({ recurring: rule, date });
@@ -194,11 +212,9 @@ export function upcoming(
   for (const rule of recurring) {
     if (!rule.isActive) continue;
 
-    // Start from whichever is earlier: the stored next due date, or the first
-    // unposted occurrence. A rule left unposted for weeks must still show — but
-    // a rule that started three years ago must not emit three years of history.
-    const unposted = rule.lastPostedDate ? addDays(rule.lastPostedDate, 1) : rule.startDate;
-    const earliest = unposted < rule.nextDueDate ? unposted : rule.nextDueDate;
+    // A rule left unposted for weeks must still show — but a rule that started
+    // three years ago must not emit three years of history.
+    const earliest = firstUnposted(rule);
     const searchFrom = earliest > floor ? earliest : floor;
 
     for (const date of occurrencesBetween(rule, searchFrom, horizon)) {
@@ -283,17 +299,32 @@ export function initialNextDue(
   return nextDueOnOrAfter(stub, today) ?? startDate;
 }
 
+/**
+ * Recomputes `nextDueDate` after a rule's schedule (start date or frequency)
+ * was edited. The old cursor belongs to the old schedule and may not even be an
+ * occurrence of the new one, so it is re-anchored the same way a new rule is:
+ * the first occurrence from today, or from the day after the last posting if
+ * that is later.
+ */
+export function nextDueAfterReschedule(
+  rule: Pick<Recurring, 'startDate' | 'frequency' | 'endDate' | 'lastPostedDate'>,
+  today: ISODate = todayISO(),
+): ISODate {
+  const afterLast = rule.lastPostedDate ? addDays(rule.lastPostedDate, 1) : today;
+  const from = afterLast > today ? afterLast : today;
+  const stub: Recurring = {
+    id: '', description: '', amount: 0, direction: 'out', accountId: '',
+    frequency: rule.frequency, startDate: rule.startDate,
+    ...(rule.endDate ? { endDate: rule.endDate } : {}),
+    nextDueDate: rule.startDate, isActive: true,
+    autoPost: false, variableAmount: false, createdAt: '', updatedAt: '',
+  };
+  return nextDueOnOrAfter(stub, from) ?? rule.startDate;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Words                                                                       */
 /* -------------------------------------------------------------------------- */
-
-const ORDINALS = ['th', 'st', 'nd', 'rd'];
-
-function ordinal(n: number): string {
-  const rem = n % 100;
-  const suffix = ORDINALS[(rem - 20) % 10] ?? ORDINALS[rem] ?? ORDINALS[0];
-  return `${n}${suffix}`;
-}
 
 const WEEKDAY_LONG = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
@@ -357,7 +388,6 @@ export function dueInMonth(recurring: Recurring[], month: MonthKey): UpcomingBil
   for (const rule of recurring) {
     if (!rule.isActive) continue;
     for (const date of occurrencesBetween(rule, from, to)) {
-      if (monthOf(date) !== month) continue;
       out.push({
         recurring: rule,
         dueDate: date,

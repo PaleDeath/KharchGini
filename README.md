@@ -107,9 +107,10 @@ npm install
 In the [Firebase console](https://console.firebase.google.com):
 
 1. Create a project. Google Analytics is unnecessary — skip it.
-2. **Build → Authentication → Get started → Sign-in method → Google → Enable.**
-   Set a support email. Add your domain under *Authorized domains* when you
-   deploy (`localhost` is already allowed).
+2. **Build → Authentication → Get started → Sign-in method.** Enable **Google**
+   (set a support email) and, if you want to sign in with a password,
+   **Email/Password** — the sign-in screen offers both. Add your domain under
+   *Authorized domains* when you deploy (`localhost` is already allowed).
 3. **Build → Firestore Database → Create database.** Start in **production
    mode** — the rules in this repo replace the defaults. Pick the region closest
    to you (`asia-south1` for India).
@@ -143,15 +144,18 @@ firebase deploy --only firestore:rules,firestore:indexes
 ```
 
 Do not skip this. Without it, Firestore is either wide open or fully closed.
+Redeploy whenever `firestore.rules` changes — a preference key the deployed
+rules do not know about is rejected and only kept on the device that set it.
 
 ### 5. Run
 
 ```powershell
 npm run typecheck   # tsc --noEmit
+npm test            # domain tests (node:test via tsx)
 npm run dev         # http://localhost:9002
 ```
 
-Sign in with Google. On first run the app seeds ~28 categories and one cash
+Sign in with Google or an email and password. On first run the app seeds ~28 categories and one cash
 account so you can record something in the first ten seconds.
 
 ### 6. Deploy (optional, free)
@@ -178,7 +182,11 @@ src/
     categorize.ts  Rules > merchant memory > keywords.
     parse.ts       The command-bar grammar, for entries and for questions.
     recurring.ts   Schedules, next-due, monthly equivalents.
-    seed.ts        The starting categories and account.
+    statement.ts   Bank/card statement import (CSV, Excel): column detection, drafts.
+    simulator.ts   The What-If sandbox: decisions replayed against the ledger in memory.
+    sankey.ts      The month's cash flow as a three-column graph.
+    calculator.ts  Expression evaluator (no eval), EMI and SIP maths.
+    seed.ts        The starting categories, account and keyword map.
 
   lib/
     firebase.ts    App init + persistent offline cache. Names missing env keys.
@@ -195,9 +203,13 @@ src/
     command/       The one input.
     review/        The weekly ritual.
     entry|account|category|plan|settings/   Sheets, one per thing you can edit.
+    calculator/    Standard, EMI and SIP calculator.
+    simulator/     The What-If sandbox sheet.
     ui/            Button, Card, Input, Sheet, Toast, Money. Small and boring.
-    shell/         Nav, theme, providers, service worker.
+    shell/         Nav, gate, theme, providers, service worker, runway and Sankey charts.
 
+test/              Domain tests. `npm test` runs these and the calculator scripts.
+scripts/           Assertion scripts for the calculator and its keypad state machine.
 public/            manifest, icon, service worker, offline page.
 firestore.rules    Ownership + shape validation. Read it; it documents the model.
 ```
@@ -224,8 +236,5 @@ Your data leaves as easily as it arrived; that's the deal.
 
 ## Status
 
-Written in one pass. `npm install`, `npm run typecheck` and `npm run build` have
-**not** been run against this tree — the environment it was authored in could
-not execute Node. Verification was a by-hand audit of every import against every
-export across all 41 source files, which came back clean, but that is not a
-compiler. Expect to fix a small thing or two on first build.
+`npm run typecheck`, `npm test` and `npm run build` all pass. `npm run lint` is
+not set up: there is no ESLint config or dependency in the repo yet.

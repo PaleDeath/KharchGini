@@ -885,11 +885,10 @@ export function anomalies(
   const categories = byId(ledger.categories);
   const out: Anomaly[] = [];
 
-  const active = new Set(
-    entriesInMonth(ledger.entries, month, ledger.prefs, categories)
-      .filter((e) => e.direction === 'out' && e.categoryId)
-      .map((e) => e.categoryId as string),
+  const monthSpending = entriesInMonth(ledger.entries, month, ledger.prefs, categories).filter(
+    (e) => e.direction === 'out' && e.categoryId,
   );
+  const active = new Set(monthSpending.map((e) => e.categoryId as string));
 
   for (const categoryId of active) {
     const family = categoryFamily(categoryId, ledger.categories);
@@ -917,8 +916,8 @@ export function anomalies(
       thisPeriod,
       typical,
       ratio,
-      entryIds: entriesInMonth(ledger.entries, month, ledger.prefs, categories)
-        .filter((e) => e.direction === 'out' && e.categoryId && family.has(e.categoryId))
+      entryIds: monthSpending
+        .filter((e) => family.has(e.categoryId as string))
         .map((e) => e.id),
     });
   }

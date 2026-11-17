@@ -24,7 +24,9 @@ import { parseAmount, type Paise } from './money';
 import {
   addDays,
   addMonthsToKey,
+  dayOfWeek,
   endOfMonth,
+  isValidISODate,
   monthOf,
   startOfMonth,
   startOfWeek,
@@ -155,7 +157,8 @@ function extractDate(text: string, today: ISODate): { text: string; hit?: DateHi
     const match = re.exec(text);
     if (!match) continue;
     const resolved = resolve(match);
-    if (!resolved) continue;
+    // "31/2" or "31st" in a 30-day month names a day that does not exist.
+    if (!resolved || !isValidISODate(resolved)) continue;
     return {
       text: (text.slice(0, match.index) + ' ' + text.slice(match.index + match[0].length))
         .replace(/\s+/g, ' ')
@@ -192,11 +195,8 @@ function resolveBareDay(day: number, today: ISODate): ISODate | null {
 
 /** "tue" means the Tuesday just gone, or today if today is Tuesday. */
 function lastWeekday(target: number, today: ISODate, forcePreviousWeek = false): ISODate {
-  const current = new Date(`${today}T12:00:00Z`).getUTCDay();
-  let back = (current - target + 7) % 7;
-  if (forcePreviousWeek || (back === 0 && forcePreviousWeek)) {
-    back = back === 0 ? 7 : back + 7;
-  }
+  let back = (dayOfWeek(today) - target + 7) % 7;
+  if (forcePreviousWeek) back = back === 0 ? 7 : back + 7;
   return addDays(today, -back);
 }
 
@@ -335,8 +335,13 @@ export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | nul
     );
   if (!isSMS) return null;
 
-  // 1. Direction
-  const isCredit = /(?:credited|deposited|received|refund|cashback)/i.test(text);
+  // 1. Direction. A debit alert often names where the money went — "debited
+  //    from A/c XX1234 and credited to swiggy@upi" — so the mere presence of
+  //    "credited" proves nothing. Whichever verb comes first describes what
+  //    happened to *this* account.
+  const creditAt = text.search(/credited|deposited|received|refund|cashback/i);
+  const debitAt = text.search(/debited|paid|spent|sent|withdrawn/i);
+  const isCredit = creditAt >= 0 && (debitAt < 0 || creditAt < debitAt);
   const direction: Direction = isCredit ? 'in' : 'out';
 
   // 2. Amount extraction
@@ -370,7 +375,7 @@ export function parseBankSMS(text: string, ctx: ParseContext): ParsedEntry | nul
       if (y < 100) y += 2000;
       if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
         const candidate = `${y}-${pad(m)}-${pad(d)}`;
-        if (candidate <= today) date = candidate;
+        if (candidate <= today && isValidISODate(candidate)) date = candidate;
       }
     }
   }

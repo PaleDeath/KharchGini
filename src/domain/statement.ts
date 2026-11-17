@@ -11,11 +11,9 @@
  * 4. Automatic merchant extraction, auto-categorisation, and deduplication via externalId.
  */
 
-import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { isValidISODate, type ISODate } from './dates';
 import { guessCategory } from './categorize';
-import { parseAmount } from './money';
 import type { Direction, EntryDraft, Ledger } from './types';
 
 export interface StatementMapping {
@@ -157,9 +155,7 @@ export function parseStatementAmount(
   const raw = amountStr.trim();
   if (!raw || raw === '-' || raw === '—') return null;
 
-  const isExplicitDr = /\b(dr|debit|withdrawal|spent|paid)\b/i.test(raw) || (typeIndicator && /\b(dr|debit|withdrawal|d)\b/i.test(typeIndicator));
   const isExplicitCr = /\b(cr|credit|deposit|received)\b/i.test(raw) || (typeIndicator && /\b(cr|credit|deposit|c)\b/i.test(typeIndicator));
-  const hasParentheses = /^\(.*\)$/.test(raw);
 
   // Extract the numeric portion (e.g., "1,450.00" from "Rs. 1,450.00 Dr")
   const numMatch = /[-+]?\d[\d,]*(\.\d+)?/.exec(raw);
@@ -170,15 +166,11 @@ export function parseStatementAmount(
   if (isNaN(parsedFloat) || parsedFloat === 0) return null;
 
   const absAmount = Math.round(Math.abs(parsedFloat) * 100);
-  let direction: Direction = 'out';
 
-  if (isExplicitCr) {
-    direction = 'in';
-  } else if (isExplicitDr || hasParentheses || raw.includes('-') || parsedFloat < 0) {
-    direction = 'out';
-  } else {
-    direction = parsedFloat < 0 ? 'out' : 'out';
-  }
+  // Only an explicit credit marker makes this money in. Everything else —
+  // Dr markers, parentheses, a minus sign, or a bare number — is read as money
+  // out, which is what a bare amount means on a card statement.
+  const direction: Direction = isExplicitCr ? 'in' : 'out';
 
   return { amount: absAmount, direction };
 }
@@ -217,15 +209,36 @@ const COLUMN_CANDIDATES = {
   ],
 };
 
+/**
+ * Short candidates ("dr", "cr", "amt", "ref") only count as whole words. As
+ * plain substrings they match almost anything — "cr" is inside "description",
+ * which used to map the narration column as the credit column and import the
+ * digits in a description as income.
+ */
+const MIN_SUBSTRING_CANDIDATE = 4;
+
+function headerMatches(header: string, candidate: string): boolean {
+  if (header === candidate) return true;
+  if (candidate.replace(/ /g, '').length >= MIN_SUBSTRING_CANDIDATE) {
+    return header.includes(candidate);
+  }
+  return ` ${header} `.includes(` ${candidate} `);
+}
+
 export function autoMapColumns(fields: string[]): StatementMapping {
   const mapping: StatementMapping = { ...EMPTY_MAPPING };
   const normalisedFields = fields.map((f) => ({ original: f, norm: normaliseHeader(f) }));
+  // One column, one role: a header already claimed is not offered again.
+  const claimed = new Set<string>();
 
   for (const [key, candidates] of Object.entries(COLUMN_CANDIDATES)) {
     for (const candidate of candidates) {
-      const match = normalisedFields.find((f) => f.norm === candidate || f.norm.includes(candidate));
+      const match = normalisedFields.find(
+        (f) => !claimed.has(f.original) && headerMatches(f.norm, candidate),
+      );
       if (match) {
         mapping[key as keyof StatementMapping] = match.original;
+        claimed.add(match.original);
         break;
       }
     }
@@ -294,6 +307,9 @@ export async function parseStatementFile(file: File): Promise<ParsedStatement> {
   let raw2D: string[][] = [];
 
   if (isExcel) {
+    // Loaded on demand: the spreadsheet parser is several hundred kilobytes and
+    // only someone importing an Excel file should have to download it.
+    const XLSX = await import('xlsx');
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: 'array' });
     const firstSheetName = workbook.SheetNames[0];
@@ -381,14 +397,14 @@ export function buildStatementDrafts(
     const debitVal = map.debit ? (row[map.debit] ?? '').trim() : '';
     const creditVal = map.credit ? (row[map.credit] ?? '').trim() : '';
 
-    if (debitVal && debitVal !== '-' && debitVal !== '0') {
-      const parsedDebit = parseStatementAmount(debitVal, 'DR');
-      if (parsedDebit && parsedDebit.amount > 0) {
-        amount = parsedDebit.amount;
-        direction = 'out';
-      }
-    } else if (creditVal && creditVal !== '-' && creditVal !== '0') {
-      const parsedCredit = parseStatementAmount(creditVal, 'CR');
+    // Banks fill the unused side with "", "-", "0" or "0.00"; all of those
+    // parse to nothing, and the other column is then tried.
+    const parsedDebit = debitVal ? parseStatementAmount(debitVal, 'DR') : null;
+    if (parsedDebit && parsedDebit.amount > 0) {
+      amount = parsedDebit.amount;
+      direction = 'out';
+    } else {
+      const parsedCredit = creditVal ? parseStatementAmount(creditVal, 'CR') : null;
       if (parsedCredit && parsedCredit.amount > 0) {
         amount = parsedCredit.amount;
         direction = 'in';

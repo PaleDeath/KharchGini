@@ -1,19 +1,17 @@
 'use client';
 
 import { Banknote, CreditCard, Landmark, Trash2, Wallet } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { formatAmount, formatMoney, parseAmount } from '@/domain/money';
 import { accountBalance } from '@/domain/derive';
-import { ACCOUNT_TYPE_LABEL, isAddOnCard, type Account, type AccountType } from '@/domain/types';
+import { isAddOnCard, type Account, type AccountType } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 import { CustomSelect, type Option } from '@/components/ui/custom-select';
 import { Field, Input, Switch } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
-
-const TYPES = Object.keys(ACCOUNT_TYPE_LABEL) as AccountType[];
 
 const ACCOUNT_TYPE_OPTIONS: Option<AccountType>[] = [
   {
@@ -73,6 +71,8 @@ export function AccountSheet({
   const [primaryCardId, setPrimaryCardId] = useState('');
   const [excluded, setExcluded] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** What the balance field showed when the sheet opened, to detect a real edit. */
+  const shownBalance = useRef('0');
 
   // Live balance from opening + all recorded transactions
   const liveBalance = useMemo(() => {
@@ -106,7 +106,13 @@ export function AccountSheet({
     if (!open) return;
     setName(account?.name ?? '');
     setType(account?.type ?? 'bank');
-    setBalanceInput(account ? formatAmount(Math.abs(liveBalance)) : '0');
+    // A card shows what is owed as a positive number. Anything else shows its
+    // real sign, so an overdrawn account is not presented as being in credit.
+    const shown = account
+      ? formatAmount(account.type === 'card' ? Math.abs(liveBalance) : liveBalance)
+      : '0';
+    shownBalance.current = shown;
+    setBalanceInput(shown);
     setCreditLimitInput(account?.creditLimit ? formatAmount(account.creditLimit) : '');
     setDueDayInput(account?.billingDueDay ? String(account.billingDueDay) : '');
     setLast4Input(account?.last4 ?? '');
@@ -141,11 +147,15 @@ export function AccountSheet({
         const targetBalance = (type === 'card' ? (parsed === 0 ? 0 : -Math.abs(parsed)) : parsed) || 0;
         // Adjusted opening balance: targetBalance = openingBalance + entriesDelta => openingBalance = targetBalance - entriesDelta
         const openingBalance = (targetBalance - entriesDelta) || 0;
+        // Only reconcile when the figure was actually edited. Re-deriving it from
+        // an untouched field would flip the sign of an overdrawn account (or a
+        // card in credit) on an unrelated save such as a rename.
+        const balanceEdited = balanceInput.trim() !== shownBalance.current;
 
         await updateAccount(account.id, {
           name: trimmed,
           type,
-          openingBalance,
+          ...(balanceEdited ? { openingBalance } : {}),
           creditLimit: type === 'card' ? parsedLimit : undefined,
           billingDueDay: type === 'card' && parsedDueDay && parsedDueDay >= 1 && parsedDueDay <= 31 ? parsedDueDay : undefined,
           last4: type === 'card' && cleanedLast4 ? cleanedLast4 : undefined,

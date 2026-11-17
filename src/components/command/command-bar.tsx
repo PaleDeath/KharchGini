@@ -12,7 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { CATEGORY_SOURCE_LABEL } from '@/domain/categorize';
-import { formatDayFull, formatRelativeDay, today as todayISO } from '@/domain/dates';
+import { formatDayFull, formatRelativeDay } from '@/domain/dates';
 import {
   byId,
   canAfford,

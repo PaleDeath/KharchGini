@@ -18,7 +18,6 @@ import {
   getDocs,
   onSnapshot,
   setDoc,
-  updateDoc,
   writeBatch,
   type CollectionReference,
   type DocumentData,
@@ -163,9 +162,9 @@ export function subscribePrefs(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Creates or overwrites a document at a known id. `createdAt`/`updatedAt` are
- * stamped here so no caller can forget, and the id is written into the body as
- * well as being the document key — the domain model reads `id` off the object.
+ * Creates or overwrites a document at a known id. The id is written into the
+ * body as well as being the document key — the domain model reads `id` off the
+ * object. Callers supply `createdAt`/`updatedAt`; only `patch` stamps for them.
  */
 export async function put<K extends CollectionName>(
   uid: string,
@@ -193,8 +192,15 @@ export async function remove(uid: string, name: CollectionName, id: string): Pro
   await deleteDoc(doc(col(uid, name), id));
 }
 
+/**
+ * Merges preference changes. An explicit `undefined` clears the field — the
+ * same contract as `patch` — so "no payday" or "no dedicated reserve account"
+ * can actually be saved instead of silently reverting on the next snapshot.
+ */
 export async function savePrefs(uid: string, prefs: Partial<UserPrefs>): Promise<void> {
-  await setDoc(userDoc(uid), clean({ ...prefs, updatedAt: nowStamp() }), { merge: true });
+  await setDoc(userDoc(uid), cleanForUpdate({ ...prefs, updatedAt: nowStamp() }), {
+    merge: true,
+  });
 }
 
 /** Firestore caps a batch at 500 operations; imports routinely exceed that. */

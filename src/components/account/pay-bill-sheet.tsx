@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, CreditCard, Landmark } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { today as todayISO } from '@/domain/dates';

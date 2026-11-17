@@ -1,6 +1,6 @@
 'use client';
 
-import { KeyRound, Loader2, Sparkles, TriangleAlert } from 'lucide-react';
+import { KeyRound, Loader2, TriangleAlert } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';

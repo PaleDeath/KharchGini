@@ -25,7 +25,7 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    // ₹0 .. ₹10,00,00,000 expressed in paise.
+    // ₹0 .. ₹100 crore (₹1,00,00,00,000) expressed in paise. Matches MAX_PAISE in src/domain/money.ts.
     function validPaise(v) {
       return v is int && v >= 0 && v <= 100000000000;
     }

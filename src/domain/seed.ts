@@ -449,10 +449,3 @@ export const TRANSFER_HINTS = [
   'self', 'own account', 'transfer to', 'transfer from', 'acct transfer',
   'fund transfer', 'atm withdrawal', 'cash withdrawal', 'cash wdl',
 ];
-
-/** Colours for charts, in the order categories are first encountered. */
-export const CHART_PALETTE = [
-  '#6366f1', '#22c55e', '#f43f5e', '#eab308', '#0ea5e9',
-  '#a855f7', '#f97316', '#14b8a6', '#ec4899', '#84cc16',
-  '#64748b', '#d946ef',
-];

@@ -33,6 +33,7 @@ import {
   advanceAfterPosting,
   duePostings,
   initialNextDue,
+  nextDueAfterReschedule,
   toEntryDraft,
 } from '@/domain/recurring';
 import type {
@@ -355,29 +356,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     [requireUid],
   );
 
-  /**
-   * A correction is the most valuable signal in the app. Recording it against
-   * the merchant is what makes categorisation improve without a model, a key or
-   * a network call.
-   */
-  const recategorise = useCallback(
-    async (entry: Entry, categoryId: string) => {
-      const id = requireUid();
-      await patch(id, 'entries', entry.id, { categoryId });
-
-      if (entry.merchant) {
-        const existing = merchants.find((m) => m.id === entry.merchant);
-        const next = reinforce(existing, entry.merchant, categoryId, todayISO());
-        await put(id, 'merchants', next.id, {
-          categoryId: next.categoryId,
-          confirmations: next.confirmations,
-          lastConfirmed: next.lastConfirmed,
-        });
-      }
-    },
-    [requireUid, merchants],
-  );
-
+  /** Records (or reinforces) which category a merchant belongs to. */
   const learnMerchant = useCallback(
     async (merchant: string, categoryId: string) => {
       const id = requireUid();
@@ -390,6 +369,19 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       });
     },
     [requireUid, merchants],
+  );
+
+  /**
+   * A correction is the most valuable signal in the app. Recording it against
+   * the merchant is what makes categorisation improve without a model, a key or
+   * a network call.
+   */
+  const recategorise = useCallback(
+    async (entry: Entry, categoryId: string) => {
+      await patch(requireUid(), 'entries', entry.id, { categoryId });
+      if (entry.merchant) await learnMerchant(entry.merchant, categoryId);
+    },
+    [requireUid, learnMerchant],
   );
 
   const settle = useCallback(
@@ -592,9 +584,28 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const updateRecurring = useCallback(
     async (recurringId: string, changes: Partial<Recurring>) => {
-      await patch(requireUid(), 'recurring', recurringId, changes);
+      const id = requireUid();
+      const existing = recurring.find((r) => r.id === recurringId);
+
+      // `nextDueDate` is a cursor into the schedule. If the schedule itself
+      // moved, the old cursor is meaningless and must be re-anchored — unless
+      // the caller is setting it explicitly.
+      const rescheduled =
+        existing !== undefined &&
+        changes.nextDueDate === undefined &&
+        ((changes.startDate !== undefined && changes.startDate !== existing.startDate) ||
+          (changes.frequency !== undefined && changes.frequency !== existing.frequency));
+
+      await patch(
+        id,
+        'recurring',
+        recurringId,
+        rescheduled
+          ? { ...changes, nextDueDate: nextDueAfterReschedule({ ...existing, ...changes }) }
+          : changes,
+      );
     },
-    [requireUid],
+    [requireUid, recurring],
   );
 
   const deleteRecurring = useCallback(
@@ -771,9 +782,4 @@ export function useLedger(): LedgerValue {
   const value = useContext(LedgerContext);
   if (!value) throw new Error('useLedger must be used inside <LedgerProvider>');
   return value;
-}
-
-/** Convenience for the many components that only need the data. */
-export function useData(): Ledger {
-  return useLedger().ledger;
 }

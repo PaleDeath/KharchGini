@@ -15,7 +15,6 @@ import {
   calculateEmi,
   calculateSip,
   evaluateExpression,
-  safeCalculate,
 } from '@/domain/calculator';
 import { Field, Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
@@ -82,7 +81,7 @@ export function CalculatorSheet({
   const [loanTenureYears, setLoanTenureYears] = useState('5'); // 5 years
 
   // --- SIP Calculator State ---
-  const [sipMonthly, setSipMonthly] = useState('10000'); // ₹10,00,000/mo
+  const [sipMonthly, setSipMonthly] = useState('10000'); // ₹10,000/mo
   const [sipReturnRate, setSipReturnRate] = useState('12'); // 12%
   const [sipYears, setSipYears] = useState('10'); // 10 years
 

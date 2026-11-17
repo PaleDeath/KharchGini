@@ -7,10 +7,10 @@
  * Pure TypeScript. Recomputed in-memory with zero stored state.
  */
 
-import { monthOf, type ISODate, type MonthKey } from './dates';
+import type { MonthKey } from './dates';
 import type { Paise } from './money';
 import { byId, entriesInMonth, totalIn, totalOut } from './derive';
-import type { Category, CategoryKind, Entry, Ledger } from './types';
+import type { CategoryKind, Ledger } from './types';
 
 export interface SankeyNode {
   id: string;
@@ -114,7 +114,6 @@ export function computeActualSankey(ledger: Ledger, month: MonthKey): SankeyData
   }
 
   const rawNetSaved = totalIncome - totalExpense;
-  const netSaved = Math.max(0, rawNetSaved);
   const totalFlow = Math.max(totalIncome, totalExpense + savingsTransfers + debtPayments);
 
   if (totalFlow === 0) {

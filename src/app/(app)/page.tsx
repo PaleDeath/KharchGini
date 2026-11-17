@@ -14,7 +14,6 @@ import {
   TrendingUp,
   TriangleAlert,
   Wallet,
-  Zap,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -30,7 +29,6 @@ import {
   byId,
   daysSinceLastEntry,
   entriesBetween,
-  liquidBalance,
   loggingStreak,
   lowestPoint,
   projectBalance,
@@ -491,7 +489,7 @@ export default function TodayPage() {
         <p className="px-1 text-xs text-faint">
           Across all accounts you hold{' '}
           <Money
-            value={liquidBalance(ledger.accounts, ledger.entries)}
+            value={sts.liquid}
             className="text-muted font-semibold"
             tone="plain"
           />{' '}

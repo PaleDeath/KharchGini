@@ -10,45 +10,38 @@ import {
   addDays,
   addMonths,
   addMonthsToKey,
-  currentMonth,
   daysBetween,
+  MONTH_NAMES,
   monthOf,
-  startOfMonth,
   today as todayISO,
   type ISODate,
   type MonthKey,
 } from './dates';
 import {
   accountBalance,
-  accountBalances,
   byId,
-  goalProgress,
   goalProgresses,
-  liquidBalance,
   lowestPoint,
   monthSummary,
-  netWorth,
   nextPayday,
   projectBalance,
   safeToSpend,
 } from './derive';
+import { formatMoney, type Paise } from './money';
 import { monthlyEquivalent } from './recurring';
-
-function sum(values: number[]): number {
-  return values.reduce((acc, v) => acc + v, 0);
-}
-import type { Paise } from './money';
-import { formatMoney } from './money';
 import type {
   Account,
   DayBalance,
   Entry,
   Goal,
-  GoalProgress,
   Ledger,
   Recurring,
   SafeToSpend,
 } from './types';
+
+function sum(values: number[]): number {
+  return values.reduce((acc, v) => acc + v, 0);
+}
 
 export type SimulationType =
   | 'purchase'
@@ -459,17 +452,12 @@ export function calculateTargetAccumulation({
   const scheduleMonths = Math.min(60, Math.max(1, monthsToReach));
   let accumulated = currentSaved;
 
-  const monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
   for (let m = 0; m < scheduleMonths; m++) {
     const monthDate = addMonths(today, m);
     const monthKey = monthOf(monthDate);
     const year = monthKey.slice(0, 4);
     const monthNum = Number(monthKey.slice(5, 7));
-    const monthLabel = `${monthNames[monthNum - 1]} ${year}`;
+    const monthLabel = `${MONTH_NAMES[monthNum - 1]} ${year}`;
 
     const savingsThisMonth = Math.min(
       actualMonthlySavings,
@@ -630,7 +618,7 @@ export function runSimulation(
         accountId: primaryAccountId,
         frequency: 'monthly',
         startDate: today,
-        nextDueDate: addDays(today, 30),
+        nextDueDate: today,
         isActive: true,
         autoPost: false,
         variableAmount: false,
@@ -670,7 +658,7 @@ export function runSimulation(
       accountId: primaryAccountId,
       frequency: 'monthly',
       startDate: today,
-      nextDueDate: addDays(today, 30),
+      nextDueDate: today,
       isActive: true,
       autoPost: false,
       variableAmount: false,
@@ -692,7 +680,7 @@ export function runSimulation(
       accountId: primaryAccountId,
       frequency: 'monthly',
       startDate: today,
-      nextDueDate: addDays(today, 30),
+      nextDueDate: today,
       isActive: true,
       autoPost: false,
       variableAmount: false,

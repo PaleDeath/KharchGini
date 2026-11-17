@@ -2,13 +2,11 @@
 
 import {
   Banknote,
-  CheckCircle2,
   CreditCard,
   FileSpreadsheet,
   FileText,
   FileUp,
   Landmark,
-  Layers,
   Sparkles,
   TriangleAlert,
   X,
@@ -68,9 +66,11 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
 
       // Try to auto-match account if bank name matches account name
       const lowerName = file.name.toLowerCase();
-      const matchedAccount = accounts.find((acc) =>
-        lowerName.includes(acc.name.toLowerCase().replace(/[^a-z0-9]/g, '')),
-      );
+      const matchedAccount = accounts.find((acc) => {
+        const key = acc.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        // An empty key (a name with no Latin letters) would "match" every file.
+        return key.length > 0 && lowerName.includes(key);
+      });
       if (matchedAccount) {
         setAccountId(matchedAccount.id);
       }

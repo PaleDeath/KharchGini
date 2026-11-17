@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, Landmark, Trash2, TrendingUp } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { formatAmount, parseAmount } from '@/domain/money';
@@ -63,23 +63,6 @@ export function GoalSheet({
   const candidates = useMemo(
     () => ledger.accounts.filter((account) => !account.archived && account.type !== 'card'),
     [ledger.accounts],
-  );
-
-  const accountOptions = useMemo(
-    () =>
-      candidates.map((acc) => ({
-        value: acc.id,
-        label: acc.name,
-        icon:
-          acc.type === 'cash' ? (
-            <Banknote className="h-4 w-4 text-emerald-500" />
-          ) : acc.type === 'savings' ? (
-            <Landmark className="h-4 w-4 text-teal-500" />
-          ) : (
-            <Landmark className="h-4 w-4 text-accent" />
-          ),
-      })),
-    [candidates],
   );
 
   useEffect(() => {

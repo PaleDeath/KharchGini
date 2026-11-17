@@ -18,7 +18,7 @@ export type Paise = number;
 
 export const PAISE_PER_RUPEE = 100;
 
-/** Largest amount the app will accept: ₹10,00,00,000. Also enforced in firestore.rules. */
+/** Largest amount the app will accept: ₹100 crore (₹1,00,00,00,000). Also enforced in firestore.rules. */
 export const MAX_PAISE = 100_000_000_000;
 
 export function rupeesToPaise(rupees: number): Paise {

@@ -6,13 +6,14 @@ const isDev = process.env.NODE_ENV === 'development';
 /**
  * Turbopack in dev needs 'unsafe-eval'; production does not.
  * Firestore talks over both XHR and WebSocket, so both schemes are allowed in connect-src.
+ * Fonts are downloaded and self-hosted by next/font at build time, so no font CDN is listed.
  */
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://apis.google.com https://*.firebaseapp.com https://vercel.live${isDev ? " 'unsafe-eval'" : ''}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.googleusercontent.com https://vercel.live https://vercel.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
+  "font-src 'self' data:",
   "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://vercel.live",
   "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://vercel.live",
   "object-src 'none'",

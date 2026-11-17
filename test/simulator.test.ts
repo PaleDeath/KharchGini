@@ -13,7 +13,6 @@ import {
 } from '../src/domain/simulator';
 import type { Account, Goal, Ledger, Recurring, Entry } from '../src/domain/types';
 import { EMPTY_LEDGER } from '../src/domain/types';
-import { addMonths, today as todayISO } from '../src/domain/dates';
 
 function makeAccount(partial: Partial<Account> & { id: string; name: string }): Account {
   return {

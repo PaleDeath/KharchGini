@@ -210,6 +210,16 @@ export function formatDueIn(iso: ISODate, from: ISODate = today()): string {
   return ago < 14 ? `${ago} days ago` : `${Math.round(ago / 7)} weeks ago`;
 }
 
+const ORDINAL_SUFFIXES = ['th', 'st', 'nd', 'rd'];
+
+/** 1 → "1st", 2 → "2nd", 11 → "11th", 23 → "23rd". */
+export function ordinal(n: number): string {
+  const rem = n % 100;
+  const suffix =
+    ORDINAL_SUFFIXES[(rem - 20) % 10] ?? ORDINAL_SUFFIXES[rem] ?? ORDINAL_SUFFIXES[0];
+  return `${n}${suffix}`;
+}
+
 /** Inclusive list of every day from `from` to `to`. */
 export function eachDay(from: ISODate, to: ISODate): ISODate[] {
   const out: ISODate[] = [];

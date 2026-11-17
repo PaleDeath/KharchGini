@@ -11,7 +11,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Trash2,
-  Wallet,
   X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -19,17 +18,15 @@ import { useMemo, useState } from 'react';
 import {
   addMonthsToKey,
   currentMonth,
-  endOfMonth,
   formatDay,
   formatMonthShort,
   monthOf,
-  startOfMonth,
+  ordinal,
   today as todayISO,
 } from '@/domain/dates';
 import {
   accountBalances,
   byId,
-  entriesBetween,
   entriesInMonth,
   primaryCreditCards,
   addOnCards,
@@ -57,7 +54,7 @@ import { PayBillSheet } from '@/components/account/pay-bill-sheet';
 import { EntryRow } from '@/components/entry/entry-row';
 import { EntrySheet } from '@/components/entry/entry-sheet';
 import { Button } from '@/components/ui/button';
-import { Card, Empty, Section } from '@/components/ui/card';
+import { Card, Section } from '@/components/ui/card';
 import { Input, Segmented } from '@/components/ui/input';
 import { Badge, Money } from '@/components/ui/money';
 import { useToast } from '@/components/ui/toast';
@@ -711,7 +708,7 @@ export default function MoneyPage() {
 
                       {card.billingDueDay ? (
                         <p className="text-[11px] text-faint mt-0.5">
-                          Bill Due: {card.billingDueDay}th of every month
+                          Bill Due: {ordinal(card.billingDueDay)} of every month
                         </p>
                       ) : null}
                     </div>
@@ -992,7 +989,7 @@ export default function MoneyPage() {
       {selectionMode && selectedIds.size > 0 ? (
         <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3.5 rounded-2xl border border-line bg-surface/95 backdrop-blur-xl px-4 py-2.5 shadow-2xl animate-pop-in">
           <span className="text-sm font-bold text-ink whitespace-nowrap">
-            {selectedIds.size} {selectedIds.size === 1 ? 'selected' : 'selected'}
+            {selectedIds.size} selected
           </span>
           <div className="h-4 w-px bg-line" />
           <Button

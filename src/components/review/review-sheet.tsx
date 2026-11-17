@@ -10,7 +10,7 @@ import type { ReviewItem } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CategoryPicker } from '@/components/category/category-picker-modal';
-import { Money, Badge } from '@/components/ui/money';
+import { Money } from '@/components/ui/money';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useLedger } from '@/lib/store';
@@ -42,7 +42,6 @@ export function ReviewSheet({ open, onClose }: { open: boolean; onClose: () => v
 
   const items = useMemo(() => reviewItems(ledger, day), [ledger, day]);
   const remaining = items.filter((item) => !resolved.has(item.id));
-  const categories = useMemo(() => byId(ledger.categories), [ledger.categories]);
   const spendableCategories = useMemo(
     () => ledger.categories.filter((c) => !c.archived && c.kind !== 'income'),
     [ledger.categories],

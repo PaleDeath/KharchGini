@@ -1,31 +1,17 @@
 'use client';
 
 import {
-  ArrowRight,
   Briefcase,
-  Calculator,
-  Calendar,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Clock,
   Flame,
-  HelpCircle,
-  Info,
-  Layers,
-  PiggyBank,
-  Plane,
-  Plus,
-  RefreshCw,
   Sliders,
   Sparkles,
   Target,
-  TrendingDown,
-  TrendingUp,
   TriangleAlert,
-  Wand2,
   Zap,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -42,7 +28,6 @@ import {
 } from '@/domain/simulator';
 import { Badge, Money } from '@/components/ui/money';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { Field, Input, Segmented } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
@@ -131,7 +116,20 @@ const SIM_TYPES: { value: SimulationType; label: string }[] = [
   { value: 'goal_boost', label: '🚀 Boost Existing' },
 ];
 
-export function SimulatorSheet({
+/**
+ * Every ledger change re-runs the whole simulation (two Safe to Spend passes
+ * and two 60-day projections), and this sheet sits on two pages. Nothing is
+ * mounted — or computed — until it is opened for the first time; after that it
+ * stays mounted, which keeps the form state and the closing animation.
+ */
+export function SimulatorSheet(props: { open: boolean; onClose: () => void }) {
+  const [everOpened, setEverOpened] = useState(false);
+  if (props.open && !everOpened) setEverOpened(true);
+  if (!everOpened) return null;
+  return <SimulatorSheetBody {...props} />;
+}
+
+function SimulatorSheetBody({
   open,
   onClose,
 }: {

@@ -37,7 +37,7 @@ const ToastContext = createContext<ToastValue | null>(null);
 
 const DURATION = 4500;
 /** Must match the `toast-out` animation in tailwind.config.ts. */
-const EXIT = 200;
+const EXIT = 160;
 
 const ICONS: Record<Tone, ReactNode> = {
   good: <Check className="h-4 w-4 text-good" />,

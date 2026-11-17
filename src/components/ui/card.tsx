@@ -17,34 +17,6 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   },
 );
 
-export function CardHeader({
-  title,
-  subtitle,
-  action,
-  className,
-}: {
-  title: ReactNode;
-  subtitle?: ReactNode;
-  action?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn('flex items-start justify-between gap-3 px-4 pt-3.5', className)}>
-      <div className="min-w-0">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
-          {title}
-        </h2>
-        {subtitle ? <p className="mt-0.5 text-xs text-muted">{subtitle}</p> : null}
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  );
-}
-
-export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-4', className)} {...props} />;
-}
-
 /** A hairline between rows inside a card. Lists read better than boxes-in-boxes. */
 export function Divider({ className }: { className?: string }) {
   return <div className={cn('h-px bg-line/50', className)} />;
